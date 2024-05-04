@@ -1,0 +1,11 @@
+[package]
+name = "rust"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+git2 = { version = "0.18.3", features=  ["vendored-openssl"]}
+jni = "0.21.1"

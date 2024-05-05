@@ -8,7 +8,6 @@ espressoCore = "3.5.1"
 lifecycleRuntimeKtx = "2.6.1"
 activityCompose = "1.8.0"
 composeBom = "2023.08.00"
-android-rust = "0.3.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -29,5 +28,7 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-android-rust = { id = "io.github.MatrixDev.android-rust", version.ref = "android-rust" }
+#android-rust = { id = "io.github.MatrixDev.android-rust", version = "0.3.2" }
+#android-rust = { id = "org.mozilla.rust-android-gradle.rust-android", version= "0.9.4" }
+android-rust = { id = "com.github.willir.rust.cargo-ndk-android", version= "0.3.4" }
 

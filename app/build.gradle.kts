@@ -51,10 +51,8 @@ android {
     }
 }
 
-androidRust {
-    module("library") {
-        path = file("src/rust")
-    }
+cargoNdk {
+    targets = arrayListOf("x86_64")
 }
 
 dependencies {

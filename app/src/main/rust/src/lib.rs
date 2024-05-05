@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use git2::{CertificateCheckStatus, RemoteCallbacks};
+// use git2::{CertificateCheckStatus, RemoteCallbacks};
 use jni::{
     objects::{JClass, JString},
     sys::jstring,
@@ -16,7 +16,7 @@ pub fn add(left: usize, right: usize) -> usize {
 #[macro_use]
 extern crate log;
 
-// extern crate android_logger;
+extern crate android_logger;
 
 #[no_mangle]
 extern "C" fn Java_bilabila_gamebot_host_MainActivity_test(
@@ -24,26 +24,27 @@ extern "C" fn Java_bilabila_gamebot_host_MainActivity_test(
     class: JClass,
     input: JString,
 ) -> jstring {
+
     // let subscriber = Registry::default();
     // use tracing_subscriber::layer::SubscriberExt;
     // let subscriber = subscriber.with(tracing_android::layer("com.example").unwrap());
     // tracing::subscriber::set_global_default(subscriber).unwrap();
-    
-    // android_logger::init_once(
-    //     android_logger::Config::default()
-    //         .with_max_level(log::LevelFilter::Trace)
-    //         .with_tag("mytag")
-    //         .with_filter(
-    //             android_logger::FilterBuilder::new()
-    //                 .parse("debug,hello::crate=trace")
-    //                 .build(),
-    //         ),
-    // );
+
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_max_level(log::LevelFilter::Trace)
+            .with_tag("mytag")
+            .with_filter(
+                android_logger::FilterBuilder::new()
+                    .parse("debug,hello::crate=trace")
+                    .build(),
+            ),
+    );
 
     std::env::set_var("SSL_CERT_DIR", "/system/etc/security/cacerts");
 
     fn f(input: String) -> Result<String, Box<dyn Error>> {
-        error!("dddddddd");
+        // error!("dddddddd");
         let url = "https://github.com/alexcrichton/git2-rs";
         // unsafe {
         //     // let _ = git2::opts::set_ssl_cert_dir("/system/etc/security/cacerts");
@@ -62,7 +63,6 @@ extern "C" fn Java_bilabila_gamebot_host_MainActivity_test(
         // let repo = builder.clone(url, input.as_ref())?;
         // let ans = repo.path().to_str().unwrap().to_string();
 
-
         // let repo = match Repository::clone(url, input) {
         //     Ok(repo) => repo,
         //     Err(e) => return Err(Box::new(e)),
@@ -73,6 +73,33 @@ extern "C" fn Java_bilabila_gamebot_host_MainActivity_test(
         // let ans = String::from("1");
         Ok(ans)
     }
+
+    use mlua::prelude::*;
+
+    fn main() -> LuaResult<String> {
+        let lua = Lua::new();
+
+        let map_table = lua.create_table()?;
+        map_table.set(1, "one")?;
+        map_table.set("two", 2)?;
+
+        lua.globals().set("map_table", map_table)?;
+
+        lua.load("for k,v in pairs(map_table) do print(k,v) end")
+            .exec()?;
+        let x = lua.load("1 + 1").eval::<i32>()?;
+        let x = lua.load(r#"
+--!strict
+f = function(a: number) : number
+    return a+1
+end
+return f(100)
+        "#).eval::<i32>()?;
+
+        Ok(x.to_string())
+    }
+    let x = main();
+    error!("{:?}", x);
 
     let path = String::from(env.get_string(&input).unwrap());
     let out = format!("{:?}", f(path));

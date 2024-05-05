@@ -1,7 +1,11 @@
+import java.util.Locale
+import kotlin.io.path.Path
+import kotlin.io.path.absolutePathString
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
-    alias(libs.plugins.android.rust)
+//    alias(libs.plugins.android.rust)
 }
 
 android {
@@ -29,6 +33,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -51,9 +56,54 @@ android {
     }
 }
 
-cargoNdk {
-    targets = arrayListOf("x86_64")
+
+androidComponents.onVariants { variant ->
+    val target = if (variant.buildType == "release") {
+        listOf("x86_64", "arm64-v8a")
+    } else {
+        listOf("x86_64")
+    }
+    val source = Path(projectDir.absolutePath, "src", "main", "rust")
+
+    val cmd = mutableListOf("cargo", "ndk").apply {
+        add("-o")
+        add(Path(projectDir.absolutePath, "src", "main", "jniLibs").absolutePathString())
+        add("-p")
+        add(android.defaultConfig.minSdkVersion!!.apiLevel.toString())
+        target.forEach {
+            add("-t")
+            add(it)
+        }
+
+        add("build")
+        if (variant.buildType == "release") {
+            add("--release")
+        }
+    }
+
+//    logger.error(cmd.toString())
+
+    val variantName =
+        variant.name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    val cargoTask = task<Exec>("cargo${variantName}") {
+        workingDir(source)
+        commandLine(cmd)
+        environment.remove("E")
+        environment.remove("O")
+    }
+
+    project.afterEvaluate {
+        val mergeTask = project.tasks.getByName("merge${variantName}JniLibFolders")
+        mergeTask.dependsOn(cargoTask)
+    }
 }
+//cargoNdk {
+//    targets = arrayListOf("x86_64","x86")
+//}
+//tasks.preBuild
+//tasks.whenTaskAdded { task ->
+//
+//}
 
 dependencies {
     implementation(libs.androidx.core.ktx)

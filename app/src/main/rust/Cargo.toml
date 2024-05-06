@@ -16,7 +16,10 @@ log = "0.4.21"
 # mlua = { version = "0.9.7", features = ["luau"] }
 # mlua = { version = "0.9.7", features = ["luau-jit"] }
 # mlua = { version = "0.9.7", features = ["lua54", "vendored"] }
-mlua = { version = "0.9.7", features = ["luajit", "vendored"] }
+# mlua = { version = "0.9.7", features = ["luajit", "vendored"] }
+# wasmer = { version = "4.2.8" }
+wasmer = { version = "4.2.8", default-features= false, features = ["wasmer-compiler-llvm"] }
+wasmer-compiler-llvm = "4.2.8"
 
 # tracing = "0.1.40"
 # tracing-android = "0.2.0"

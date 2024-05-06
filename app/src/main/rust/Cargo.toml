@@ -8,9 +8,12 @@ crate-type = ["cdylib"]
 
 [dependencies]
 android_logger = "0.13.3"
+# boa_engine = "0.18.0"
 # git2 = { version = "0.18.3", features=  ["vendored-openssl"]}
 jni = "0.21.1"
 log = "0.4.21"
+wasmtime = "20.0.1"
+# rustpython-vm = "0.3.1"
 # reqwest = { version = "0.12.4", features = ["blocking", "native-tls-vendored"] }
 # reqwest = { version = "0.12.4", default-features=false, features = ["blocking", "rustls-tls", "http2","charset"] }
 # mlua = { version = "0.9.7", features = ["luau"] }
@@ -18,8 +21,8 @@ log = "0.4.21"
 # mlua = { version = "0.9.7", features = ["lua54", "vendored"] }
 # mlua = { version = "0.9.7", features = ["luajit", "vendored"] }
 # wasmer = { version = "4.2.8" }
-wasmer = { version = "4.2.8", default-features= false, features = ["wasmer-compiler-llvm"] }
-wasmer-compiler-llvm = "4.2.8"
+# wasmer = { version = "4.2.8", default-features= false, features = ["wasmer-compiler-llvm"] }
+# wasmer-compiler-llvm = "4.2.8"
 
 # tracing = "0.1.40"
 # tracing-android = "0.2.0"

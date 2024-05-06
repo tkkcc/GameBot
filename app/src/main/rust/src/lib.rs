@@ -6,6 +6,7 @@ use jni::{
     sys::jstring,
     JNIEnv,
 };
+use wasmtime::{Caller, Engine, Linker, Module, Store};
 // use tracing::{debug, error, Subscriber};
 // use tracing_subscriber::Registry;
 
@@ -111,7 +112,7 @@ extern "C" fn Java_bilabila_gamebot_host_MainActivity_test(
     //     i32.add))
     // "#;
     //
-    //     let mut store = Store::default();
+    // let mut store = Store::default();
     //     let module = Module::new(&store, &module_wat)?;
     //     // The module doesn't import anything, so we create an empty import object.
     //     let import_object = imports! {};
@@ -123,57 +124,95 @@ extern "C" fn Java_bilabila_gamebot_host_MainActivity_test(
     //
     //     Ok(())
     // }
+    // use rustpython_vm as vm;
+    //
+    // error!("127");
+    // fn main() -> vm::PyResult<()> {
+    //     vm::Interpreter::without_stdlib(Default::default()).enter(|vm| {
+    //         let scope = vm.new_scope_with_builtins();
+    //         let source = r#"print("Hello World!")"#;
+    //         let code_obj = vm
+    //             .compile(source, vm::compiler::Mode::Exec, "<embedded>".to_owned())
+    //             .map_err(|err| vm.new_syntax_error(&err, Some(source)))?;
+    //
+    //         vm.run_code_obj(code_obj, scope)?;
+    //
+    //         Ok(())
+    //     })
+    // }
+    // let x = main();
+    //
+    // error!("128{x:?}");
 
-    use wasmer::{imports, wat2wasm, Instance, Module, Store, Value};
-    use wasmer_compiler_llvm::LLVM;
+    //   use boa_engine::{Context, JsResult, Source};
+    //
+    //   fn main() -> JsResult<()> {
+    //       let js_code = r#"
+    //     let two = 1 + 1;
+    //     let definitely_not_four = two + "2";
+    //
+    //     definitely_not_four
+    // "#;
+    //
+    //       // Instantiate the execution context
+    //       let mut context = Context::default();
+    //
+    //       // Parse the source code
+    //       let result = context.eval(Source::from_bytes(js_code))?;
+    //
+    //       println!("{}", result.display());
+    //
+    //       Ok(())
+    //   }
+    //   let x = main();
+    //
+    //   error!("128{x:?}");
 
-    fn main() -> Result<(), Box<dyn std::error::Error>> {
-        // Let's declare the Wasm module with the text representation.
-        let wasm_bytes = wat2wasm(
-            r#"
-(module
-  (type $sum_t (func (param i32 i32) (result i32)))
-  (func $sum_f (type $sum_t) (param $x i32) (param $y i32) (result i32)
-    local.get $x
-    local.get $y
-    i32.add)
-  (export "sum" (func $sum_f)))
-"#
-            .as_bytes(),
+    fn main() -> wasmtime::Result<()> {
+        let engine = Engine::default();
+
+        // Modules can be compiled through either the text or binary format
+        let wat = r#"
+        (module
+            (import "host" "host_func" (func $host_hello (param i32)))
+
+            (func (export "hello")
+                i32.const 3
+                call $host_hello)
+        )
+    "#;
+        let module = Module::new(&engine, wat)?;
+
+        // Host functionality can be arbitrary Rust functions and is provided
+        // to guests through a `Linker`.
+        let mut linker = Linker::new(&engine);
+        linker.func_wrap(
+            "host",
+            "host_func",
+            |caller: Caller<'_, u32>, param: i32| {
+                println!("Got {} from WebAssembly", param);
+                println!("my host state is: {}", caller.data());
+            },
         )?;
 
-        // Use LLVM compiler with the default settings
-        let compiler = LLVM::default();
+        // All wasm objects operate within the context of a "store". Each
+        // `Store` has a type parameter to store host-specific data, which in
+        // this case we're using `4` for.
+        let mut store: Store<u32> = Store::new(&engine, 4);
 
-        // Create the store
-        let mut store = Store::new(compiler);
+        // Instantiation of a module requires specifying its imports and then
+        // afterwards we can fetch exports by name, as well as asserting the
+        // type signature of the function with `get_typed_func`.
+        let instance = linker.instantiate(&mut store, &module)?;
+        let hello = instance.get_typed_func::<(), ()>(&mut store, "hello")?;
 
-        println!("Compiling module...");
-        // Let's compile the Wasm module.
-        let module = Module::new(&store, wasm_bytes)?;
-
-        // Create an empty import object.
-        let import_object = imports! {};
-
-        println!("Instantiating module...");
-        // Let's instantiate the Wasm module.
-        let instance = Instance::new(&mut store, &module, &import_object)?;
-
-        let sum = instance.exports.get_function("sum")?;
-
-        println!("Calling `sum` function...");
-        // Let's call the `sum` exported function. The parameters are a
-        // slice of `Value`s. The results are a boxed slice of `Value`s.
-        let results = sum.call(&mut store, &[Value::I32(1), Value::I32(2)])?;
-
-        println!("Results: {:?}", results);
-        assert_eq!(results.to_vec(), vec![Value::I32(3)]);
+        // And finally we can call the wasm!
+        hello.call(&mut store, ())?;
 
         Ok(())
     }
-
     let x = main();
-    error!("128{x:?}");
+    error!("{x:?}");
 
     let path = String::from(env.get_string(&input).unwrap());
     let out = format!("{:?}", f(path));

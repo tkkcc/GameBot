@@ -13,10 +13,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import bilabila.gamebot.host.ui.theme.GameBotTheme
+import java.io.File
 import kotlin.concurrent.thread
-import kotlin.io.path.Path
-import kotlin.io.path.createDirectories
-import kotlin.io.path.pathString
+
 
 class MainActivity : ComponentActivity() {
     init {
@@ -28,10 +27,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val path = Path(cacheDir.absolutePath, "repo")
-        path.createDirectories()
+        val path = File(cacheDir, "repo")
+        path.mkdirs()
         thread {
-            val out = test(path.pathString)
+            val out = test(path.absolutePath)
             Log.e("",out)
         }
         setContent {

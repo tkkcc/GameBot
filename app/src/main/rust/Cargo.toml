@@ -12,7 +12,7 @@ android_logger = "0.13.3"
 # git2 = { version = "0.18.3", features=  ["vendored-openssl"]}
 jni = "0.21.1"
 log = "0.4.21"
-wasmtime = "20.0.1"
+# wasmtime = "20.0.1"
 # rustpython-vm = "0.3.1"
 # reqwest = { version = "0.12.4", features = ["blocking", "native-tls-vendored"] }
 # reqwest = { version = "0.12.4", default-features=false, features = ["blocking", "rustls-tls", "http2","charset"] }

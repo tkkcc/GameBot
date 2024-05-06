@@ -37,6 +37,8 @@ android {
         }
     }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -60,7 +62,8 @@ android {
 androidComponents.onVariants { variant ->
     val target = if (variant.buildType == "release") {
 //        listOf("x86_64", "arm64-v8a")
-        listOf("x86_64")
+        listOf("x86_64", "x86")
+//        listOf("x86_64", "x86", "armeabi-v7a")
     } else {
         listOf("x86_64")
     }
@@ -107,6 +110,8 @@ androidComponents.onVariants { variant ->
 //}
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar)
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

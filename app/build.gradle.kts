@@ -11,7 +11,7 @@ plugins {
 android {
     namespace = "bilabila.gamebot.host"
     compileSdk = 34
-    ndkVersion = "26.3.11579264"
+//    ndkVersion = "26.3.11579264"
 
     defaultConfig {
         applicationId = "bilabila.gamebot.host"
@@ -37,7 +37,7 @@ android {
         }
     }
     compileOptions {
-        isCoreLibraryDesugaringEnabled = true
+//        isCoreLibraryDesugaringEnabled = true
 
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
@@ -53,7 +53,7 @@ android {
     }
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/{AL2.0,LGPL2.1,DEPENDENCIES}"
         }
     }
 }
@@ -65,7 +65,7 @@ androidComponents.onVariants { variant ->
         listOf("x86_64", "x86")
 //        listOf("x86_64", "x86", "armeabi-v7a")
     } else {
-        listOf("x86_64")
+        listOf("x86")
     }
     val source = Path(projectDir.absolutePath, "src", "main", "rust")
 
@@ -111,7 +111,7 @@ androidComponents.onVariants { variant ->
 
 dependencies {
     coreLibraryDesugaring(libs.desugar)
-
+    implementation(libs.jgit)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

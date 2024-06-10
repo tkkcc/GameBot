@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
 //    alias(libs.plugins.android.rust)
+    alias(libs.plugins.compose.compiler)
 }
 
 android {
@@ -29,6 +30,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -38,18 +40,11 @@ android {
     }
     compileOptions {
 //        isCoreLibraryDesugaringEnabled = true
-
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
     kotlinOptions {
         jvmTarget = "1.8"
-    }
-    buildFeatures {
-        compose = true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
     }
     packaging {
         resources {
@@ -57,17 +52,19 @@ android {
         }
     }
 }
-
+composeCompiler {
+    enableStrongSkippingMode = true
+}
 
 androidComponents.onVariants { variant ->
     val target = if (variant.buildType == "release") {
 //        listOf("x86_64", "arm64-v8a")
-        listOf("x86_64", "x86")
-//        listOf("x86_64", "x86", "armeabi-v7a")
+        listOf("x86_64")
     } else {
-        listOf("x86")
+        listOf("x86_64")
     }
     val source = Path(projectDir.absolutePath, "src", "main", "rust")
+
 
     val cmd = mutableListOf("cargo", "ndk").apply {
         add("-o")
@@ -79,21 +76,18 @@ androidComponents.onVariants { variant ->
             add(it)
         }
 
+
         add("build")
         if (variant.buildType == "release") {
             add("--release")
         }
     }
 
-//    logger.error(cmd.toString())
-
     val variantName =
         variant.name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
     val cargoTask = task<Exec>("cargo${variantName}") {
         workingDir(source)
         commandLine(cmd)
-        environment.remove("E")
-        environment.remove("O")
     }
 
     project.afterEvaluate {
@@ -101,13 +95,6 @@ androidComponents.onVariants { variant ->
         mergeTask.dependsOn(cargoTask)
     }
 }
-//cargoNdk {
-//    targets = arrayListOf("x86_64","x86")
-//}
-//tasks.preBuild
-//tasks.whenTaskAdded { task ->
-//
-//}
 
 dependencies {
     coreLibraryDesugaring(libs.desugar)

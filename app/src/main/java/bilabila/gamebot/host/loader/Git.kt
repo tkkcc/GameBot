@@ -26,10 +26,10 @@ object Git {
         count
     }
 
-    fun gc(path: String): Result<Unit> = runCatching {
-        val repo = Git.open(File(path))
-        repo.gc().call()
-    }
+//    fun gc(path: String): Result<Unit> = runCatching {
+//        val repo = Git.open(File(path))
+//        repo.gc().call()
+//    }
 
     fun pull(path: String): Result<Unit> = runCatching {
         val repo = Git.open(File(path))

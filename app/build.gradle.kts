@@ -6,7 +6,12 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
 //    alias(libs.plugins.android.rust)
+    alias(libs.plugins.serialization)
+
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.ksp)
+
+    id("dev.rikka.tools.refine")
 }
 
 android {
@@ -38,6 +43,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+    buildFeatures {
+        aidl=true
+        buildConfig=true
+    }
     compileOptions {
 //        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -48,13 +57,36 @@ android {
     }
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1,DEPENDENCIES}"
+            excludes += "/META-INF/{AL2.0,LGPL2.1,DEPENDENCIES,INDEX.LIST}"
+            excludes += "/META-INF/io.netty.versions.properties"
+
         }
     }
 }
 composeCompiler {
     enableStrongSkippingMode = true
 }
+
+class RoomSchemaArgProvider(
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    val schemaDir: File
+) : CommandLineArgumentProvider {
+
+    init {
+        schemaDir.mkdirs()
+    }
+
+    override fun asArguments(): Iterable<String> {
+        return listOf("room.schemaLocation=${schemaDir.path}")
+    }
+}
+
+// For KSP, configure using KSP extension:
+ksp {
+    arg(RoomSchemaArgProvider(File(projectDir, "schemas")))
+}
+
 
 androidComponents.onVariants { variant ->
     val target = if (variant.buildType == "release") {
@@ -96,6 +128,8 @@ androidComponents.onVariants { variant ->
     }
 }
 
+
+
 dependencies {
     coreLibraryDesugaring(libs.desugar)
     implementation(libs.jgit)
@@ -114,4 +148,29 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.negotiation)
+    implementation(libs.ktor.server.json)
+    implementation(libs.lyricist)
+//    ksp(libs.lyricist.processor)
+    implementation(libs.shizuku)
+    implementation(libs.shizuku.provider)
+    implementation(libs.refine)
+    compileOnly(project(":hidden"))
+    implementation(libs.rootCore)
+    implementation(libs.rootService)
+    implementation("com.jakewharton.threetenabp:threetenabp:1.4.6")
+    implementation(libs.serialization.json)
+    implementation(libs.compose.navigation)
+    implementation(libs.compose.material3)
+    implementation(libs.compose.material.icons.extended)
+    implementation(libs.room.runtime)
+
+    ksp(libs.room.compiler)
+    implementation(libs.room.ktx)
+    implementation(libs.appcompat)
+
 }

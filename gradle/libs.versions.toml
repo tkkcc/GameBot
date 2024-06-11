@@ -13,7 +13,24 @@ composeBom = "2024.05.00"
 #jgit = 	"5.13.3.202401111512-r" # not support android 7.0 w/wo desugar
 #jgit = 	"4.11.9.201909030838-r" # not support android 7.0 w/wo desugar
 jgit = 	"3.7.1.201504261725-r"
-
+refine = "4.3.0"
+shizuku = "13.1.4"
+libsuVersion = "5.2.2"
+ktor = "2.3.6"
+hilt = "2.46.1"
+room = "2.6.1"
+ksp = "2.0.0-1.0.22"
+compose-wheelpicker = "1.1.11"
+datetime = "0.4.0"
+lyricist = "1.4.2"
+serialization-json = "1.6.0"
+appcompat = "1.7.0"
+material = "1.12.0"
+compose-bom-alpha = "2023.10.00-alpha01"
+compose-navigation = "2.7.7"
+compose-lifecycle = "2.8.1"
+compose-activity = "1.9.0"
+compose-navigation-hilt = "1.2.0"
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 desugar = { module = "com.android.tools:desugar_jdk_libs_nio", version.ref = "desugar" }
@@ -31,6 +48,52 @@ androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-man
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 jgit = { group = "org.eclipse.jgit", name = "org.eclipse.jgit", version.ref = "jgit" }
+refine = { module = "dev.rikka.tools.refine:runtime", version.ref = "refine" }
+refine-annotation-processor = { module = "dev.rikka.tools.refine:annotation-processor", version.ref = "refine" }
+refine-annotation = { module = "dev.rikka.tools.refine:annotation", version.ref = "refine" }
+shizuku-provider = { module = "dev.rikka.shizuku:provider", version.ref = "shizuku" }
+shizuku = { module = "dev.rikka.shizuku:api", version.ref = "shizuku" }
+serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization-json" }
+
+ktor-server-core = { group = "io.ktor", name = "ktor-server-core", version.ref = "ktor" }
+ktor-server-netty = { group = "io.ktor", name = "ktor-server-netty", version.ref = "ktor" }
+ktor-server-negotiation = { group = "io.ktor", name = "ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-server-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+lyricist = { module = "cafe.adriel.lyricist:lyricist", version.ref = "lyricist" }
+lyricist-processor = { module = "cafe.adriel.lyricist:lyricist-processor", version.ref = "lyricist" }
+room-common = { group = "androidx.room", name = "room-common", version.ref = "room" }
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+compose-wheelpicker = { module = "com.github.commandiron:WheelPickerCompose", version.ref = "compose-wheelpicker" }
+datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "datetime" }
+rootCore = { module = "com.github.topjohnwu.libsu:core", version.ref = "libsuVersion" }
+rootNio = { module = "com.github.topjohnwu.libsu:nio", version.ref = "libsuVersion" }
+rootService = { module = "com.github.topjohnwu.libsu:service", version.ref = "libsuVersion" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+compose-bom-alpha = { group = "dev.chrisbanes.compose", name = "compose-bom", version.ref = "compose-bom-alpha" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+compose-material3-window = { group = "androidx.compose.material3", name = "material3-window-size-class" }
+compose-material = { group = "androidx.compose.material", name = "material" }
+compose-material-icons = { group = "androidx.compose.material", name = "material-icons-core" }
+compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout" }
+compose-ui = { group = "androidx.compose.ui", name = "ui" }
+compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
+compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "compose-activity" }
+compose-lifecycle = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "compose-lifecycle" }
+compose-lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "compose-lifecycle" }
+compose-lifecycle-runtime = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "compose-lifecycle" }
+compose-lifecycle-runtime2 = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "compose-lifecycle" }
+compose-navigation = { group = "androidx.navigation", name = "navigation-compose", version.ref = "compose-navigation" }
+hilt = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+compose-navigation-hilt = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "compose-navigation-hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -40,3 +103,8 @@ jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = 
 #android-rust = { id = "com.github.willir.rust.cargo-ndk-android", version= "0.3.4" }
 
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+android-library = { id = "com.android.library", version.ref="agp" }

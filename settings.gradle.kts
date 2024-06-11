@@ -16,9 +16,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://jitpack.io")
     }
 }
 
 rootProject.name = "GameBot"
 include(":app")
- 
+include(":hidden")
+//project(":hidden").projectDir = file("../hidden")

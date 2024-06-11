@@ -4,4 +4,13 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android) apply false
 //    alias(libs.plugins.android.rust) apply false
     alias(libs.plugins.compose.compiler) apply false
+    alias(libs.plugins.android.library) apply false
+
+    alias(libs.plugins.serialization) apply false
+    alias(libs.plugins.hilt) apply false
+    alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.kapt) apply false
+
+    id("dev.rikka.tools.refine") version "4.3.0" apply false
+
 }

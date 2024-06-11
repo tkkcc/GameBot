@@ -1,5 +1,6 @@
 package bilabila.gamebot.host.loader
 
+import android.app.Activity
 import android.content.Context
 import android.util.Log
 import org.eclipse.jgit.api.Git
@@ -46,5 +47,32 @@ object Git {
 //            .setCheckFetchedObjects(true).setRemoveDeletedRefs(true).call()
 //        repo.reset().setMode(ResetCommand.ResetType.HARD)
 //            .setRef("refs/remotes/origin/" + branch).call()
+    }
+
+    // clone or pull
+    fun fetch(
+        context: Activity,
+        repo: String,
+        branch: String,
+        path: String,
+    ): Result<Unit> = runCatching {
+        // clone or fetch
+        val key = "repo_cloned_$path"
+
+
+        // if cloned, fetch and reset
+        if (SaveLoadString.load(context, key) == "true") {
+           pull( path).getOrThrow()
+            return Result.success(Unit)
+        }
+        // if not cloned, clone
+        clone(repo, branch, path).getOrThrow()
+        SaveLoadString.save(context, key, "true")
+
+        // no way to gc in jgit or git2
+        // reinit after X old commit
+        if (count(path).getOrThrow() > 50) {
+            SaveLoadString.save(context, key, "")
+        }
     }
 }

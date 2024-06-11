@@ -19,7 +19,7 @@ interface IWindowManager {
     void clearForcedDisplayDensityForUser(int displayId, int userId);
     void setForcedDisplayScalingMode(int displayId, int mode); // 0 = auto, 1 = disable
 
-        int getDefaultDisplayRotation();
+    int getDefaultDisplayRotation();
     int getRotation();
 
 }

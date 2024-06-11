@@ -20,7 +20,7 @@ extern crate log;
 extern crate android_logger;
 
 #[no_mangle]
-extern "C" fn Java_bilabila_gamebot_host_MainActivity_test(
+extern "C" fn Java_gamebot_host_MainActivity_test(
     mut env: JNIEnv,
     class: JClass,
     input: JString,

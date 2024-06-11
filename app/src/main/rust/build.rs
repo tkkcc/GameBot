@@ -10,7 +10,7 @@ fn main() {
 }
 
 fn android() {
-    env::remove_var("E");
+    // env::remove_var("E");
 
     // for k in env::vars() {
     //     println!("{k:?}");

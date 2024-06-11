@@ -15,12 +15,12 @@ plugins {
 }
 
 android {
-    namespace = "bilabila.gamebot.host"
+    namespace = "gamebot.host"
     compileSdk = 34
 //    ndkVersion = "26.3.11579264"
 
     defaultConfig {
-        applicationId = "bilabila.gamebot.host"
+        applicationId = "gamebot.host"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
@@ -44,8 +44,8 @@ android {
         }
     }
     buildFeatures {
-        aidl=true
-        buildConfig=true
+        aidl = true
+        buildConfig = true
     }
     compileOptions {
 //        isCoreLibraryDesugaringEnabled = true

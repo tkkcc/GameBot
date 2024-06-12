@@ -166,14 +166,13 @@ class LocalRun(
                         val userServiceArgs = UserServiceArgs(
                             ComponentName(
                                 BuildConfig.APPLICATION_ID,
-//                                BuildConfig.LIBRARY_PACKAGE_NAME.replace(".task", ".host"),
                                 shizukiServiceClass.getName()
                             )
                         )
                             .daemon(false)
                             .processNameSuffix("service")
                             .debuggable(BuildConfig.DEBUG)
-                            .version(1)
+                            .version(BuildConfig.VERSION_CODE)
 
                         Shizuku.bindUserService(userServiceArgs, connection)
                     }

@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -18,16 +19,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ipc.RootService
 import gamebot.host.LocalRun.Companion.TAG
-import gamebot.host.loader.GameKeeperShizukuService
 import gamebot.host.loader.Git
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import rikka.shizuku.Shizuku
+import rikka.shizuku.Shizuku.OnRequestPermissionResultListener
+import rikka.shizuku.Shizuku.UserServiceArgs
 import java.io.File
 import kotlin.concurrent.thread
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
+import kotlin.reflect.jvm.jvmName
 
 
 class MainActivity : ComponentActivity() {
@@ -51,7 +59,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         // test jni call
-
         val path = File(cacheDir, "repo")
         path.mkdirs()
 
@@ -117,7 +124,7 @@ class MainActivity : ComponentActivity() {
 
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName, service: IBinder) {
-                Log.d(TAG, "RootServiceConnection onConnected")
+                Log.e("137", "RootServiceConnection onConnected")
                 remoteService = IRemoteService.Stub.asInterface(service)
                 remoteService.setLocalRunBinder(localService.asBinder())
                 remoteService.start()
@@ -144,22 +151,61 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
-                Log.d("137", "onServiceDisconnected")
+                Log.e("137", "onServiceDisconnected")
             }
         }
 
-        fun tryRootMode() {
+        fun tryRootMode(): Result<Unit> = runCatching {
+            val shell = Shell.getShell()
+            if (!shell.isRoot) {
+                throw Exception("no root")
+            }
+            val intent = Intent(this@MainActivity, GameBotRootService::class.java)
             runOnUiThread {
-                val intent = Intent(this@MainActivity, GameBotRootService::class.java)
                 RootService.bind(intent, connection)
             }
         }
 
-        tryRootMode()
+        fun tryShizukuMode(): Result<Unit> = runCatching {
+            val grantResult = runBlocking {
+                withContext(Dispatchers.Main) {
+                    suspendCoroutine { continuation ->
+                        Shizuku.addRequestPermissionResultListener(
+                            object : OnRequestPermissionResultListener {
+                                override fun onRequestPermissionResult(
+                                    requestCode: Int,
+                                    grantResult: Int
+                                ) {
+                                    Shizuku.removeRequestPermissionResultListener(this)
+                                    continuation.resume(grantResult)
+                                }
+                            })
+                        Shizuku.requestPermission(0)
+                    }
+                }
+            }
+            if (grantResult != PERMISSION_GRANTED) {
+                throw Exception("no shizuku")
+            }
+            val userServiceArgs = UserServiceArgs(
+                ComponentName(
+                    BuildConfig.APPLICATION_ID,
+                    GameBotService::class.jvmName
+                )
+            )
+                .daemon(false)
+                .processNameSuffix("service")
+                .debuggable(BuildConfig.DEBUG)
+                .version(BuildConfig.VERSION_CODE)
 
+            Shizuku.bindUserService(userServiceArgs, connection)
+        }
+
+
+        tryRootMode().onFailure {
+            tryShizukuMode()
+        }
     }
-
-
 }
 
 

@@ -7,6 +7,7 @@ import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -88,12 +89,15 @@ class MainActivity : ComponentActivity() {
             Text("what1")
         }
         class GameBotService(context: Context) : IRemoteService.Stub() {
+            lateinit var localService: ILocalService
+
             override fun setLocalRunBinder(binder: IBinder?) {
-                TODO("Not yet implemented")
+                localService = ILocalService.Stub.asInterface(binder)
             }
 
             override fun start() {
                 Log.e("137", "start in remote service")
+                localService.toast("ok")
             }
         }
 
@@ -102,13 +106,22 @@ class MainActivity : ComponentActivity() {
             override fun onBind(intent: Intent): IBinder = GameBotService(this)
         }
 
+        class LocalService : ILocalService.Stub() {
+            override fun toast(text: String?) {
+                Toast.makeText(this@MainActivity, text, Toast.LENGTH_SHORT).show()
+            }
+        }
+
         var remoteService: IRemoteService
+        val localService: ILocalService = LocalService()
 
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName, service: IBinder) {
                 Log.d(TAG, "RootServiceConnection onConnected")
                 remoteService = IRemoteService.Stub.asInterface(service)
+                remoteService.setLocalRunBinder(localService.asBinder())
                 remoteService.start()
+
                 // why we use Messenger instead of plain AIDL:
                 // the plugin run is inside RemoteHandler, that is AIDLService
                 // it's needs to control ui via LocalHandler,

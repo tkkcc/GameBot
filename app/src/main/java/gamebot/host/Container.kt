@@ -1,5 +1,4 @@
 
-import android.app.Activity
 import android.content.Context
 import android.util.Log
 import androidx.room.Room
@@ -50,7 +49,7 @@ class Container(val context: Context, val localRun: ILocalRun, val remoteRun: IR
         val repo = runnerInfo.repo
         val branch = "main"
         val path: String = File(context.externalCacheDir, type).absolutePath
-        Git.fetch(context as Activity, repo, branch, path).getOrThrow()
+        Git.cloneOrPull(repo, path,branch).getOrThrow()
 
         val cache = File(context.codeCacheDir, type).also { it.mkdirs() }.absolutePath
 

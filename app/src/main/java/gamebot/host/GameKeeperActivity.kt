@@ -18,12 +18,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import gamebot.host.loader.GameKeeperRootService
 import gamebot.host.loader.GameKeeperShizukuService
 import gamebot.host.loader.Git
-import gamebot.host.loader.SaveLoadString
+import gamebot.host.loader.PrefStore
 import gamebot.host.presentation.showErrorView
 import gamebot.host.presentation.showLoadingView
 import com.topjohnwu.superuser.Shell
 import dalvik.system.DexClassLoader
-import gamebot.host.BuildConfig
 import java.io.File
 import kotlin.concurrent.thread
 
@@ -87,11 +86,11 @@ class GameKeeperActivity : AppCompatActivity() {
     }
 
     fun saveConfig(key: String, value: String) {
-        return SaveLoadString.save(this, key, value)
+        return PrefStore.save(this, key, value)
     }
 
     fun loadConfig(key: String, default: String = ""): String {
-        return SaveLoadString.load(this, key, default)
+        return PrefStore.load(this, key, default)
     }
 
 

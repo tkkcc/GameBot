@@ -1,4 +1,4 @@
-package gamebot.host
+package gamebot.host.loader
 
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
@@ -7,14 +7,16 @@ import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.File
 
-@Serializable
-data class ConfigMap(
-    val data: MutableMap<String, String> = HashMap()
-)
 
+// synchronous datastore on a json file
+// why we don't use datastore: don't need Flow, use async on caller side
 @OptIn(ExperimentalSerializationApi::class)
-class ConfigFile(private val path: String) {
-    var map: ConfigMap = ConfigMap()
+class JsonStore(private val path: String) {
+    @Serializable
+    data class Map(
+        val data: MutableMap<String, String> = HashMap()
+    )
+    var map = Map()
     val file: File = File(path)
 
     init {
@@ -23,14 +25,14 @@ class ConfigFile(private val path: String) {
 
     fun load() {
         if (!file.exists()) return
-        map = Json.decodeFromStream<ConfigMap>(file.inputStream())
+        map = Json.decodeFromStream(file.inputStream())
     }
 
     fun save() {
         if (!file.exists()) {
             file.parentFile?.mkdirs()
         }
-        Json.encodeToStream<ConfigMap>(map, file.outputStream())
+        Json.encodeToStream(map, file.outputStream())
     }
 
     fun get(key: String, default: String = "", reload: Boolean = false): String {
@@ -46,5 +48,4 @@ class ConfigFile(private val path: String) {
             save()
         }
     }
-
 }

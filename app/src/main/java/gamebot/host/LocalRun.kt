@@ -35,9 +35,8 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import gamebot.host.IGameKeeperShizukuService
 import gamebot.host.domain.Runner
-import gamebot.host.loader.SaveLoadString
+import gamebot.host.loader.PrefStore
 import gamebot.host.presentation.NavigationView
 import gamebot.host.presentation.StringView
 import gamebot.host.presentation.ThemeView
@@ -47,7 +46,6 @@ import gamebot.host.presentation.showThemeView
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ipc.RootService
 import dev.rikka.tools.refine.Refine
-import gamebot.host.BuildConfig
 import rikka.shizuku.Shizuku
 import rikka.shizuku.Shizuku.OnRequestPermissionResultListener
 import rikka.shizuku.Shizuku.UserServiceArgs
@@ -122,11 +120,11 @@ class LocalRun(
 
         val LAST_SAVED_MODE_KEY = "lastUsedServiceMode"
         fun loadLastUsedMode(): String {
-            return SaveLoadString.load(activity, LAST_SAVED_MODE_KEY)
+            return PrefStore.load(activity, LAST_SAVED_MODE_KEY)
         }
 
         fun saveLastUsedMode(mode: String) {
-            SaveLoadString.save(activity, LAST_SAVED_MODE_KEY, mode)
+            PrefStore.save(activity, LAST_SAVED_MODE_KEY, mode)
         }
 
 

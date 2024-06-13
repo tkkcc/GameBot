@@ -6,4 +6,5 @@ package gamebot.host;
 interface IRemoteService {
     void setLocalRunBinder(in IBinder binder);
     void start();
+    void destroy();
 }

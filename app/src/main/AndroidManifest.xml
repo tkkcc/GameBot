@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
+
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -12,8 +13,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.GameBot"
+        android:usesCleartextTraffic="true"
         tools:targetApi="34">
         <activity
+            android:configChanges="uiMode|density|orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
+
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.GameBot">

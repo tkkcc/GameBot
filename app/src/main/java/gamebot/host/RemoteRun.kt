@@ -26,6 +26,7 @@ import gamebot.host.debug.DebugServer
 import gamebot.host.domain.Runner
 import dalvik.system.DexClassLoader
 import dev.rikka.tools.refine.Refine
+import gamebot.host.loader.JsonStore
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -80,7 +81,7 @@ class RemoteRun(val context: Context) : IRemoteRun.Stub() {
 
 
     lateinit var mWm: IWindowManager
-    val state = ConfigFile("$ROOT_DIR/state.json")
+    val state = JsonStore("$ROOT_DIR/state.json")
     lateinit var localMessenger: Messenger
 
     fun connectUiAutomation() {

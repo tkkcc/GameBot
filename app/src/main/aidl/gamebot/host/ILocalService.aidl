@@ -9,4 +9,5 @@ interface ILocalService {
      * and return values in AIDL.
      */
     void toast(String text);
+    void test();
 }

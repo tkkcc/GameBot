@@ -175,5 +175,6 @@ dependencies {
     implementation(libs.appcompat)
     implementation(libs.compose.webview)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("com.github.only52607:compose-floating-window:1.0")
 
 }

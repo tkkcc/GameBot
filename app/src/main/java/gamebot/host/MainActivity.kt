@@ -11,6 +11,7 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.graphics.PixelFormat
 import android.graphics.Point
 import android.os.Binder
 import android.os.Build
@@ -20,28 +21,60 @@ import android.os.IBinder
 import android.os.ServiceManager
 import android.os.SystemClock
 import android.util.Log
+import android.view.Gravity
 import android.view.IWindowManager
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.WindowManager
+import android.view.WindowManager.LayoutParams.TYPE_PHONE
+import android.view.WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
 import android.view.accessibility.AccessibilityNodeInfo
-import android.webkit.JavascriptInterface
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.kevinnzou.web.WebView
-import com.kevinnzou.web.rememberWebViewState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.github.only52607.compose.window.ComposeFloatingWindow
+import com.github.only52607.compose.window.dragFloatingWindow
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ipc.RootService
 import dev.rikka.tools.refine.Refine
@@ -74,12 +107,15 @@ class MainActivity : ComponentActivity() {
     }
 
     init {
-        System.loadLibrary("rust")
+//        System.loadLibrary("rust")
         Log.e("", "init")
     }
 
     external fun test(x: String): String
-
+//    override fun onStop() {
+//        super.onStop()
+//        cleanPreviousRemoteService()
+//    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -89,11 +125,11 @@ class MainActivity : ComponentActivity() {
 
             val path = File(cacheDir, "repo")
             path.mkdirs()
-            val out = test(path.absolutePath)
-            Log.e("", out)
+//            val out = test(path.absolutePath)
+//            Log.e("", out)
 
             test()
-            Log.e("", out + "..2")
+//            Log.e("", out + "..2")
 
         }
 
@@ -117,40 +153,84 @@ class MainActivity : ComponentActivity() {
     }
 
 
+    @OptIn(ExperimentalComposeUiApi::class)
     @SuppressLint("SetJavaScriptEnabled")
     private fun test() {
         cleanPreviousRemoteService()
 
 
         runOnUiThread {
-
             setContent {
-                MaterialTheme {
-                    Scaffold(
-                        modifier = Modifier.fillMaxSize(), containerColor = Color.White
-                    ) { innerPadding ->
-                        Column(modifier = Modifier.padding(innerPadding)) {
-                            val state = rememberWebViewState("http://192.168.0.178:8080/")
-
-                            WebView(state, onCreated = {
-                                it.settings.javaScriptEnabled = true
-                                /** Instantiate the interface and set the context.  */
-                                class WebAppInterface(private val mContext: Context) {
-
-                                    /** Show a toast from the web page.  */
-                                    @JavascriptInterface
-                                    fun showToast(toast: String) {
-                                        Toast.makeText(mContext, toast, Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                                it.addJavascriptInterface(
-                                    WebAppInterface(this@MainActivity), "Android"
-                                )
-                            })
-                        }
-                    }
+                var text by remember {
+                    mutableStateOf("bbb")
                 }
+                TextField(text, {
+                    text = it
+                })
             }
+            val floatingWindow = ComposeFloatingWindow(applicationContext)
+            floatingWindow.setContent {
+                var text by remember {
+                    mutableStateOf("aaa")
+                }
+                TextField(text, {
+                    text = it
+                })
+//                FloatingActionButton(
+//                    modifier = Modifier.dragFloatingWindow(),
+//                    onClick = {
+//                        Log.d("", "tap floating button")
+//                    }) {
+//                    Icon(Icons.Filled.Call, "Call")
+//                }
+            }
+//            floatingWindow.show()
+//            setContent {
+//                MaterialTheme {
+//                    Scaffold(
+//                        modifier = Modifier.fillMaxSize(), containerColor = Color.White
+//                    ) { innerPadding ->
+//                        Column(modifier = Modifier.padding(innerPadding)) {
+//                            var text by remember {
+//                                mutableStateOf("text")
+//                            }
+//                            Row(
+//                                verticalAlignment = Alignment.CenterVertically
+//                            ) {
+//                                Text(text = text)
+//                                TextField(value = text, onValueChange = {
+//                                    Log.d("", "value changed to " + it)
+//                                    text = it
+//                                })
+//                                IconButton({
+////                                    toast("button")
+//                                    text += "1"
+//                                }) {
+//                                    Icon(Icons.Default.Android, "back")
+//                                }
+//                            }
+////
+////                            val state = rememberWebViewState("http://192.168.0.178:8080/")
+////
+////                            WebView(state, onCreated = {
+////                                it.settings.javaScriptEnabled = true
+////                                /** Instantiate the interface and set the context.  */
+////                                class WebAppInterface(private val mContext: Context) {
+////
+////                                    /** Show a toast from the web page.  */
+////                                    @JavascriptInterface
+////                                    fun showToast(toast: String) {
+////                                        Toast.makeText(mContext, toast, Toast.LENGTH_SHORT).show()
+////                                    }
+////                                }
+////                                it.addJavascriptInterface(
+////                                    WebAppInterface(this@MainActivity), "Android"
+////                                )
+////                            })
+//                        }
+//                    }
+//                }
+//            }
         }
 
         class RemoteService(val context: Context) : IRemoteService.Stub() {
@@ -224,6 +304,8 @@ class MainActivity : ComponentActivity() {
                 )
                 motionUp.source = InputDevice.SOURCE_TOUCHSCREEN
                 uiAutomation.injectInputEvent(motionUp, true)
+
+                // TODO do i really need this?
                 //Recycle our events back to the system pool.
                 motionUp.recycle()
                 motionDown.recycle()
@@ -402,7 +484,7 @@ class MainActivity : ComponentActivity() {
                     runCatching {
                         while (true) {
                             refreshScreenshot()
-//                    click(100f,100f)
+//                            click(100f, 100f)
                             Thread.sleep(1000)
 //                    break
                         }
@@ -438,18 +520,184 @@ class MainActivity : ComponentActivity() {
                 localService.toast("ok")
                 init()
                 testUIAutomation()
+                localService.test()
             }
         }
 
 
-        class LocalService : ILocalService.Stub() {
+        class LocalService(val context: Context) : ILocalService.Stub() {
             override fun toast(text: String?) {
                 Toast.makeText(this@MainActivity, text, Toast.LENGTH_SHORT).show()
+            }
+
+            override fun test() {
+
+                runOnUiThread {
+
+                    val view = addFloatingView()
+                    return@runOnUiThread
+                    val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+//                        WindowManager.LayoutParams.WRAP_CONTENT,
+//                        WindowManager.LayoutParams.WRAP_CONTENT,
+                        0, 0,
+                        TYPE_PHONE,
+                        0,
+//                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+//                                WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or
+//                                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+//                                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+//                                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+//            0,
+                        PixelFormat.TRANSLUCENT
+                    )
+
+                    fun updatePosition(x: Int, y: Int) {
+                        Log.e("", "updatePos" + x + "x" + y)
+                        params.x = x
+                        params.y = y
+                        windowManager.updateViewLayout(view, params)
+
+//                    view.updateLayoutParams {
+//                        this.width = width
+//                        this.height = height
+//                    }
+                    }
+
+
+
+                    view.setContent {
+                        MaterialTheme {
+                            var offsetX by remember { mutableStateOf(0f) }
+                            var offsetY by remember { mutableStateOf(0f) }
+
+                            Column(
+                                Modifier
+                                    .pointerInput(Unit) {
+                                        detectDragGestures { change, dragAmount ->
+                                            change.consume()
+                                            offsetX += dragAmount.x
+                                            offsetY += dragAmount.y
+//                                            updatePosition(
+//                                                offsetX.roundToInt(),
+//                                                offsetY.roundToInt()
+//                                            )
+                                        }
+                                    }
+                            ) {
+                                var text by remember {
+                                    mutableStateOf("text")
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceAround
+                                ) {
+                                    Text(text = text)
+                                    TextField(value = text, onValueChange = {
+                                        Log.d("", "value changed to " + it)
+                                        text = it
+                                    })
+                                    IconButton({
+                                        toast("button")
+                                        text += "1"
+                                    }) {
+                                        Icon(Icons.Default.Android, "back")
+                                    }
+                                }
+
+                            }
+
+//                        FilledIconButton({
+//                            windowManager.removeView(view)
+//                        }) {
+//                            Icon(Icons.Default.Refresh, "back")
+//                        }
+                        }
+                    }
+                }
+            }
+
+            val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+            fun addFloatingView(
+                gravity: Int = Gravity.BOTTOM or Gravity.START
+            ): ComposeView {
+
+                val layoutFlag: Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+                }
+
+                val params = WindowManager.LayoutParams(
+//                WindowManager.LayoutParams.MATCH_PARENT,
+//                WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    300, 300,
+                    layoutFlag,
+                    0,
+//                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+//                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+//                            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+//                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+//            0,
+                    PixelFormat.TRANSLUCENT
+                )
+//                params.gravity = gravity
+
+
+                class MyLifecycleOwner : SavedStateRegistryOwner {
+                    private var mLifecycleRegistry: LifecycleRegistry = LifecycleRegistry(this)
+                    private var mSavedStateRegistryController: SavedStateRegistryController =
+                        SavedStateRegistryController.create(this)
+
+                    fun handleLifecycleEvent(event: Lifecycle.Event) {
+                        mLifecycleRegistry.handleLifecycleEvent(event)
+                    }
+
+                    fun performRestore(savedState: Bundle?) {
+                        mSavedStateRegistryController.performRestore(savedState)
+                    }
+
+                    override val lifecycle: Lifecycle
+                        get() = mLifecycleRegistry
+                    override val savedStateRegistry: SavedStateRegistry
+                        get() = mSavedStateRegistryController.savedStateRegistry
+                }
+
+                val textView = ComposeView(context).apply {
+                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                }
+
+                val lifecycleOwner = MyLifecycleOwner()
+                lifecycleOwner.performRestore(null)
+                lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+                textView.setViewTreeLifecycleOwner(lifecycleOwner)
+                textView.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+                val viewModelStore = ViewModelStore()
+                val viewModelStoreOwner = object : ViewModelStoreOwner {
+                    override val viewModelStore: ViewModelStore
+                        get() = viewModelStore
+                }
+                textView.setViewTreeViewModelStoreOwner(viewModelStoreOwner)
+                textView.setContent {
+                    var text by remember {
+                        mutableStateOf("a111111")
+                    }
+                    TextField(text, {
+                        text=  it
+                    })
+                }
+                val v = EditText(context)
+                windowManager.addView(textView, params)
+                return textView
             }
         }
 
         var remoteService: IRemoteService
-        val localService: ILocalService = LocalService()
+        val localService: ILocalService = LocalService(this@MainActivity)
 
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName, service: IBinder) {

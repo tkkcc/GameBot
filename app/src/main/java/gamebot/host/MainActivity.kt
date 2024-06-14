@@ -1,5 +1,6 @@
 package gamebot.host
 
+import MyLifecycleOwner
 import android.annotation.SuppressLint
 import android.app.UiAutomation
 import android.app.UiAutomationConnection
@@ -28,12 +29,11 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams.TYPE_PHONE
-import android.view.WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -43,8 +43,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Android
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,9 +57,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleRegistry
@@ -73,13 +71,16 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.github.only52607.compose.window.ComposeFloatingWindow
-import com.github.only52607.compose.window.dragFloatingWindow
+//import com.github.only52607.compose.window.ComposeFloatingWindow
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ipc.RootService
+//import com.xrubio.overlaytest.overlay.OverlayService
 import dev.rikka.tools.refine.Refine
+import gamebot.host.MainActivity.Companion.cleanPreviousRemoteService
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
+import gamebot.host.overlay.Overlay
+import gamebot.host.overlay.OverlayService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -112,7 +113,8 @@ class MainActivity : ComponentActivity() {
     }
 
     external fun test(x: String): String
-//    override fun onStop() {
+
+    //    override fun onStop() {
 //        super.onStop()
 //        cleanPreviousRemoteService()
 //    }
@@ -134,13 +136,26 @@ class MainActivity : ComponentActivity() {
         }
 
         val text = mutableStateOf("...")
-        setContent {
+
+        val view = ComposeView(this)
+        lateinit var floatingWindow: ComposeFloatingWindow
+        setContentView(view)
+        view.setContent {
+            val context = LocalContext.current
             MaterialTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Column(modifier = Modifier.padding(innerPadding)) {
                         TextButton(onClick = {
                             thread {
                                 text.value = "running..."
+                            }
+//                            startService(Intent(context, OverlayService::class.java))
+                            if (floatingWindow.showing) {
+
+                                floatingWindow.hide()
+                            } else{
+                                floatingWindow.show()
+
                             }
                         }) {
                             Text("tap")
@@ -150,6 +165,87 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+//        startService(Intent(this, OverlayService::class.java))
+
+        fun showOverlay() {
+            val layoutFlag: Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
+
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                layoutFlag,
+                // https://developer.android.com/reference/android/view/WindowManager.LayoutParams
+                // alt: WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                // WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+//                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+//                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+//                        or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
+
+                ,
+                PixelFormat.TRANSLUCENT
+            )
+
+            val composeView = ComposeView(this)
+            composeView.setContent {
+                Overlay(onClick = {
+                    Log.w("OverlayService", "*** Logging something from the overlay service")
+                    Toast.makeText(applicationContext, "Hey!", Toast.LENGTH_SHORT).show()
+                })
+            }
+
+            // Trick The ComposeView into thinking we are tracking lifecycle
+            val viewModelStoreOwner = object : ViewModelStoreOwner {
+                override val viewModelStore: ViewModelStore
+                    get() = ViewModelStore()
+            }
+            val lifecycleOwner = MyLifecycleOwner()
+            lifecycleOwner.performRestore(null)
+            lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+            composeView.setViewTreeLifecycleOwner(lifecycleOwner)
+            composeView.setViewTreeViewModelStoreOwner(viewModelStoreOwner)
+            composeView.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+
+            // This is required or otherwise the UI will not recompose
+            lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_START)
+            lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+
+            windowManager.addView(composeView, params)
+        }
+//        showOverlay()
+         floatingWindow = ComposeFloatingWindow(applicationContext)
+        floatingWindow.setContent {
+            MaterialTheme {
+//                Scaffold() { padding ->
+                    Column() {
+//                        TextButton(onClick = {
+//                            thread {
+//                                text.value = "running..."
+//
+//                            }
+//
+//                        }) {
+//                            Text("tap")
+//                        }
+//                        Text(text = text.value)
+                        var text by remember {
+                            mutableStateOf("aaa")
+                        }
+                        TextField(text, {
+                            text = it
+                        })
+                    }
+//                }
+            }
+
+        }
+        floatingWindow.show()
+
     }
 
 
@@ -160,30 +256,30 @@ class MainActivity : ComponentActivity() {
 
 
         runOnUiThread {
-            setContent {
-                var text by remember {
-                    mutableStateOf("bbb")
-                }
-                TextField(text, {
-                    text = it
-                })
-            }
-            val floatingWindow = ComposeFloatingWindow(applicationContext)
-            floatingWindow.setContent {
-                var text by remember {
-                    mutableStateOf("aaa")
-                }
-                TextField(text, {
-                    text = it
-                })
-//                FloatingActionButton(
-//                    modifier = Modifier.dragFloatingWindow(),
-//                    onClick = {
-//                        Log.d("", "tap floating button")
-//                    }) {
-//                    Icon(Icons.Filled.Call, "Call")
+//            setContent {
+//                var text by remember {
+//                    mutableStateOf("bbb")
 //                }
-            }
+//                TextField(text, {
+//                    text = it
+//                })
+//            }
+//            val floatingWindow = ComposeFloatingWindow(applicationContext)
+//            floatingWindow.setContent {
+//                var text by remember {
+//                    mutableStateOf("aaa")
+//                }
+//                TextField(text, {
+//                    text = it
+//                })
+////                FloatingActionButton(
+////                    modifier = Modifier.dragFloatingWindow(),
+////                    onClick = {
+////                        Log.d("", "tap floating button")
+////                    }) {
+////                    Icon(Icons.Filled.Call, "Call")
+////                }
+//            }
 //            floatingWindow.show()
 //            setContent {
 //                MaterialTheme {
@@ -509,6 +605,7 @@ class MainActivity : ComponentActivity() {
 
                 connectUiAutomation()
                 grantOverlayPermission()
+
             }
 
             override fun setLocalRunBinder(binder: IBinder?) {
@@ -533,12 +630,13 @@ class MainActivity : ComponentActivity() {
             override fun test() {
 
                 runOnUiThread {
+//                    addFloatingView()
 
-                    val view = addFloatingView()
                     return@runOnUiThread
+                    val view = addFloatingView()
                     val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.MATCH_PARENT,
 //                        WindowManager.LayoutParams.WRAP_CONTENT,
 //                        WindowManager.LayoutParams.WRAP_CONTENT,
                         0, 0,
@@ -635,10 +733,10 @@ class MainActivity : ComponentActivity() {
 //                WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.WRAP_CONTENT,
                     WindowManager.LayoutParams.WRAP_CONTENT,
-                    300, 300,
+                    100, 100,
                     layoutFlag,
-                    0,
-//                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+//                    0,
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
 //                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
 //                            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
 //                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
@@ -669,11 +767,22 @@ class MainActivity : ComponentActivity() {
 
                 val textView = ComposeView(context).apply {
                     setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+//                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
+                }
+                textView.setContent {
+                    var text by remember {
+                        mutableStateOf("a111111")
+                    }
+                    TextField(text, {
+                        text = it
+                    })
                 }
 
                 val lifecycleOwner = MyLifecycleOwner()
                 lifecycleOwner.performRestore(null)
                 lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+                lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_START)
+                lifecycleOwner.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
                 textView.setViewTreeLifecycleOwner(lifecycleOwner)
                 textView.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
                 val viewModelStore = ViewModelStore()
@@ -682,15 +791,15 @@ class MainActivity : ComponentActivity() {
                         get() = viewModelStore
                 }
                 textView.setViewTreeViewModelStoreOwner(viewModelStoreOwner)
-                textView.setContent {
-                    var text by remember {
-                        mutableStateOf("a111111")
-                    }
-                    TextField(text, {
-                        text=  it
-                    })
-                }
+
                 val v = EditText(context)
+                val vv = LinearLayout(context)
+
+//                windowManager.addView(vv, params)
+                val vvv = ComposeView(context)
+                vvv.setViewTreeViewModelStoreOwner(this@MainActivity)
+
+
                 windowManager.addView(textView, params)
                 return textView
             }

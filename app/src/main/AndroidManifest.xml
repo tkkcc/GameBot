@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
 
@@ -17,6 +18,10 @@
         android:theme="@style/Theme.GameBot"
         android:usesCleartextTraffic="true"
         tools:targetApi="34">
+
+        <service android:name=".overlay.OverlayService" />
+
+
         <activity
             android:configChanges="uiMode|density|orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
 

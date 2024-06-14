@@ -176,5 +176,7 @@ dependencies {
     implementation(libs.compose.webview)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("com.github.only52607:compose-floating-window:1.0")
+    implementation("io.github.torrydo:floating-bubble-view:0.6.5")
+
 
 }

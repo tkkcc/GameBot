@@ -1,5 +1,7 @@
 package gamebot.host
 
+//import com.github.only52607.compose.window.ComposeFloatingWindow
+//import com.xrubio.overlaytest.overlay.OverlayService
 import MyLifecycleOwner
 import android.annotation.SuppressLint
 import android.app.UiAutomation
@@ -71,16 +73,12 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-//import com.github.only52607.compose.window.ComposeFloatingWindow
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ipc.RootService
-//import com.xrubio.overlaytest.overlay.OverlayService
 import dev.rikka.tools.refine.Refine
-import gamebot.host.MainActivity.Companion.cleanPreviousRemoteService
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
 import gamebot.host.overlay.Overlay
-import gamebot.host.overlay.OverlayService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -108,8 +106,8 @@ class MainActivity : ComponentActivity() {
     }
 
     init {
-//        System.loadLibrary("rust")
-        Log.e("", "init")
+        System.loadLibrary("rust")
+        Log.e("", "init ")
     }
 
     external fun test(x: String): String
@@ -121,7 +119,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
+        Log.e("", applicationInfo.nativeLibraryDir)
         thread {
 //             Log.e("", "isTestThreadAlive()"+isTestThreadAlive())
 
@@ -153,7 +151,7 @@ class MainActivity : ComponentActivity() {
                             if (floatingWindow.showing) {
 
                                 floatingWindow.hide()
-                            } else{
+                            } else {
                                 floatingWindow.show()
 
                             }
@@ -218,11 +216,11 @@ class MainActivity : ComponentActivity() {
             windowManager.addView(composeView, params)
         }
 //        showOverlay()
-         floatingWindow = ComposeFloatingWindow(applicationContext)
+        floatingWindow = ComposeFloatingWindow(applicationContext)
         floatingWindow.setContent {
             MaterialTheme {
 //                Scaffold() { padding ->
-                    Column() {
+                Column() {
 //                        TextButton(onClick = {
 //                            thread {
 //                                text.value = "running..."
@@ -233,13 +231,13 @@ class MainActivity : ComponentActivity() {
 //                            Text("tap")
 //                        }
 //                        Text(text = text.value)
-                        var text by remember {
-                            mutableStateOf("aaa")
-                        }
-                        TextField(text, {
-                            text = it
-                        })
+                    var text by remember {
+                        mutableStateOf("aaa")
                     }
+                    TextField(text, {
+                        text = it
+                    })
+                }
 //                }
             }
 
@@ -329,8 +327,18 @@ class MainActivity : ComponentActivity() {
 //            }
         }
 
-        class RemoteService(val context: Context) : IRemoteService.Stub() {
 
+
+        class RemoteService(val context: Context) : IRemoteService.Stub() {
+//            init {
+//                System.loadLibrary("rust")
+//            }
+//
+//            external fun test(x: String): String
+//            fun test() {
+//                TTT().test()
+//            }
+            val ttt = TTT()
             lateinit var localService: ILocalService
 
             private lateinit var uiAutomationHidden: UiAutomationHidden
@@ -618,6 +626,10 @@ class MainActivity : ComponentActivity() {
                 init()
                 testUIAutomation()
                 localService.test()
+
+                val repo = File(cacheDir, "repo")
+                val out = ttt.test(repo.absolutePath)
+                Log.e("", "rust call: $out")
             }
         }
 

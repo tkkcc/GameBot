@@ -106,11 +106,11 @@ class MainActivity : ComponentActivity() {
     }
 
     init {
-        System.loadLibrary("rust")
+//        System.loadLibrary("rust")
         Log.e("", "init ")
     }
 
-    external fun test(x: String): String
+//    external fun test(x: String): String
 
     //    override fun onStop() {
 //        super.onStop()
@@ -216,33 +216,33 @@ class MainActivity : ComponentActivity() {
             windowManager.addView(composeView, params)
         }
 //        showOverlay()
-        floatingWindow = ComposeFloatingWindow(applicationContext)
-        floatingWindow.setContent {
-            MaterialTheme {
-//                Scaffold() { padding ->
-                Column() {
-//                        TextButton(onClick = {
-//                            thread {
-//                                text.value = "running..."
-//
-//                            }
-//
-//                        }) {
-//                            Text("tap")
-//                        }
-//                        Text(text = text.value)
-                    var text by remember {
-                        mutableStateOf("aaa")
-                    }
-                    TextField(text, {
-                        text = it
-                    })
-                }
+//        floatingWindow = ComposeFloatingWindow(applicationContext)
+//        floatingWindow.setContent {
+//            MaterialTheme {
+////                Scaffold() { padding ->
+//                Column() {
+////                        TextButton(onClick = {
+////                            thread {
+////                                text.value = "running..."
+////
+////                            }
+////
+////                        }) {
+////                            Text("tap")
+////                        }
+////                        Text(text = text.value)
+//                    var text by remember {
+//                        mutableStateOf("aaa")
+//                    }
+//                    TextField(text, {
+//                        text = it
+//                    })
 //                }
-            }
-
-        }
-        floatingWindow.show()
+////                }
+//            }
+//
+//        }
+//        floatingWindow.show()
 
     }
 
@@ -330,15 +330,8 @@ class MainActivity : ComponentActivity() {
 
 
         class RemoteService(val context: Context) : IRemoteService.Stub() {
-//            init {
-//                System.loadLibrary("rust")
-//            }
-//
-//            external fun test(x: String): String
-//            fun test() {
-//                TTT().test()
-//            }
-            val ttt = TTT()
+
+            val native = Native()
             lateinit var localService: ILocalService
 
             private lateinit var uiAutomationHidden: UiAutomationHidden
@@ -628,8 +621,20 @@ class MainActivity : ComponentActivity() {
                 localService.test()
 
                 val repo = File(cacheDir, "repo")
-                val out = ttt.test(repo.absolutePath)
-                Log.e("", "rust call: $out")
+                val toNative = object {
+                    val cache_dir = cacheDir
+                    fun toast(msg: String) {
+                        localService.toast(msg)
+                    }
+                }
+                toNative.javaClass.declaredMethods.forEach {
+                    Log.e("", it.toString())
+                }
+                toNative.javaClass.declaredFields.forEach {
+                    Log.e("", it.toString())
+                }
+                native.start(toNative)
+//                Log.e("", "rust call: $out")
             }
         }
 
@@ -915,6 +920,7 @@ class MainActivity : ComponentActivity() {
         tryRootMode().onFailure {
             tryShizukuMode()
         }
+        Log.d(TAG, "tryRootMode end")
     }
 }
 

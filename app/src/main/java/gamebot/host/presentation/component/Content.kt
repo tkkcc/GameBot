@@ -1,5 +1,7 @@
 package gamebot.host.presentation.component
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedVisibility
@@ -22,31 +24,42 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonElevation
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import gamebot.host.DynamicTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -96,18 +109,63 @@ fun SectionRow(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit
 ) {
+
+    val lighterBackgroundColor = MaterialTheme.colorScheme.surfaceVariant
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable {
-                onClick()
-            }
+            .clickable(
+                remember { MutableInteractionSource() },
+                indication = rememberRipple(),
+                onClick = onClick
+            )
+//                .clickable(
+//
+//                ) {
+//                    onClick()
+//                }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         content = content
     )
+//    }
+
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@RequiresApi(Build.VERSION_CODES.S)
+@Preview
+@Composable
+fun T() {
+    DynamicTheme {
+
+        Scaffold(
+            topBar = { TopAppBar(title = { Text("abc") }) }
+        ) { padding ->
+            Column(modifier = Modifier.padding(padding)) {
+
+                Surface(
+                    color = MaterialTheme.colorScheme.background.copy(alpha = 0.5f)
+                        .compositeOver(Color.White),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.padding(16.dp)
+//                    tonalElevation = -1.dp
+                ) {
+                    SectionRow {
+                        Text("o11k")
+                    }
+                }
+
+                DropdownMenu(expanded = true, onDismissRequest = {}) {
+                    DropdownMenuItem(text = { Text("o11k") }, {})
+                    DropdownMenuItem(text = { Text("o11k") }, {})
+                    DropdownMenuItem(text = { Text("o11k") }, {})
+                    DropdownMenuItem(text = { Text("o11k") }, {})
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun NoRippleSectionRow(

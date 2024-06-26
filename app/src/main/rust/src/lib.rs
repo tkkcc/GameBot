@@ -1,4 +1,6 @@
-use std::error::Error;
+mod t;
+
+use std::{error::Error, fmt::Display, thread::sleep, time::Duration};
 
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
 use jni::{
@@ -36,13 +38,32 @@ extern "C" fn Java_gamebot_host_Native_start(mut env: JNIEnv, class: JClass, hos
     );
     let msg = env.new_string("native toast").unwrap();
     let obj: &JObject = msg.as_ref();
-    let _ = env.call_method(
-        host,
-        "toast",
-        "(Ljava/lang/String;)V",
-        &[obj.as_ref().into()],
-    );
-    
+    loop {
+        let _ = env.call_method(
+            &host,
+            "toast",
+            "(Ljava/lang/String;)V",
+            &[obj.as_ref().into()],
+        );
+        error!("what");
+        sleep(Duration::from_secs(3));
+        break
+    }
+
+    struct Button {
+        text: String,
+    }
+    impl Button {
+        fn text(mut self, x: &str) -> Self {
+            self.text = x.into();
+            self
+        }
+    }
+    fn button<D: Display>(x: impl Fn() -> D) -> Button {
+        Button {
+            text: x().to_string(),
+        }
+    }
 
     // call the toast function of input
 

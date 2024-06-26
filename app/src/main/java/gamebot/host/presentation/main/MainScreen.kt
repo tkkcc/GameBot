@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -43,8 +44,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -55,8 +59,7 @@ import gamebot.host.presentation.LocalStrings
 import gamebot.host.presentation.Screen
 import gamebot.host.presentation.ToUIString.toUIString
 import gamebot.host.presentation.component.IconNext
-import gamebot.host.presentation.component.NoRippleIconButton
-import gamebot.host.presentation.component.NoRippleSectionRow
+import gamebot.host.presentation.component.SectionRow
 import gamebot.host.presentation.component.SectionContent
 import gamebot.host.presentation.component.SectionRow
 import gamebot.host.presentation.component.SimpleAnimatedContent
@@ -75,11 +78,19 @@ import kotlinx.serialization.json.Json
 @Composable
 fun MainScreen(
     navController: NavController,
-    vm: MainViewModel = viewModel()
+//    vm: MainViewModel = viewModel()
 ) {
-    val state = vm.state.value
+//    val state = vm.state.value
+    val state = MainState(
+        taskList = listOf(Task(
+            name="name"
+        ))
+    )
+//    state.taskList = listOf(Task())
     val taskList = state.taskList
-    val editMode = state.editMode
+    var editMode by remember {
+        mutableStateOf(false)
+    }
     val selectedTaskId = state.selectedTaskId
     val lazyColumn = rememberLazyListState()
 
@@ -126,7 +137,7 @@ fun MainScreen(
                         context.contentResolver.openInputStream(uri!!)!!.use { stream ->
                             val bytes = stream.readBytes()
                             val newTask: List<Task> = Json.decodeFromString(bytes.decodeToString())
-                            vm.addTask(newTask)
+//                            vm.addTask(newTask)
                             importTaskNum = newTask.size
                             success = true
                         }
@@ -154,21 +165,22 @@ fun MainScreen(
                     }
                 }
             }, actions = {
-                NoRippleIconButton({
+                IconButton({
                     scope.launch {
-                        val id = vm.addTask()
-                        navController.navigate("${Screen.Detail}/${id}") {
-                            popUpTo(Screen.Main.toString())
-                        }
+//                        val id = vm.addTask()
+                        val id = 1
+//                        navController.navigate("${Screen.Detail}/${id}") {
+//                            popUpTo(Screen.Main.toString())
+//                        }
                     }
                 }) {
                     Icon(Icons.Default.Add, LocalStrings.current.Add)
                 }
-                NoRippleIconButton(vm::toggleEditMode) {
+                IconButton({ editMode =  ! editMode }) {
                     Icon(Icons.Default.Edit, LocalStrings.current.Edit)
                 }
-                NoRippleIconButton({
-                    navController.navigate("debug")
+                IconButton({
+//                    navController.navigate("debug")
                 }) {
                     Icon(Icons.Default.Build, LocalStrings.current.Debug)
                 }
@@ -194,34 +206,34 @@ fun MainScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalArrangement = Arrangement.Start
                 ) {
-                    TextButton(vm::selectAllTask) {
+                    TextButton({  }) {
                         Text("全选")
                     }
-                    TextButton(vm::selectAllSameTypeTask) {
+                    TextButton({}) {
                         Text("全选同类")
                     }
 
                     TextButton({
                         scope.launch {
                             if (selectedTaskId.isEmpty()) return@launch
-                            vm.moveSelectedTaskUp()?.let {
-                                delay(100)
-                                val visible = lazyColumn.layoutInfo.visibleItemsInfo
-                                Log.d(
-                                    "",
-                                    "visible up ${visible.first().index} ${visible.last().index} $it"
-                                )
-                                val index = it + 1
-
-                                if (visible.isNotEmpty() && (visible.first().index > index) || (visible.last().index < index)) {
-                                    lazyColumn.animateScrollToItem(
-                                        index, 0
-                                    )
-                                }
-
-                            } ?: run {
-                                snackbarHostState.showSnackbar("已到顶")
-                            }
+//                            vm.moveSelectedTaskUp()?.let {
+//                                delay(100)
+//                                val visible = lazyColumn.layoutInfo.visibleItemsInfo
+//                                Log.d(
+//                                    "",
+//                                    "visible up ${visible.first().index} ${visible.last().index} $it"
+//                                )
+//                                val index = it + 1
+//
+//                                if (visible.isNotEmpty() && (visible.first().index > index) || (visible.last().index < index)) {
+//                                    lazyColumn.animateScrollToItem(
+//                                        index, 0
+//                                    )
+//                                }
+//
+//                            } ?: run {
+//                                snackbarHostState.showSnackbar("已到顶")
+//                            }
                         }
                     }) {
                         Text("上移")
@@ -229,26 +241,26 @@ fun MainScreen(
                     TextButton({
                         scope.launch {
                             if (selectedTaskId.isEmpty()) return@launch
-                            vm.moveSelectedTaskDown()?.let {
-                                delay(100)
-                                val visible = lazyColumn.layoutInfo.visibleItemsInfo
-                                Log.d(
-                                    "",
-                                    "visible ${visible.first().index} ${visible.last().index} $it"
-                                )
-                                val index = it + 1
-
-                                if (visible.isNotEmpty() && (visible.first().index > index) || (visible.last().index < index)) {
-                                    Log.d("", "visible scroll to ${index}")
-                                    lazyColumn.animateScrollToItem(
-                                        index,
-                                        0
-                                    )
-                                }
-
-                            } ?: run {
-                                snackbarHostState.showSnackbar("已到底")
-                            }
+//                            vm.moveSelectedTaskDown()?.let {
+//                                delay(100)
+//                                val visible = lazyColumn.layoutInfo.visibleItemsInfo
+//                                Log.d(
+//                                    "",
+//                                    "visible ${visible.first().index} ${visible.last().index} $it"
+//                                )
+//                                val index = it + 1
+//
+//                                if (visible.isNotEmpty() && (visible.first().index > index) || (visible.last().index < index)) {
+//                                    Log.d("", "visible scroll to ${index}")
+//                                    lazyColumn.animateScrollToItem(
+//                                        index,
+//                                        0
+//                                    )
+//                                }
+//
+//                            } ?: run {
+//                                snackbarHostState.showSnackbar("已到底")
+//                            }
                         }
                     }) {
                         Text("下移")
@@ -256,7 +268,7 @@ fun MainScreen(
                     TextButton({
                         scope.launch {
                             if (selectedTaskId.isEmpty()) return@launch
-                            vm.duplicateSelectedTask()
+//                            vm.duplicateSelectedTask()
                             snackbarHostState.showSnackbar("已重复${selectedTaskId.size}项")
                         }
                     }) {
@@ -266,14 +278,14 @@ fun MainScreen(
                         scope.launch {
                             if (selectedTaskId.isEmpty()) return@launch
                             val size = selectedTaskId.size
-                            vm.removeSelectedTask()
+//                            vm.removeSelectedTask()
                             val result = snackbarHostState.showSnackbar(
                                 "已删除${size}项",
                                 actionLabel = "恢复",
                                 duration = SnackbarDuration.Short
                             )
                             if (result == SnackbarResult.ActionPerformed) {
-                                vm.restoreRemovedTask()
+//                                vm.restoreRemovedTask()
                                 snackbarHostState.showSnackbar(
                                     "已恢复${size}项",
                                     duration = SnackbarDuration.Short
@@ -310,14 +322,14 @@ fun MainScreen(
                     }
                     TextButton({
                         scope.launch {
-                            vm.enableRunNow()
+//                            vm.enableRunNow()
                         }
                     }) {
                         Text("需要立即执行")
                     }
                     TextButton({
                         scope.launch {
-                            vm.disableRunNow()
+//                            vm.disableRunNow()
                         }
                     }) {
                         Text("取消立即执行")
@@ -359,12 +371,13 @@ fun MainScreen(
                                 val isSelected = selectedTaskId.contains(it.id)
 
                                 SectionRow({
-                                    vm.toggleSelectedTask(it.id)
+                                    Log.e("","what")
+//                                    vm.toggleSelectedTask(it.id)
                                 }) {
                                     SectionContent(it.name, it.status.toUIString())
                                     Space()
                                     RadioButton(selected = isSelected, onClick = null)
-//                                    NoRippleIconButton({
+//                                    IconButton({
 //                                        navController.navigate("${Screen.Schedule}/${it.id}")
 //                                    }) {
 //                                        Icon(Icons.Default.Schedule, "schedule")
@@ -374,13 +387,15 @@ fun MainScreen(
 
                             } else {
 
-                                NoRippleSectionRow({
-                                    navController.navigate("detail/${it.id}")
+                                SectionRow({
+                                    Log.e("","what")
+
+//                                    navController.navigate("detail/${it.id}")
                                 }) {
                                     SectionContent(it.name, it.status.toUIString())
                                     Space()
-                                    NoRippleIconButton({
-                                        navController.navigate("${Screen.Schedule}/${it.id}")
+                                    IconButton({
+//                                        navController.navigate("${Screen.Schedule}/${it.id}")
                                     }) {
                                         Icon(Icons.Default.Schedule, "schedule")
                                     }

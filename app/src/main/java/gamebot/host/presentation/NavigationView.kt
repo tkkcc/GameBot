@@ -21,7 +21,6 @@ import gamebot.host.presentation.schedule.scheduleGraph
 @Composable
 fun NavigationView(
     container: Container,
-    localRun: ILocalRun
 ) {
     val navController = rememberNavController()
 
@@ -30,7 +29,8 @@ fun NavigationView(
     ) {
         composable(Screen.Main.toString()) {
             MainScreen(
-                navController, viewModel(factory = MainViewModel.factory(container))
+                navController,
+//                viewModel(factory = MainViewModel.factory(container))
             )
         }
         composable(Screen.Debug.toString()) {

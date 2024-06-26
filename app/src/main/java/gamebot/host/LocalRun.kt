@@ -382,7 +382,7 @@ class LocalRun(
 
         showThemeView(activity) {
             StringView {
-                NavigationView(container, localRun)
+                NavigationView(container)
             }
         }
     }

@@ -17,11 +17,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 
-
+// 1. good status and navigation bar color
+// 2. auto light/dark theme
 @Composable
 fun ThemeView(activity: AppCompatActivity, maxSize:Boolean = true, content: @Composable () -> Unit) {
-    // 1. good status and navigation bar color
-    // 2. auto light/dark theme
 
     val darkTheme = isSystemInDarkTheme()
     DisposableEffect(darkTheme) {

@@ -10,4 +10,5 @@ interface ILocalService {
      */
     void toast(String text);
     void test();
+
 }

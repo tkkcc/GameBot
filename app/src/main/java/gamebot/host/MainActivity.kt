@@ -2,6 +2,8 @@ package gamebot.host
 
 //import com.github.only52607.compose.window.ComposeFloatingWindow
 //import com.xrubio.overlaytest.overlay.OverlayService
+import Component
+import ComposeUI
 import MyLifecycleOwner
 import android.annotation.SuppressLint
 import android.app.UiAutomation
@@ -30,23 +32,16 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowManager
-import android.view.WindowManager.LayoutParams.TYPE_PHONE
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Android
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -56,10 +51,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -82,6 +75,7 @@ import gamebot.host.overlay.Overlay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import rikka.shizuku.Shizuku
 import rikka.shizuku.Shizuku.OnRequestPermissionResultListener
 import rikka.shizuku.Shizuku.UserServiceArgs
@@ -343,6 +337,10 @@ class MainActivity : ComponentActivity() {
             override fun destroy() {
                 Log.e("", "destroy in remote service")
                 exitProcess(0)
+            }
+
+            override fun callback(msg: String) {
+                TODO("Not yet implemented")
             }
 
             fun connectUiAutomation() {
@@ -615,7 +613,7 @@ class MainActivity : ComponentActivity() {
 
             override fun start() {
                 Log.e("137", "start in remote service")
-                localService.toast("ok")
+//                localService.toast("ok")
                 init()
                 testUIAutomation()
                 localService.test()
@@ -626,6 +624,10 @@ class MainActivity : ComponentActivity() {
                     fun toast(msg: String) {
                         localService.toast(msg)
                     }
+
+                    fun showUI(layout: String, state: String) {
+
+                    }
                 }
                 toNative.javaClass.declaredMethods.forEach {
                     Log.e("", it.toString())
@@ -633,104 +635,38 @@ class MainActivity : ComponentActivity() {
                 toNative.javaClass.declaredFields.forEach {
                     Log.e("", it.toString())
                 }
-                native.start(toNative)
-//                Log.e("", "rust call: $out")
+                thread {
+
+                    native.start(toNative)
+                }
+                Log.e("", "rust call finish")
             }
         }
 
 
         class LocalService(val context: Context) : ILocalService.Stub() {
-            override fun toast(text: String?) {
-                Toast.makeText(this@MainActivity, text, Toast.LENGTH_SHORT).show()
+            val ui = ComposeUI(context as ComponentActivity)
+            override fun toast(text: String) {
+                runOnUiThread {
+                    this@MainActivity.setContent { FF() }
+                    val layout = Component.Column(
+                        children = listOf(
+                            Component.TextField(text = "abc"),
+                            Component.TextField(text = "abc1")
+                        )
+                    )
+                    val xx = Json.encodeToString(Component.serializer(), layout)
+                    Log.e("", xx)
+//                    ui.render(xx)
+                    Toast.makeText(this@MainActivity, text, Toast.LENGTH_SHORT).show()
+                }
             }
+
+
+            lateinit var remoteService: IRemoteService
 
             override fun test() {
 
-                runOnUiThread {
-//                    addFloatingView()
-
-                    return@runOnUiThread
-                    val view = addFloatingView()
-                    val params = WindowManager.LayoutParams(
-                        WindowManager.LayoutParams.MATCH_PARENT,
-                        WindowManager.LayoutParams.MATCH_PARENT,
-//                        WindowManager.LayoutParams.WRAP_CONTENT,
-//                        WindowManager.LayoutParams.WRAP_CONTENT,
-                        0, 0,
-                        TYPE_PHONE,
-                        0,
-//                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-//                                WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or
-//                                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-//                                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-//                                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-//            0,
-                        PixelFormat.TRANSLUCENT
-                    )
-
-                    fun updatePosition(x: Int, y: Int) {
-                        Log.e("", "updatePos" + x + "x" + y)
-                        params.x = x
-                        params.y = y
-                        windowManager.updateViewLayout(view, params)
-
-//                    view.updateLayoutParams {
-//                        this.width = width
-//                        this.height = height
-//                    }
-                    }
-
-
-
-                    view.setContent {
-                        MaterialTheme {
-                            var offsetX by remember { mutableStateOf(0f) }
-                            var offsetY by remember { mutableStateOf(0f) }
-
-                            Column(
-                                Modifier
-                                    .pointerInput(Unit) {
-                                        detectDragGestures { change, dragAmount ->
-                                            change.consume()
-                                            offsetX += dragAmount.x
-                                            offsetY += dragAmount.y
-//                                            updatePosition(
-//                                                offsetX.roundToInt(),
-//                                                offsetY.roundToInt()
-//                                            )
-                                        }
-                                    }
-                            ) {
-                                var text by remember {
-                                    mutableStateOf("text")
-                                }
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceAround
-                                ) {
-                                    Text(text = text)
-                                    TextField(value = text, onValueChange = {
-                                        Log.d("", "value changed to " + it)
-                                        text = it
-                                    })
-                                    IconButton({
-                                        toast("button")
-                                        text += "1"
-                                    }) {
-                                        Icon(Icons.Default.Android, "back")
-                                    }
-                                }
-
-                            }
-
-//                        FilledIconButton({
-//                            windowManager.removeView(view)
-//                        }) {
-//                            Icon(Icons.Default.Refresh, "back")
-//                        }
-                        }
-                    }
-                }
             }
 
             val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager

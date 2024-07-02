@@ -68,6 +68,26 @@ fn t() {
             })
             .collect(),
     };
+    
+
+    let mut account = Account::default();
+    let a = &mut account.username;
+    let b = &mut account.password;
+    dbg!(&a);
+    dbg!(&b);
+    dbg!(&a);
+    dbg!(&b);
+    let c = account.username;
+    dbg!(&b);
+
+    enum E1 {
+        
+        Abc(u8)
+    }
+    fn f(x: impl Fn(u8)-> E1) {
+
+    }
+    f(E1::Abc);
 
     // fn f(x: impl Into<impl Iterator>) {
     //     // let iter: Iterator = x.into();

@@ -86,6 +86,7 @@ fun MainScreen(
             name="name"
         ))
     )
+    
 //    state.taskList = listOf(Task())
     val taskList = state.taskList
     var editMode by remember {

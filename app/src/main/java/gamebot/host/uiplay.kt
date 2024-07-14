@@ -32,6 +32,7 @@ fun DynamicTheme(content: @Composable () -> Unit) {
 fun FF() {
     DynamicTheme {
         val navController = rememberNavController()
-        MainScreen(navController)
+
+//        MainScreen(navController)
     }
 }

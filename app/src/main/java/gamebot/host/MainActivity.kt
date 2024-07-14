@@ -72,7 +72,10 @@ import dev.rikka.tools.refine.Refine
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
 import gamebot.host.overlay.Overlay
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -648,7 +651,7 @@ class MainActivity : ComponentActivity() {
             val ui = ComposeUI(context as ComponentActivity)
             override fun toast(text: String) {
                 runOnUiThread {
-                    this@MainActivity.setContent { FF() }
+//                    this@MainActivity.setContent { FF() }
                     val layout = Component.Column(
                         children = listOf(
                             Component.TextField(text = "abc"),
@@ -657,7 +660,41 @@ class MainActivity : ComponentActivity() {
                     )
                     val xx = Json.encodeToString(Component.serializer(), layout)
                     Log.e("", xx)
-//                    ui.render(xx)
+                    ui.render(xx)
+//                    CoroutineScope(Dispatchers.Default).launch {
+//                        while (true) {
+//                            delay(3000)
+//
+//                            layout.children = layout.children.toMutableList().apply {
+//                                this[0] = Component.TextField(text="${random()}")
+//                                add(Component.TextField(text="${random()}"))
+//                            }.toList()
+//                            val xx = Json.encodeToString(Component.serializer(), layout)
+//                            withContext(Dispatchers.Main) {
+//                                ui.context.setContent {
+//
+//                                }
+//                            }
+//                            delay(1000)
+//
+//                            withContext(Dispatchers.Main) {
+//
+//                                ui.render(xx)
+//                            }
+//                            Log.e("","render 671")
+//                        }
+//                    }
+//                    runBlocking {
+//
+//                        while(true) {
+//
+//                            withContext(Dispatchers.Main) {
+//
+//                                ui.render(xx)
+//                            }
+//                            delay(1000)
+//                        }
+//                    }
                     Toast.makeText(this@MainActivity, text, Toast.LENGTH_SHORT).show()
                 }
             }

@@ -4,18 +4,24 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import gamebot.host.Native
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json.Default.decodeFromString
+import kotlinx.serialization.json.Json.Default.encodeToString
 
 val LocalComponentRoot = compositionLocalOf { Component.Root(Component.Empty) }
 
@@ -30,10 +36,10 @@ sealed class Component {
     data object Empty : Component()
 
     @Serializable
-    data class Column(val children: List<Component>) : Component()
+    data class Column(var children: List<Component>) : Component()
 
     @Serializable
-    data class TextField(val text: String) : Component()
+    data class TextField(val text: String, val id: Int=0) : Component()
 
     @Serializable
     data class Button(val content: Component, val callback: String) : Component()
@@ -67,9 +73,6 @@ sealed class Component {
             }
 
             is TextField -> {
-                var text by remember {
-                    mutableStateOf(text)
-                }
                 TextField(text, { text = it })
             }
 
@@ -83,8 +86,22 @@ sealed class Component {
 
 class ComposeUI(val context: ComponentActivity) {
     fun render(layout: String) {
-        val xx: Component = decodeFromString(layout)
+
         context.setContent {
+            val layout = remember {
+                mutableStateOf(layout)
+            }
+            val scope = rememberCoroutineScope()
+            LaunchedEffect(true) {
+                delay(3000)
+                val x = Component.Column(
+                    listOf(Component.TextField("aaa"))
+                )
+                layout.value = encodeToString(Component.serializer(),x)
+            }
+
+            val xx: Component = decodeFromString(layout.value)
+
             xx.Render()
         }
     }

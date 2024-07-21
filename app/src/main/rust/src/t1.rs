@@ -86,11 +86,15 @@ fn t() {
     // *x = true;
 
     new_key_type! {
-        struct State;
+        struct MutableId;
     }
-    impl State {}
+    impl MutableId {}
 
-    fn new_state<K: 'static, V, F>(transform: F)
+    struct Mutable {
+
+    }
+
+    fn mutable<K: 'static, V, F>(transform: F)
     where
         F: Fn(&mut K) -> &mut V + 'static,
     {
@@ -103,7 +107,7 @@ fn t() {
         });
     }
 
-    let account_list = new_state(|state: &mut Config| &mut state.account);
+    let account_list = mutable(|state: &mut Config| &mut state.account);
 
     trait View {}
 
@@ -152,6 +156,8 @@ fn t() {
     // TODO: new state is get and set able globally
     // TODO: use state in view and callback
     // let x = use_state(|state: &mut Config| state.enable_abc);
+
+
 
     let e = column([text("abc"), text("a")]);
 }

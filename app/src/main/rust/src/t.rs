@@ -137,6 +137,7 @@ fn t() {
 
 #[cfg(test)]
 mod test {
+
     use crate::t::Column;
 
     #[test]
@@ -144,6 +145,6 @@ mod test {
         let x = Column { children: vec![] };
         dbg!(serde_json::to_string(&x).unwrap());
 
-        assert_eq!(1, 1)
+        assert_eq!(1, 1);
     }
 }

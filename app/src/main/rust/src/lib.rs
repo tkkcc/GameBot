@@ -1,5 +1,6 @@
 mod t;
 mod t1;
+mod t2;
 use std::{error::Error, fmt::Display, thread::sleep, time::Duration};
 
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
@@ -20,9 +21,6 @@ pub fn add(left: usize, right: usize) -> usize {
 extern crate log;
 
 extern crate android_logger;
-
-#[no_mangle]
-extern "C" fn Java_gamebot_host_Native_callback(mut env: JNIEnv, class: JClass, input: JString) {}
 
 #[no_mangle]
 extern "C" fn Java_gamebot_host_Native_start(mut env: JNIEnv, class: JClass, host: JObject) {

@@ -110,6 +110,7 @@ class ComposeUI(val context: ComponentActivity) {
     fun render(layout: String) {
 
         context.setContent {
+            
             val coroutine = rememberCoroutineScope()
             var xx: Component by remember {
                 mutableStateOf(Component.TextField("abc"))

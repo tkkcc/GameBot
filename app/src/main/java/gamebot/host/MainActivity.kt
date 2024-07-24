@@ -5,6 +5,7 @@ package gamebot.host
 import Column
 import Component
 import MyLifecycleOwner
+import TextField
 import android.annotation.SuppressLint
 import android.app.UiAutomation
 import android.app.UiAutomationConnection
@@ -659,10 +660,13 @@ class MainActivity : ComponentActivity() {
 
         class LocalService(val context: Context) : ILocalService.Stub() {
 
-            val configUI: MutableState<Component> = mutableStateOf(Column())
+                        val configUI: MutableState<Component> = mutableStateOf(Column())
 
             init {
-                initConfigUI(context as ComponentActivity, configUI)
+                runOnUiThread {
+
+                    initConfigUI(context as ComponentActivity, configUI)
+                }
 
             }
 //            val ui = ComposeUI(context as ComponentActivity, configUI)

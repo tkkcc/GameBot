@@ -3,12 +3,14 @@ mod t1;
 mod t2;
 use std::{error::Error, fmt::Display, thread::sleep, time::Duration};
 
+// use erased_serde::Serialize;
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
 use jni::{
     objects::{JClass, JObject, JString},
     sys::{jint, jstring},
     JNIEnv,
 };
+use serde::Serialize;
 use t2::{simple_ui, Element};
 // use wasmtime::{Caller, Engine, Linker, Module, Store};
 // use tracing::{debug, error, Subscriber};
@@ -29,35 +31,45 @@ struct Proxy<'a> {
 }
 
 impl<'a> Proxy<'a> {
-    fn update_config_ui<State>(&mut self, element: Element<State>) {
+    fn update_config_ui<State: Serialize + 'static>(&mut self, mut element: Element<State>) {
+        // store callback in central and assign callback_id
+        let callback = element.collect_callback();
+
         // serialize element into non-callback with id
-        // store callabck in central
         let byte = serde_json::to_vec(&element).unwrap();
 
         debug!("{:?}", serde_json::to_string(&element));
 
+        // TODO may be leak
         let value = self.env.byte_array_from_slice(&byte).unwrap();
 
         let _ = self
             .env
             .call_method(&self.host, "updateConfigUI", "([B)V", &[(&value).into()]);
+
+        // let event = self
+        //     .env
+        //     .call_method(&self.host, "waitConfigUIEvent", "()[B", &[]).unwrap();
+
+        
     }
 
     fn handle_config_ui_event<State>(&mut self, element: Element<State>) {}
 
     fn update_float_ui() {}
+    
 }
 
 #[no_mangle]
 extern "C" fn Java_gamebot_host_Native_start(mut env: JNIEnv, class: JClass, host: JObject) {
     android_logger::init_once(
-        android_logger::Config::default().with_max_level(log::LevelFilter::Debug), 
+        android_logger::Config::default().with_max_level(log::LevelFilter::Debug),
         // .with_tag("mytag")
-// .with_filter(
-//     android_logger::FilterBuilder::new()
-//         .parse("debug,hello::crate=trace")
-//         .build(),
-// ),
+        // .with_filter(
+        //     android_logger::FilterBuilder::new()
+        //         .parse("debug,hello::crate=trace")
+        //         .build(),
+        // ),
     );
     let mut proxy = Proxy { env, host };
     proxy.update_config_ui(simple_ui())
@@ -112,5 +124,9 @@ mod tests {
     fn it_works() {
         let result = add(2, 2);
         assert_eq!(result, 4);
+
+        let x = Box::new(|state: &mut i32| *state += 1);
+        let mut i = 0;
+        (*x)(&mut i);
     }
 }

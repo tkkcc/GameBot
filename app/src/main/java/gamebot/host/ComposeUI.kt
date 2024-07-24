@@ -61,7 +61,7 @@ data class Row(val content: List<Component> = emptyList()) : Component {
 }
 
 @Serializable
-data class TextField(val content: String, val callback: Int = 0) : Component {
+data class TextField(val content: String, val callbackId: Int = 0) : Component {
     @Composable
     override fun Render() {
         // we do not allow mutating text on callback side if focused
@@ -85,12 +85,12 @@ data class TextField(val content: String, val callback: Int = 0) : Component {
 }
 
 @Serializable
-data class Button(val content: Component, val id: Int = 0) : Component {
+data class Button(val content: Component, val callbackId: Int = 0) : Component {
     @Composable
     override fun Render() {
         val callback = LocalCallback.current
         Button(onClick = {
-            callback.onEvent(id, Unit)
+            callback.onEvent(callbackId, Unit)
         }) {
             content.Render()
         }
@@ -244,7 +244,9 @@ fun initConfigUI(context: ComponentActivity, layout: MutableState<Component>) {
                 }
             }
         }) {
+//            Text("abc")
             layout.value.Render()
+//            test.Render()
         }
     }
 }

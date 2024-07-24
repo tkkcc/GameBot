@@ -1,6 +1,6 @@
-use std::{collections::HashMap, marker::PhantomData, mem::discriminant};
+use std::{any::Any, collections::HashMap, marker::PhantomData, mem::discriminant};
 
-use erased_serde::serialize_trait_object;
+// use erased_serde::serialize_trait_object;
 use jni::{
     objects::{JClass, JObject},
     sys::JNIEnv,
@@ -39,25 +39,77 @@ impl Config {
 // serialize_trait_object!(MutableState);
 // impl<T: erased_serde::Serialize> MutableState for T {}
 
-#[typetag::serialize(tag="type")]
-trait View {}
+#[typetag::serialize(tag = "type")]
+trait View<State> {
+    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn Any>)>> {
+        None
+    }
+    fn set_callback_id(&mut self, id: usize) {}
+
+    fn children_mut(&mut self) -> Vec<&mut Element<State>> {
+        vec![]
+    }
+
+    fn to_element(self) -> Element<State>
+    where
+        Self: Sized + 'static,
+    {
+        Element {
+            item: Box::new(self),
+        }
+    }
+}
 // serialize_trait_object!(View);
 
 #[derive(Serialize)]
 pub(crate) struct Element<State> {
     #[serde(flatten)]
-    item: Box<dyn View>,
-    #[serde(skip)]
-    ty: PhantomData<State>,
+    item: Box<dyn View<State>>,
+    // #[serde(skip)]
+    // ty: PhantomData<State>,
 }
 
-impl<State, T: View + 'static> From<T> for Element<State> {
-    fn from(value: T) -> Self {
-        Self {
-            item: Box::new(value),
-            ty: PhantomData,
+impl<State: 'static> Element<State> {
+    pub(crate) fn collect_callback(&mut self) -> Vec<Box<dyn Fn(&mut State, Box<dyn Any>)>> {
+        let mut ans: Vec<Box<dyn Fn(&mut State, Box<dyn Any>)>> = vec![];
+        let mut stack = vec![self];
+        while !stack.is_empty() {
+            for Element { item } in std::mem::take(&mut stack) {
+                if let Some(callback) = item.take_callback() {
+                    item.set_callback_id(ans.len());
+                    ans.push(Box::new(move |state: &mut State, new: Box<dyn Any>| {
+                        callback(state, new);
+                    }));
+                }
+                stack.extend(item.children_mut());
+            }
         }
+        ans
     }
+}
+
+// impl<State, T: View<State> + 'static> From<T> for Element<State> {
+//     fn from(value: T) -> Self {
+//         Self {
+//             item: Box::new(value),
+//             // ty: PhantomData,
+//         }
+//     }
+// }
+
+#[derive(Serialize)]
+struct Text {
+    content: String,
+}
+
+#[typetag::serialize]
+impl<State> View<State> for Text {}
+
+fn text<State>(content: impl ToString) -> Element<State> {
+    Text {
+        content: content.to_string(),
+    }
+    .to_element()
 }
 
 impl<State> From<&str> for Element<State> {
@@ -65,25 +117,17 @@ impl<State> From<&str> for Element<State> {
         text(value)
     }
 }
+
 impl<State> From<&String> for Element<State> {
     fn from(value: &String) -> Self {
         text(value)
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct Text {
-    content: String,
-}
-
-#[typetag::serialize]
-impl View for Text {}
-
-fn text<State>(content: impl ToString) -> Element<State> {
-    Text {
-        content: content.to_string(),
+impl<State> From<String> for Element<State> {
+    fn from(value: String) -> Self {
+        text(value)
     }
-    .into()
 }
 
 #[derive(Serialize)]
@@ -92,7 +136,11 @@ struct Column<State> {
 }
 
 #[typetag::serialize]
-impl<State: Serialize> View for Column<State> {}
+impl<State: Serialize> View<State> for Column<State> {
+    fn children_mut(&mut self) -> Vec<&mut Element<State>> {
+        self.content.iter_mut().collect()
+    }
+}
 
 fn column<State>(x: impl IntoIterator<Item = Element<State>>) -> Element<State>
 where
@@ -101,17 +149,33 @@ where
     Column {
         content: x.into_iter().collect(),
     }
-    .into()
+    .to_element()
 }
 
 #[derive(Serialize)]
 struct TextField<State: Serialize> {
     content: String,
     #[serde(skip)]
-    callback: Box<dyn Fn(State, String) -> ()>,
+    callback: Box<dyn Fn(&mut State, String) -> ()>,
+    #[serde(rename = "callbackId")]
+    callback_id: usize,
 }
 #[typetag::serialize]
-impl<State: Serialize> View for TextField<State> {}
+impl<State: Serialize + 'static> View<State> for TextField<State> {
+    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn Any>)>> {
+        let mut callback: Box<dyn Fn(&mut State, String) -> ()> = Box::new(|_, _| {});
+        std::mem::swap(&mut self.callback, &mut callback);
+
+        Some(Box::new(move |state: &mut State, new: Box<dyn Any>| {
+            if let Ok(new) = new.downcast::<String>() {
+                callback(state, *new);
+            }
+        }))
+    }
+    fn set_callback_id(&mut self, id: usize) {
+        self.callback_id = id
+    }
+}
 
 fn text_field<State, Callback, Content>(content: Content, callback: Callback) -> Element<State>
 where
@@ -120,10 +184,11 @@ where
     Content: ToString,
 {
     TextField {
+        callback_id: 0,
         content: content.to_string(),
         callback: Box::new(callback),
     }
-    .into()
+    .to_element()
 }
 
 #[derive(Serialize)]
@@ -131,9 +196,23 @@ struct Button<State: Serialize> {
     content: Element<State>,
     #[serde(skip)]
     callback: Box<dyn Fn(&mut State) -> ()>,
+    #[serde(rename = "callbackId")]
+    callback_id: usize,
 }
 #[typetag::serialize]
-impl<State: Serialize> View for Button<State> {}
+impl<State: Serialize + 'static> View<State> for Button<State> {
+    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn Any>)>> {
+        let mut callback: Box<dyn Fn(&mut State) -> ()> = Box::new(|_| {});
+        std::mem::swap(&mut self.callback, &mut callback);
+
+        Some(Box::new(move |state: &mut State, _| {
+            callback(state);
+        }))
+    }
+    fn set_callback_id(&mut self, id: usize) {
+        self.callback_id = id
+    }
+}
 
 fn button<State, Callback>(content: impl Into<Element<State>>, callback: Callback) -> Element<State>
 where
@@ -143,8 +222,9 @@ where
     Button {
         content: content.into(),
         callback: Box::new(callback),
+        callback_id: 0,
     }
-    .into()
+    .to_element()
 }
 
 struct UI<State> {

@@ -144,7 +144,9 @@ impl<State> UI<State> {
         vec![]
     }
 
-    fn display(element: Element<State>) {}
+    fn display(element: Element<State>) {
+
+    }
 
     fn show(default: State, view: impl Fn(&State) -> Element<State>) {
         let element = view(&default);

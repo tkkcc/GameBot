@@ -34,6 +34,13 @@ extern "C" fn Java_gamebot_host_Native_start(mut env: JNIEnv, class: JClass, hos
                     .build(),
             ),
     );
+
+
+    // call setConfigUI() and waitConfigUIEvent()
+    // call setFloatUI() and waitFloatUIEvent()
+    // for waitConfigUIEvent, we use a holder of 
+
+
     let msg = env.new_string("native toast").unwrap();
     let obj: &JObject = msg.as_ref();
     loop {
@@ -47,21 +54,21 @@ extern "C" fn Java_gamebot_host_Native_start(mut env: JNIEnv, class: JClass, hos
         sleep(Duration::from_secs(3));
         break
     }
-
-    struct Button {
-        text: String,
-    }
-    impl Button {
-        fn text(mut self, x: &str) -> Self {
-            self.text = x.into();
-            self
-        }
-    }
-    fn button<D: Display>(x: impl Fn() -> D) -> Button {
-        Button {
-            text: x().to_string(),
-        }
-    }
+    //
+    // struct Button {
+    //     text: String,
+    // }
+    // impl Button {
+    //     fn text(mut self, x: &str) -> Self {
+    //         self.text = x.into();
+    //         self
+    //     }
+    // }
+    // fn button<D: Display>(x: impl Fn() -> D) -> Button {
+    //     Button {
+    //         text: x().to_string(),
+    //     }
+    // }
 
     // call the toast function of input
 

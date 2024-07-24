@@ -3,8 +3,7 @@
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.gestures.rememberScrollableState
-import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -20,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
@@ -47,6 +47,7 @@ sealed class Component {
     @Serializable
     data class Button(val content: Component, val callback: String) : Component()
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
     fun Render() {
         when (this) {
@@ -69,7 +70,7 @@ sealed class Component {
 
             is Column -> {
                 Column(
-                    modifier= Modifier.verticalScroll(rememberScrollState())
+                    modifier = Modifier.verticalScroll(rememberScrollState())
                 ) {
                     children.forEach {
                         it.Render()
@@ -78,11 +79,23 @@ sealed class Component {
             }
 
             is TextField -> {
+
+                // we do not allow mutating text on callback side if focused
+                // as it async updating value cause racing
+                // related: https://medium.com/androiddevelopers/effective-state-management-for-textfield-in-compose-d6e5b070fbe5
+
                 val callback = LocalCallback.current
-//                var text by remember { mutableStateOf(text) }
-                TextField(text, {
-//                    text = it
-                    callback.onEvent(0,it)
+
+                var text by remember(text) { mutableStateOf(text) }
+                var localText by remember { mutableStateOf(text) }
+                var isFocused by remember { mutableStateOf(false) }
+
+                TextField(if (isFocused) localText else text, {
+                    localText = it
+                    text = it
+                    callback.onEvent(0, it)
+                }, modifier = Modifier.onFocusChanged {
+                    isFocused = it.isFocused
                 })
             }
 
@@ -97,6 +110,7 @@ sealed class Component {
 interface Callback {
     fun onEvent(eventId: Int, data: Any)
 }
+
 val LocalCallback = compositionLocalOf<Callback> {
     object : Callback {
         override fun onEvent(eventId: Int, data: Any) {
@@ -105,12 +119,13 @@ val LocalCallback = compositionLocalOf<Callback> {
         }
     }
 }
+val state = mutableStateOf(0)
 
 class ComposeUI(val context: ComponentActivity) {
     fun render(layout: String) {
 
         context.setContent {
-            
+
             val coroutine = rememberCoroutineScope()
             var xx: Component by remember {
                 mutableStateOf(Component.TextField("abc"))
@@ -123,12 +138,12 @@ class ComposeUI(val context: ComponentActivity) {
 
                 xx = decodeFromString(encodeToString(Component.serializer(), x))
             }
-            CompositionLocalProvider(LocalCallback provides object: Callback {
+            CompositionLocalProvider(LocalCallback provides object : Callback {
                 override fun onEvent(eventId: Int, data: Any) {
                     coroutine.launch {
-                        xx = Component.Column(
+                        val x = Component.Column(
                             (0..1000).map {
-                                if (it == 0 ) {
+                                if (it == 0) {
 
                                     Component.TextField(data as String)
                                 } else {
@@ -138,6 +153,11 @@ class ComposeUI(val context: ComponentActivity) {
 //                                Component.TextField(it as String)
                             }.toList()
                         )
+                        val y = encodeToString(Component.serializer(), x)
+                        delay(3)
+                        val z: Component = decodeFromString(y)
+
+                        xx = z
                     }
                 }
             }) {

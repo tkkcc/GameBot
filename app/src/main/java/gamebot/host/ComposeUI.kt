@@ -11,7 +11,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,13 +20,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json.Default.decodeFromString
-import kotlinx.serialization.json.Json.Default.encodeToString
 
-val LocalComponentRoot = compositionLocalOf { Component.Root(Component.Empty) }
+val LocalComponentRoot = compositionLocalOf { Component.Root(Component.Unknown) }
 
 // TODO don't like enum, use trait
 
@@ -36,7 +34,7 @@ sealed class Component {
     data class Root(val child: Component) : Component()
 
     @Serializable
-    data object Empty : Component()
+    data object Unknown : Component()
 
     @Serializable
     data class Column(var children: List<Component>) : Component()
@@ -98,6 +96,9 @@ sealed class Component {
                     isFocused = it.isFocused
                 })
             }
+            is Unknown -> {
+
+            }
 
             else -> {
                 throw Exception("unknown component: $this")
@@ -121,49 +122,48 @@ val LocalCallback = compositionLocalOf<Callback> {
 }
 val state = mutableStateOf(0)
 
-class ComposeUI(val context: ComponentActivity) {
-    fun render(layout: String) {
 
-        context.setContent {
+@OptIn(ExperimentalSerializationApi::class)
+fun initConfigUI(context: ComponentActivity, layout: MutableState<Component>) {
 
-            val coroutine = rememberCoroutineScope()
-            var xx: Component by remember {
-                mutableStateOf(Component.TextField("abc"))
-            }
-            LaunchedEffect(true) {
-//                delay(3000)
-                val x = Component.Column(
-                    listOf(Component.TextField("aaa"))
-                )
+    context.setContent {
 
-                xx = decodeFromString(encodeToString(Component.serializer(), x))
-            }
-            CompositionLocalProvider(LocalCallback provides object : Callback {
-                override fun onEvent(eventId: Int, data: Any) {
-                    coroutine.launch {
-                        val x = Component.Column(
-                            (0..1000).map {
-                                if (it == 0) {
-
-                                    Component.TextField(data as String)
-                                } else {
-
-                                    Component.TextField(it.toString())
-                                }
-//                                Component.TextField(it as String)
-                            }.toList()
-                        )
-                        val y = encodeToString(Component.serializer(), x)
-                        delay(3)
-                        val z: Component = decodeFromString(y)
-
-                        xx = z
-                    }
+        val coroutine = rememberCoroutineScope()
+//        var xx: Component by remember {
+//            mutableStateOf(Component.TextField("abc"))
+//        }
+//        val a = ByteArray(10)
+//        val b: Component = Json.decodeFromStream(a.inputStream())
+//        LaunchedEffect(true) {
+////                delay(3000)
+//            val x = Component.Column(
+//                listOf(Component.TextField("aaa"))
+//            )
+//
+//            xx = decodeFromString(encodeToString(Component.serializer(), x))
+//        }
+        CompositionLocalProvider(LocalCallback provides object : Callback {
+            override fun onEvent(eventId: Int, data: Any) {
+                coroutine.launch {
+//                        val x = Component.Column(
+//                            (0..1000).map {
+//                                if (it == 0) {
+//                                    Component.TextField(data as String)
+//                                } else {
+//                                    Component.TextField(it.toString())
+//                                }
+////                                Component.TextField(it as String)
+//                            }.toList()
+//                        )
+//                        val y = encodeToString(Component.serializer(), x)
+//                        delay(3)
+//                        val z: Component = decodeFromString(y)
+//
+//                        xx = z
                 }
-            }) {
-//                Log.e("", layout)
-                xx.Render()
             }
+        }) {
+            layout.value.Render()
         }
     }
 }

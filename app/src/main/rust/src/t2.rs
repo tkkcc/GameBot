@@ -5,9 +5,10 @@ use jni::{
     objects::{JClass, JObject},
     sys::JNIEnv,
 };
+use serde::{Deserialize, Serialize};
 use strum::VariantArray;
 
-#[derive(VariantArray, Clone, Copy, Default)]
+#[derive(VariantArray, Clone, Copy, Default, Serialize)]
 enum Server {
     #[default]
     Official,
@@ -15,15 +16,15 @@ enum Server {
     VVV,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize)]
 struct AccountConfig {
     username: String,
     password: String,
     server: Server,
     id: usize,
 }
-#[derive(Default)]
-struct Config {
+#[derive(Default, Serialize)]
+pub(crate) struct Config {
     name: String,
     account: Vec<AccountConfig>,
     enable_abc: bool,
@@ -34,14 +35,19 @@ impl Config {
     }
 }
 
-trait MutableState: erased_serde::Serialize {}
-serialize_trait_object!(MutableState);
-impl<T: erased_serde::Serialize> MutableState for T {}
+// trait MutableState: erased_serde::Serialize {}
+// serialize_trait_object!(MutableState);
+// impl<T: erased_serde::Serialize> MutableState for T {}
 
+#[typetag::serialize]
 trait View {}
+// serialize_trait_object!(View);
 
-struct Element<State> {
+#[derive(Serialize)]
+pub(crate) struct Element<State> {
+    #[serde(flatten)]
     item: Box<dyn View>,
+    #[serde(skip)]
     ty: PhantomData<State>,
 }
 
@@ -65,10 +71,14 @@ impl<State> From<&String> for Element<State> {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 struct Text {
     content: String,
 }
+
+#[typetag::serialize]
 impl View for Text {}
+
 fn text<State>(content: impl ToString) -> Element<State> {
     Text {
         content: content.to_string(),
@@ -76,20 +86,17 @@ fn text<State>(content: impl ToString) -> Element<State> {
     .into()
 }
 
-// impl<State> From<&str> for Element<State> {
-//     fn from(value: &str) -> Self {
-//         text(value)
-//     }
-// }
-
+#[derive(Serialize)]
 struct Column<State> {
     content: Vec<Element<State>>,
 }
 
-impl<State> View for Column<State> {}
+#[typetag::serialize]
+impl<State: Serialize> View for Column<State> {}
+
 fn column<State>(x: impl IntoIterator<Item = Element<State>>) -> Element<State>
 where
-    State: 'static,
+    State: 'static + Serialize,
 {
     Column {
         content: x.into_iter().collect(),
@@ -97,15 +104,18 @@ where
     .into()
 }
 
-struct TextField<State> {
+#[derive(Serialize)]
+struct TextField<State: Serialize> {
     content: String,
+    #[serde(skip)]
     callback: Box<dyn Fn(State, String) -> ()>,
 }
-impl<State> View for TextField<State> {}
+#[typetag::serialize]
+impl<State: Serialize> View for TextField<State> {}
 
 fn text_field<State, Callback, Content>(content: Content, callback: Callback) -> Element<State>
 where
-    State: 'static,
+    State: 'static + Serialize,
     Callback: Fn(&mut State, String) -> () + 'static,
     Content: ToString,
 {
@@ -116,15 +126,18 @@ where
     .into()
 }
 
-struct Button<State> {
+#[derive(Serialize)]
+struct Button<State: Serialize> {
     content: Element<State>,
+    #[serde(skip)]
     callback: Box<dyn Fn(&mut State) -> ()>,
 }
-impl<State> View for Button<State> {}
+#[typetag::serialize]
+impl<State: Serialize> View for Button<State> {}
 
 fn button<State, Callback>(content: impl Into<Element<State>>, callback: Callback) -> Element<State>
 where
-    State: 'static,
+    State: 'static + Serialize,
     Callback: Fn(&mut State) -> () + 'static,
 {
     Button {
@@ -144,9 +157,7 @@ impl<State> UI<State> {
         vec![]
     }
 
-    fn display(element: Element<State>) {
-
-    }
+    fn display(element: Element<State>) {}
 
     fn show(default: State, view: impl Fn(&State) -> Element<State>) {
         let element = view(&default);
@@ -157,7 +168,7 @@ impl<State> UI<State> {
 #[no_mangle]
 extern "C" fn Java_gamebot_host_Native_callback(mut env: JNIEnv, class: JClass, msg: JObject) {}
 
-fn t() {
+pub(crate) fn simple_ui() -> Element<Config> {
     fn view(state: &Config) -> Element<Config> {
         let layout = column::<Config>([
             button(&state.name, |state: &mut Config| state.enable_abc = true),
@@ -173,5 +184,23 @@ fn t() {
         // });
         layout
     }
-    UI::show(Config::default(), view);
+    let config = Config {
+        account: vec![
+            AccountConfig {
+                username: "use1".into(),
+                password: "paww1".into(),
+                id: 0,
+                ..Default::default()
+            },
+            AccountConfig {
+                username: "use2".into(),
+                password: "paww2".into(),
+                id: 1,
+                ..Default::default()
+            },
+        ],
+        name: "what my name".into(),
+        enable_abc: true,
+    };
+    view(&config)
 }

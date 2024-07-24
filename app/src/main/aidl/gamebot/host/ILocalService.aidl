@@ -10,5 +10,6 @@ interface ILocalService {
      */
     void toast(String text);
     void test();
+    void updateConfigUI(in ParcelFileDescriptor pfd);
 
 }

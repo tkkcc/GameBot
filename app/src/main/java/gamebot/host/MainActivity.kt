@@ -3,7 +3,6 @@ package gamebot.host
 //import com.github.only52607.compose.window.ComposeFloatingWindow
 //import com.xrubio.overlaytest.overlay.OverlayService
 import Component
-import ComposeUI
 import MyLifecycleOwner
 import android.annotation.SuppressLint
 import android.app.UiAutomation
@@ -23,6 +22,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.HandlerThread
 import android.os.IBinder
+import android.os.MemoryFile
+import android.os.MemoryFileHidden
+import android.os.ParcelFileDescriptor
 import android.os.ServiceManager
 import android.os.SystemClock
 import android.util.Log
@@ -37,7 +39,6 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +48,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,18 +74,19 @@ import dev.rikka.tools.refine.Refine
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
 import gamebot.host.overlay.Overlay
-import kotlinx.coroutines.CoroutineScope
+import initConfigUI
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import rikka.shizuku.Shizuku
 import rikka.shizuku.Shizuku.OnRequestPermissionResultListener
 import rikka.shizuku.Shizuku.UserServiceArgs
 import java.io.BufferedReader
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import kotlin.concurrent.thread
@@ -244,7 +247,7 @@ class MainActivity : ComponentActivity() {
     }
 
 
-    @OptIn(ExperimentalComposeUiApi::class)
+    @OptIn(ExperimentalComposeUiApi::class, ExperimentalSerializationApi::class)
     @SuppressLint("SetJavaScriptEnabled")
     private fun test() {
         cleanPreviousRemoteService()
@@ -631,6 +634,13 @@ class MainActivity : ComponentActivity() {
                     fun showUI(layout: String, state: String) {
 
                     }
+
+                    fun updateConfigUI(layout: ByteArray) {
+                        sendLargeData(layout) {
+                            localService.updateConfigUI(it)
+                        }
+
+                    }
                 }
                 toNative.javaClass.declaredMethods.forEach {
                     Log.e("", it.toString())
@@ -639,7 +649,6 @@ class MainActivity : ComponentActivity() {
                     Log.e("", it.toString())
                 }
                 thread {
-
                     native.start(toNative)
                 }
                 Log.e("", "rust call finish")
@@ -648,19 +657,26 @@ class MainActivity : ComponentActivity() {
 
 
         class LocalService(val context: Context) : ILocalService.Stub() {
-            val ui = ComposeUI(context as ComponentActivity)
+
+            val configUI: MutableState<Component> = mutableStateOf(Component.Unknown)
+
+            init {
+                initConfigUI(context as ComponentActivity, configUI)
+            }
+//            val ui = ComposeUI(context as ComponentActivity, configUI)
+
             override fun toast(text: String) {
                 runOnUiThread {
 //                    this@MainActivity.setContent { FF() }
-                    val layout = Component.Column(
-                        children = listOf(
-                            Component.TextField(text = "abc"),
-                            Component.TextField(text = "abc1")
-                        )
-                    )
-                    val xx = Json.encodeToString(Component.serializer(), layout)
-                    Log.e("", xx)
-                    ui.render(xx)
+//                    val layout = Component.Column(
+//                        children = listOf(
+//                            Component.TextField(text = "abc"),
+//                            Component.TextField(text = "abc1")
+//                        )
+//                    )
+//                    val xx = Json.encodeToString(Component.serializer(), layout)
+//                    Log.e("", xx)
+//                    ui.render(xx)
 //                    CoroutineScope(Dispatchers.Default).launch {
 //                        while (true) {
 //                            delay(3000)
@@ -704,6 +720,12 @@ class MainActivity : ComponentActivity() {
 
             override fun test() {
 
+            }
+
+            override fun updateConfigUI(pfd: ParcelFileDescriptor) {
+                val stream = ParcelFileDescriptor.AutoCloseInputStream(pfd)
+                val component: Component = Json.decodeFromStream(stream)
+                configUI.value = component
             }
 
             val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -897,4 +919,21 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// transfer over 1M via AIDL
+fun sendLargeData(byteArray: ByteArray, func: (pfd: ParcelFileDescriptor) -> Unit) {
+    val memoryFile = MemoryFile("name?", byteArray.size)
+    memoryFile.writeBytes(byteArray, 0, 0, byteArray.size)
+    val memoryFileHidden: MemoryFileHidden = Refine.unsafeCast(memoryFile)
+    val fd = memoryFileHidden.fileDescriptor
+    val pfd = ParcelFileDescriptor.dup(fd)
+    func(pfd)
+    pfd.close()
+    memoryFile.close()
+}
 
+fun receiveLargeData(pfd: ParcelFileDescriptor): ByteArray {
+    val fileDescriptor = pfd.fileDescriptor
+    val data = FileInputStream(fileDescriptor).readBytes()
+    pfd.close()
+    return data
+}

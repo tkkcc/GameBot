@@ -39,7 +39,7 @@ impl Config {
 // serialize_trait_object!(MutableState);
 // impl<T: erased_serde::Serialize> MutableState for T {}
 
-#[typetag::serialize]
+#[typetag::serialize(tag="type")]
 trait View {}
 // serialize_trait_object!(View);
 

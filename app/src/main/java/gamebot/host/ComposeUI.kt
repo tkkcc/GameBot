@@ -3,11 +3,10 @@
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -23,89 +22,167 @@ import androidx.compose.ui.focus.onFocusChanged
 import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
-val LocalComponentRoot = compositionLocalOf { Component.Root(Component.Unknown) }
-
-// TODO don't like enum, use trait
 
 @Serializable
-sealed class Component {
-    @Serializable
-    data class Root(val child: Component) : Component()
-
-    @Serializable
-    data object Unknown : Component()
-
-    @Serializable
-    data class Column(var children: List<Component>) : Component()
-
-    @Serializable
-    data class TextField(val text: String, val id: Int = 0) : Component()
-
-    @Serializable
-    data class Button(val content: Component, val callback: String) : Component()
-
-    @OptIn(ExperimentalFoundationApi::class)
+sealed interface Component {
     @Composable
-    fun Render() {
-        when (this) {
-            is Root -> {
-                CompositionLocalProvider(LocalComponentRoot provides this) {
-                    child.Render()
-                }
-            }
+    fun Render()
+}
 
-            is Button -> {
-                val layout = LocalComponentRoot.current.toString()
-                Button(onClick = {
-                    Log.e("", layout)
-                    // TODO callback from local to remote to jni
-//                    Native.callback(callback)
-                }) {
-                    content.Render()
-                }
-            }
-
-            is Column -> {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState())
-                ) {
-                    children.forEach {
-                        it.Render()
-                    }
-                }
-            }
-
-            is TextField -> {
-
-                // we do not allow mutating text on callback side if focused
-                // as it async updating value cause racing
-                // related: https://medium.com/androiddevelopers/effective-state-management-for-textfield-in-compose-d6e5b070fbe5
-
-                val callback = LocalCallback.current
-
-                var text by remember(text) { mutableStateOf(text) }
-                var localText by remember { mutableStateOf(text) }
-                var isFocused by remember { mutableStateOf(false) }
-
-                TextField(if (isFocused) localText else text, {
-                    localText = it
-                    text = it
-                    callback.onEvent(0, it)
-                }, modifier = Modifier.onFocusChanged {
-                    isFocused = it.isFocused
-                })
-            }
-            is Unknown -> {
-
-            }
-
-            else -> {
-                throw Exception("unknown component: $this")
+@Serializable
+data class Column(val content: List<Component> = emptyList()) : Component {
+    @Composable
+    override fun Render() {
+        Column(
+//            modifier = Modifier.verticalScroll(rememberScrollState())
+        ) {
+            content.forEach {
+                it.Render()
             }
         }
     }
 }
+
+@Serializable
+data class Row(val content: List<Component> = emptyList()) : Component {
+    @Composable
+    override fun Render() {
+        Row(
+//            modifier = Modifier.verticalScroll(rememberScrollState())
+        ) {
+            content.forEach {
+                it.Render()
+            }
+        }
+    }
+}
+
+@Serializable
+data class TextField(val content: String, val callback: Int = 0) : Component {
+    @Composable
+    override fun Render() {
+        // we do not allow mutating text on callback side if focused
+        // as it async updating value cause racing
+        // related: https://medium.com/androiddevelopers/effective-state-management-for-textfield-in-compose-d6e5b070fbe5
+
+        val callback = LocalCallback.current
+
+        var text by remember(content) { mutableStateOf(content) }
+        var localText by remember { mutableStateOf(content) }
+        var isFocused by remember { mutableStateOf(false) }
+
+        TextField(if (isFocused) localText else text, {
+            localText = it
+            text = it
+            callback.onEvent(0, it)
+        }, modifier = Modifier.onFocusChanged {
+            isFocused = it.isFocused
+        })
+    }
+}
+
+@Serializable
+data class Button(val content: Component, val id: Int = 0) : Component {
+    @Composable
+    override fun Render() {
+        val callback = LocalCallback.current
+        Button(onClick = {
+            callback.onEvent(id, Unit)
+        }) {
+            content.Render()
+        }
+    }
+}
+
+@Serializable
+data class Text(val content: String) : Component {
+    @Composable
+    override fun Render() {
+        Text(content)
+    }
+}
+
+//sealed class Component {
+//    @Serializable
+//    data class Root(val child: Component) : Component()
+//
+//    @Serializable
+//    data object Unknown : Component()
+//
+//    @Serializable
+//    data class Column(var children: List<Component>) : Component()
+//
+//    @Serializable
+//    data class TextField(val text: String, val id: Int = 0) : Component()
+//
+//    @Serializable
+//    data class Button(val content: Component, val callback: String) : Component()
+//
+//    @OptIn(ExperimentalFoundationApi::class)
+//    @Composable
+//    fun Render() {
+//        when (this) {
+//            is Root -> {
+//                CompositionLocalProvider(LocalComponentRoot provides this) {
+//                    child.Render()
+//                }
+//            }
+//
+//            is Button -> {
+//                val layout = LocalComponentRoot.current.toString()
+//                Button(onClick = {
+//                    Log.e("", layout)
+//                    // TODO callback from local to remote to jni
+////                    Native.callback(callback)
+//                }) {
+//                    content.Render()
+//                }
+//            }
+//
+//            is Column -> {
+//                Column(
+//                    modifier = Modifier.verticalScroll(rememberScrollState())
+//                ) {
+//                    children.forEach {
+//                        it.Render()
+//                    }
+//                }
+//            }
+//
+//            is TextField -> {
+//
+//                // we do not allow mutating text on callback side if focused
+//                // as it async updating value cause racing
+//                // related: https://medium.com/androiddevelopers/effective-state-management-for-textfield-in-compose-d6e5b070fbe5
+//
+//                val callback = LocalCallback.current
+//
+//                var text by remember(text) { mutableStateOf(text) }
+//                var localText by remember { mutableStateOf(text) }
+//                var isFocused by remember { mutableStateOf(false) }
+//
+//                TextField(if (isFocused) localText else text, {
+//                    localText = it
+//                    text = it
+//                    callback.onEvent(0, it)
+//                }, modifier = Modifier.onFocusChanged {
+//                    isFocused = it.isFocused
+//                })
+//            }
+//
+//            is Unknown -> {
+//
+//            }
+//
+//            else -> {
+//                throw Exception("unknown component: $this")
+//            }
+//        }
+//    }
+//}
 
 
 interface Callback {
@@ -120,12 +197,16 @@ val LocalCallback = compositionLocalOf<Callback> {
         }
     }
 }
-val state = mutableStateOf(0)
 
 
 @OptIn(ExperimentalSerializationApi::class)
 fun initConfigUI(context: ComponentActivity, layout: MutableState<Component>) {
 
+    val test: Component = Column(
+        listOf(Button(Text(content = "abc"), 0))
+    )
+    val a = Json.encodeToString(test)
+    Log.d("", "initConfigUI: ${a}")
     context.setContent {
 
         val coroutine = rememberCoroutineScope()

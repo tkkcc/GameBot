@@ -2,6 +2,7 @@ package gamebot.host
 
 //import com.github.only52607.compose.window.ComposeFloatingWindow
 //import com.xrubio.overlaytest.overlay.OverlayService
+import Column
 import Component
 import MyLifecycleOwner
 import android.annotation.SuppressLint
@@ -658,10 +659,11 @@ class MainActivity : ComponentActivity() {
 
         class LocalService(val context: Context) : ILocalService.Stub() {
 
-            val configUI: MutableState<Component> = mutableStateOf(Component.Unknown)
+            val configUI: MutableState<Component> = mutableStateOf(Column())
 
             init {
                 initConfigUI(context as ComponentActivity, configUI)
+
             }
 //            val ui = ComposeUI(context as ComponentActivity, configUI)
 

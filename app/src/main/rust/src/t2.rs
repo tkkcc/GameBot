@@ -41,7 +41,7 @@ impl Config {
 
 #[typetag::serialize(tag = "type")]
 trait View<State> {
-    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn Any>)>> {
+    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
         None
     }
     fn set_callback_id(&mut self, id: usize) {}
@@ -59,7 +59,27 @@ trait View<State> {
         }
     }
 }
-// serialize_trait_object!(View);
+
+#[typetag::serde(tag = "type")]
+pub(crate) trait CallbackValue: Any + std::fmt::Debug {}
+
+#[typetag::serde()]
+impl CallbackValue for usize {}
+
+#[typetag::serde()]
+impl CallbackValue for isize {}
+
+#[typetag::serde()]
+impl CallbackValue for f64 {}
+
+#[typetag::serde(name = "unit")]
+impl CallbackValue for () {}
+
+#[typetag::serde()]
+impl CallbackValue for bool {}
+
+#[typetag::serde(name = "string")]
+impl CallbackValue for String {}
 
 #[derive(Serialize)]
 pub(crate) struct Element<State> {
@@ -70,16 +90,20 @@ pub(crate) struct Element<State> {
 }
 
 impl<State: 'static> Element<State> {
-    pub(crate) fn collect_callback(&mut self) -> Vec<Box<dyn Fn(&mut State, Box<dyn Any>)>> {
-        let mut ans: Vec<Box<dyn Fn(&mut State, Box<dyn Any>)>> = vec![];
+    pub(crate) fn collect_callback(
+        &mut self,
+    ) -> Vec<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
+        let mut ans: Vec<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> = vec![];
         let mut stack = vec![self];
         while !stack.is_empty() {
             for Element { item } in std::mem::take(&mut stack) {
                 if let Some(callback) = item.take_callback() {
                     item.set_callback_id(ans.len());
-                    ans.push(Box::new(move |state: &mut State, new: Box<dyn Any>| {
-                        callback(state, new);
-                    }));
+                    ans.push(Box::new(
+                        move |state: &mut State, new: Box<dyn CallbackValue>| {
+                            callback(state, new);
+                        },
+                    ));
                 }
                 stack.extend(item.children_mut());
             }
@@ -162,15 +186,17 @@ struct TextField<State: Serialize> {
 }
 #[typetag::serialize]
 impl<State: Serialize + 'static> View<State> for TextField<State> {
-    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn Any>)>> {
+    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
         let mut callback: Box<dyn Fn(&mut State, String) -> ()> = Box::new(|_, _| {});
         std::mem::swap(&mut self.callback, &mut callback);
 
-        Some(Box::new(move |state: &mut State, new: Box<dyn Any>| {
-            if let Ok(new) = new.downcast::<String>() {
-                callback(state, *new);
-            }
-        }))
+        Some(Box::new(
+            move |state: &mut State, new: Box<dyn CallbackValue>| {
+                if let Ok(new) = (new as Box<dyn Any>).downcast::<String>() {
+                    callback(state, *new);
+                }
+            },
+        ))
     }
     fn set_callback_id(&mut self, id: usize) {
         self.callback_id = id
@@ -201,7 +227,7 @@ struct Button<State: Serialize> {
 }
 #[typetag::serialize]
 impl<State: Serialize + 'static> View<State> for Button<State> {
-    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn Any>)>> {
+    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
         let mut callback: Box<dyn Fn(&mut State) -> ()> = Box::new(|_| {});
         std::mem::swap(&mut self.callback, &mut callback);
 
@@ -248,23 +274,25 @@ impl<State> UI<State> {
 #[no_mangle]
 extern "C" fn Java_gamebot_host_Native_callback(mut env: JNIEnv, class: JClass, msg: JObject) {}
 
-pub(crate) fn simple_ui() -> Element<Config> {
-    fn view(state: &Config) -> Element<Config> {
-        let layout = column::<Config>([
-            button(&state.name, |state: &mut Config| state.enable_abc = true),
-            button(text(&state.name), |state: &mut Config| {
-                state.enable_abc = true
-            }),
-            text_field(&state.name, |state: &mut Config, new| state.name = new),
-            text_field(&state.name, Config::name),
-            text("abc"),
-        ]);
-        // state.account_list.iter().enumerate().map(|i, account: AccountConfig| {
-        //   section_row(account.title, account.info, checkbox(account.enable_abc, |state|state.account[i].enable_abc=new))
-        // });
-        layout
-    }
-    let config = Config {
+pub(crate) fn simple_view(state: &Config) -> Element<Config> {
+    let layout = column::<Config>([
+        text(format!("state.enable_abc {}", state.enable_abc.to_string())),
+        button(&state.name, |state: &mut Config| state.enable_abc = true),
+        button(text(&state.name), |state: &mut Config| {
+            state.enable_abc = false
+        }),
+        text_field(&state.name, |state: &mut Config, new| state.name = new),
+        text_field(&state.name, Config::name),
+        text("abc"),
+    ]);
+    // state.account_list.iter().enumerate().map(|i, account: AccountConfig| {
+    //   section_row(account.title, account.info, checkbox(account.enable_abc, |state|state.account[i].enable_abc=new))
+    // });
+    layout
+}
+
+pub(crate) fn simple_config() -> Config {
+    Config {
         account: vec![
             AccountConfig {
                 username: "use1".into(),
@@ -281,6 +309,5 @@ pub(crate) fn simple_ui() -> Element<Config> {
         ],
         name: "what my name".into(),
         enable_abc: true,
-    };
-    view(&config)
+    }
 }

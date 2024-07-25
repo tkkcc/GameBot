@@ -1,17 +1,18 @@
+#![feature(trait_upcasting)]
 mod t;
 mod t1;
 mod t2;
-use std::{error::Error, fmt::Display, thread::sleep, time::Duration};
+
+use core::error;
 
 // use erased_serde::Serialize;
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
 use jni::{
-    objects::{JClass, JObject, JString},
-    sys::{jint, jstring},
+    objects::{JByteArray, JClass, JObject},
     JNIEnv,
 };
-use serde::Serialize;
-use t2::{simple_ui, Element};
+use serde::{Deserialize, Serialize};
+use t2::{simple_config, simple_view, CallbackValue, Element};
 // use wasmtime::{Caller, Engine, Linker, Module, Store};
 // use tracing::{debug, error, Subscriber};
 // use tracing_subscriber::Registry;
@@ -30,15 +31,28 @@ struct Proxy<'a> {
     host: JObject<'a>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct CallbackMsg {
+    id: usize,
+    value: Box<dyn CallbackValue>,
+}
+
 impl<'a> Proxy<'a> {
-    fn update_config_ui<State: Serialize + 'static>(&mut self, mut element: Element<State>) {
-        // store callback in central and assign callback_id
+    fn update_config_ui<State: Serialize + 'static>(
+        &mut self,
+        state: &mut State,
+        view: impl Fn(&State) -> Element<State>,
+    ) {
+        // generate element tree
+        let mut element = view(state);
+
+        // take out callback and assign callback_id
         let callback = element.collect_callback();
 
-        // serialize element into non-callback with id
+        // serialize element
         let byte = serde_json::to_vec(&element).unwrap();
 
-        debug!("{:?}", serde_json::to_string(&element));
+        // debug!("{:?}", serde_json::to_string(&element));
 
         // TODO may be leak
         let value = self.env.byte_array_from_slice(&byte).unwrap();
@@ -47,17 +61,35 @@ impl<'a> Proxy<'a> {
             .env
             .call_method(&self.host, "updateConfigUI", "([B)V", &[(&value).into()]);
 
-        // let event = self
-        //     .env
-        //     .call_method(&self.host, "waitConfigUIEvent", "()[B", &[]).unwrap();
+        let event = self
+            .env
+            .call_method(&self.host, "waitConfigUIEvent", "()[B", &[])
+            .unwrap();
+        // error!("64");
 
-        
+        // TODO may be leak
+        let event: JByteArray = event.l().unwrap().into();
+        // error!("65, {:?}", serde_json::to_string(&CallbackMsg {
+        //     id:0,
+        //     value: Box::new("abc".to_string())
+        // }));
+        // let x : CallbackMsg = serde_json::from_slice(&serde_json::to_vec(value))
+
+        let event = self.env.convert_byte_array(event).unwrap();
+
+        // error!("67 {:?}", event);
+        let event: Vec<CallbackMsg> = serde_json::from_slice(&event).unwrap();
+
+        // error!("{:?}", event);
+
+        for event in event {
+            callback[event.id](state, event.value)
+        }
     }
 
     fn handle_config_ui_event<State>(&mut self, element: Element<State>) {}
 
     fn update_float_ui() {}
-    
 }
 
 #[no_mangle]
@@ -72,7 +104,10 @@ extern "C" fn Java_gamebot_host_Native_start(mut env: JNIEnv, class: JClass, hos
         // ),
     );
     let mut proxy = Proxy { env, host };
-    proxy.update_config_ui(simple_ui())
+    let mut state = simple_config();
+    loop {
+        proxy.update_config_ui(&mut state, simple_view);
+    }
 
     // call updateConfigUI() and waitConfigUIEvent()
     // call updateFloatUI() and waitFloatUIEvent()

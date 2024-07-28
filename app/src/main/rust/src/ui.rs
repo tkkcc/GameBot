@@ -30,7 +30,7 @@ pub(crate) struct Config {
     enable_abc: bool,
 }
 impl Config {
-    fn name(&mut self, new: String) {
+    fn change_name(&mut self, new: String) {
         self.name = new;
     }
 }
@@ -50,7 +50,7 @@ trait View<State> {
         vec![]
     }
 
-    fn to_element(self) -> Element<State>
+    fn into_element(self) -> Element<State>
     where
         Self: Sized + 'static,
     {
@@ -133,7 +133,7 @@ fn text<State>(content: impl ToString) -> Element<State> {
     Text {
         content: content.to_string(),
     }
-    .to_element()
+    .into_element()
 }
 
 impl<State> From<&str> for Element<State> {
@@ -173,7 +173,7 @@ where
     Column {
         content: x.into_iter().collect(),
     }
-    .to_element()
+    .into_element()
 }
 
 #[derive(Serialize)]
@@ -214,7 +214,7 @@ where
         content: content.to_string(),
         callback: Box::new(callback),
     }
-    .to_element()
+    .into_element()
 }
 
 #[derive(Serialize)]
@@ -250,39 +250,18 @@ where
         callback: Box::new(callback),
         callback_id: 0,
     }
-    .to_element()
+    .into_element()
 }
-
-struct UI<State> {
-    callback: HashMap<u64, u64>,
-    ty: PhantomData<State>,
-}
-impl<State> UI<State> {
-    fn pull_event() -> Vec<i32> {
-        // serde_json::from_slice(v)
-        vec![]
-    }
-
-    fn display(element: Element<State>) {}
-
-    fn show(default: State, view: impl Fn(&State) -> Element<State>) {
-        let element = view(&default);
-        Self::display(element);
-    }
-}
-
-#[no_mangle]
-extern "C" fn Java_gamebot_host_Native_callback(mut env: JNIEnv, class: JClass, msg: JObject) {}
 
 pub(crate) fn simple_view(state: &Config) -> Element<Config> {
-    let layout = column::<Config>([
+    let layout = column([
         text(format!("state.enable_abc {}", state.enable_abc.to_string())),
         button(&state.name, |state: &mut Config| state.enable_abc = true),
         button(text(&state.name), |state: &mut Config| {
             state.enable_abc = false
         }),
         text_field(&state.name, |state: &mut Config, new| state.name = new),
-        text_field(&state.name, Config::name),
+        text_field(&state.name, Config::change_name),
         text("abc"),
     ]);
     // state.account_list.iter().enumerate().map(|i, account: AccountConfig| {

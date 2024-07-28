@@ -128,7 +128,7 @@ val LocalCallback = compositionLocalOf<(Int, CallbackValue) -> Unit> {
 fun initConfigUI(
     context: ComponentActivity,
     layout: MutableState<Component>,
-    callbackChannel: Channel<CallbackMsg>
+    callbackChannel: MutableState<Channel<CallbackMsg>>
 ) {
 
     val test: Component = Component.Column(
@@ -154,7 +154,7 @@ fun initConfigUI(
 //        }
         CompositionLocalProvider(LocalCallback provides { id, value ->
             coroutine.launch {
-                callbackChannel.send(CallbackMsg(id, value))
+                callbackChannel.value.send(CallbackMsg(id, value))
 //                        val x = Component.Column(
 //                            (0..1000).map {
 //                                if (it == 0) {

@@ -46,7 +46,7 @@ import java.io.ByteArrayOutputStream
 class LocalService(val context: ComponentActivity) : ILocalService.Stub() {
 
     val configUI: MutableState<Component> = mutableStateOf(Component.Column())
-    val configUIEvent = Channel<CallbackMsg>()
+    var configUIEvent = mutableStateOf(Channel<CallbackMsg>())
 
     init {
 
@@ -119,17 +119,18 @@ class LocalService(val context: ComponentActivity) : ILocalService.Stub() {
         val stream = ParcelFileDescriptor.AutoCloseInputStream(pfd)
         val component: Component = Json.decodeFromStream(stream)
         configUI.value = component
+        configUIEvent.value = Channel<CallbackMsg>()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalSerializationApi::class)
     override fun waitConfigUIEvent(): ParcelFileDescriptor {
 //        Log.e("", "waitConfigUIEvent in localservice")
-
+        val channel = configUIEvent.value
         val event = runBlocking {
             buildList<CallbackMsg> {
-                add(configUIEvent.receive())
-                while (!configUIEvent.isEmpty) {
-                    add(configUIEvent.receive())
+                add(channel.receive())
+                while (!channel.isEmpty) {
+                    add(channel.receive())
                 }
             }
         }

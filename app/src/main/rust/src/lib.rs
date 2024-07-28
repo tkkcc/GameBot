@@ -1,18 +1,22 @@
 #![feature(trait_upcasting)]
 mod t;
 mod t1;
-mod t2;
+mod ui;
 
-use core::error;
+use std::{
+    cell::OnceCell,
+    sync::{Mutex, OnceLock},
+};
 
+use anyhow::{Error, Result};
 // use erased_serde::Serialize;
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
 use jni::{
-    objects::{JByteArray, JClass, JObject},
-    JNIEnv,
+    objects::{GlobalRef, JByteArray, JClass, JObject},
+    JNIEnv, JavaVM,
 };
 use serde::{Deserialize, Serialize};
-use t2::{simple_config, simple_view, CallbackValue, Element};
+use ui::{simple_config, simple_view, CallbackValue, Element};
 // use wasmtime::{Caller, Engine, Linker, Module, Store};
 // use tracing::{debug, error, Subscriber};
 // use tracing_subscriber::Registry;
@@ -28,13 +32,51 @@ extern crate android_logger;
 
 struct Proxy<'a> {
     env: JNIEnv<'a>,
-    host: JObject<'a>,
+    host: &'a JObject<'a>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct CallbackMsg {
     id: usize,
     value: Box<dyn CallbackValue>,
+}
+
+static CELL: OnceLock<GlobalRef> = OnceLock::new();
+fn get_object() -> &'static JObject<'static> {
+    CELL.get().unwrap().as_obj()
+}
+
+static CELL2: OnceLock<JavaVM> = OnceLock::new();
+fn get_env() -> JNIEnv<'static> {
+    let vm = CELL2.get().unwrap();
+    vm.attach_current_thread_permanently().unwrap()
+}
+
+struct Store {
+    vm: JavaVM,
+    host_ref: GlobalRef,
+}
+static STORE: OnceLock<Store> = OnceLock::new();
+impl Store {
+    fn init(env: &JNIEnv, obj: &JObject) -> Result<()> {
+        let vm = env.get_java_vm()?;
+        let obj_ref = env.new_global_ref(obj)?;
+        let _ = STORE
+            .set(Store {
+                vm,
+                host_ref: obj_ref,
+            })
+            .map_err(|_| Error::msg("Store set fail"))?;
+        Ok(())
+    }
+
+    fn proxy() -> Result<Proxy<'static>> {
+        let store = STORE.get().ok_or(Error::msg("Store get fail"))?;
+        let env = store.vm.attach_current_thread_permanently()?;
+        let host = store.host_ref.as_obj();
+
+        Ok(Proxy { env, host })
+    }
 }
 
 impl<'a> Proxy<'a> {
@@ -80,7 +122,7 @@ impl<'a> Proxy<'a> {
         // error!("67 {:?}", event);
         let event: Vec<CallbackMsg> = serde_json::from_slice(&event).unwrap();
 
-        // error!("{:?}", event);
+        error!("{:?}", event);
 
         for event in event {
             callback[event.id](state, event.value)
@@ -92,20 +134,29 @@ impl<'a> Proxy<'a> {
     fn update_float_ui() {}
 }
 
+// static CELL3: OnceLock<JObject> = OnceLock::new();
+// fn get_object() -> &'static JObject<'static> {
+//     CELL3.get().unwrap()
+// }
+
+fn click() {
+    let obj = get_object();
+}
+
 #[no_mangle]
 extern "C" fn Java_gamebot_host_Native_start(mut env: JNIEnv, class: JClass, host: JObject) {
     android_logger::init_once(
         android_logger::Config::default().with_max_level(log::LevelFilter::Debug),
-        // .with_tag("mytag")
-        // .with_filter(
-        //     android_logger::FilterBuilder::new()
-        //         .parse("debug,hello::crate=trace")
-        //         .build(),
-        // ),
     );
-    let mut proxy = Proxy { env, host };
+    Store::init(&env, &host);
+
+    // let x = env.new_global_ref(&host).unwrap();
+    // let o = x.as_obj();
+    //
+    // let mut proxy = Proxy { env, host };
     let mut state = simple_config();
     loop {
+        let mut proxy = Store::proxy().unwrap();
         proxy.update_config_ui(&mut state, simple_view);
     }
 

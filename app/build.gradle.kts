@@ -93,7 +93,7 @@ androidComponents.onVariants { variant ->
 //        listOf("x86_64", "arm64-v8a")
         listOf("x86_64")
     } else {
-        listOf("x86_64")
+        listOf("x86")
     }
     val source = Path(projectDir.absolutePath, "src", "main", "rust")
 

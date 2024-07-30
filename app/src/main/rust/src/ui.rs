@@ -1,11 +1,6 @@
-use std::{any::Any, collections::HashMap, marker::PhantomData, mem::discriminant};
+use std::any::Any;
 
-// use erased_serde::serialize_trait_object;
-use jni::{
-    objects::{JClass, JObject},
-    sys::JNIEnv,
-};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use strum::VariantArray;
 
 #[derive(VariantArray, Clone, Copy, Default, Serialize)]
@@ -44,7 +39,7 @@ trait View<State> {
     fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
         None
     }
-    fn set_callback_id(&mut self, id: usize) {}
+    fn set_callback_id(&mut self, _: usize) {}
 
     fn children_mut(&mut self) -> Vec<&mut Element<State>> {
         vec![]

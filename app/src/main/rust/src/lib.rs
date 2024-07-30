@@ -3,10 +3,7 @@ mod t;
 mod t1;
 mod ui;
 
-use std::{
-    cell::OnceCell,
-    sync::{Mutex, OnceLock},
-};
+use std::sync::OnceLock;
 
 use anyhow::{Error, Result};
 // use erased_serde::Serialize;
@@ -129,6 +126,8 @@ impl<'a> Proxy<'a> {
         }
     }
 
+    fn start_http_server() {}
+
     fn handle_config_ui_event<State>(&mut self, element: Element<State>) {}
 
     fn update_float_ui() {}
@@ -155,6 +154,7 @@ extern "C" fn Java_gamebot_host_Native_start(mut env: JNIEnv, class: JClass, hos
     //
     // let mut proxy = Proxy { env, host };
     let mut state = simple_config();
+
     loop {
         let mut proxy = Store::proxy().unwrap();
         proxy.update_config_ui(&mut state, simple_view);

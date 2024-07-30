@@ -90,9 +90,7 @@ fn t() {
     }
     impl MutableId {}
 
-    struct Mutable {
-
-    }
+    struct Mutable {}
 
     fn mutable<K: 'static, V, F>(transform: F)
     where
@@ -156,8 +154,6 @@ fn t() {
     // TODO: new state is get and set able globally
     // TODO: use state in view and callback
     // let x = use_state(|state: &mut Config| state.enable_abc);
-
-
 
     let e = column([text("abc"), text("a")]);
 }

@@ -68,7 +68,6 @@ fn t() {
             })
             .collect(),
     };
-    
 
     let mut account = Account::default();
     let a = &mut account.username;
@@ -81,19 +80,14 @@ fn t() {
     dbg!(&b);
 
     enum E1 {
-        
-        Abc(u8)
+        Abc(u8),
     }
-    fn f(x: impl Fn(u8)-> E1) {
-
-    }
+    fn f(x: impl Fn(u8) -> E1) {}
     f(E1::Abc);
 
     // fn f(x: impl Into<impl Iterator>) {
     //     // let iter: Iterator = x.into();
     // }
-
-
 
     //
     // div().flex().flex_col().size_full().justify_around().child(

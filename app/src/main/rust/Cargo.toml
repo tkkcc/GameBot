@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 android_logger = "0.13.3"
 anyhow = "1.0.86"
 erased-serde = "0.4.5"
+fs_extra = "1.3.0"
 # boa_engine = "0.18.0"
 # git2 = { version = "0.18.3", features=  ["vendored-openssl"]}
 jni = "0.21.1"
@@ -46,5 +47,3 @@ lto = true
 codegen-units = 1
 panic = "abort"
 
-# [package.metadata.multivers.x86_64]
-# cpus = ["x86-64", "aarch64"]

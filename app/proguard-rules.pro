@@ -26,3 +26,4 @@
 #-keep class org.eclipse.jgit.internal.* { *; }
 -keep class org.eclipse.jgit.** { *; }
 
+-dontobfuscate

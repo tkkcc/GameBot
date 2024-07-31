@@ -1,5 +1,4 @@
-package gamebot.host
-
+//import kotlin.Pair
 import android.app.UiAutomation
 import android.app.UiAutomationConnection
 import android.app.UiAutomationHidden
@@ -20,10 +19,22 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK
+import androidx.annotation.Keep
 import dev.rikka.tools.refine.Refine
+import gamebot.host.ILocalService
+import gamebot.host.IRemoteService
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
+import gamebot.host.sendLargeData
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToStream
 import java.io.BufferedReader
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
@@ -87,6 +98,124 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
 
         return ans
+    }
+
+//    fun takeSceenNode() {
+//        val x = refreshScreenNode()
+//        val ans = uiAutomation.rootInActiveWindow.findAccessibilityNodeInfosByText("1")
+//    }
+
+    @Serializable
+    data class Rect(
+        val left: UInt,
+        val top: UInt,
+        val right: UInt,
+        val bottom: UInt,
+    )
+
+    @Serializable
+    data class NodeInfo(
+        val id: String = "",
+        val region: Rect = Rect(0u, 0u, 0u, 0u),
+        val text: String = "",
+        @SerialName("class")
+        val className: String = "",
+        @SerialName("package")
+        val packageName: String = "",
+        val description: String = "",
+        val checkable: Boolean = false,
+        val clickable: Boolean = false,
+        @SerialName("long_clickable")
+        val longClickable: Boolean = false,
+        val focusable: Boolean = false,
+        val scrollable: Boolean = false,
+        val visible: Boolean = false,
+        val checked: Boolean = false,
+        val enabled: Boolean = false,
+        val focused: Boolean = false,
+        val selected: Boolean = false,
+        val parent: Int = 0,
+        val children: MutableList<Int> = mutableListOf(),
+        val index: Int = 0
+    ) {
+        companion object {
+            fun from(node: AccessibilityNodeInfo): NodeInfo {
+                val nodeInfo = NodeInfo(
+                    id = node.viewIdResourceName ?: "",
+                    className = (node.className ?: "").toString(),
+                    packageName = (node.packageName ?: "").toString(),
+                    text = (node.text ?: "").toString()
+                )
+                if (false && nodeInfo.text.contains("Gallery")) {
+                    node.performAction(ACTION_CLICK)
+                    val x = AccessibilityNodeInfo.ACTION_CLICK
+                }
+                return nodeInfo
+            }
+
+        }
+
+        fun index(index: Int): NodeInfo {
+            return this.copy(index = index)
+        }
+    }
+
+
+    @OptIn(ExperimentalSerializationApi::class)
+    fun takeScreenNode(): Pair<List<NodeInfo>, List<AccessibilityNodeInfo>> {
+        val root = uiAutomation.rootInActiveWindow
+        val info = mutableListOf<NodeInfo>()
+        val infoRef = mutableListOf<AccessibilityNodeInfo>()
+        val queue = ArrayDeque<Pair<AccessibilityNodeInfo, Int>>()
+        if (root == null) {
+            return Pair(info, infoRef)
+        }
+        queue.add(Pair(root, -1))
+
+        while (queue.isNotEmpty()) {
+            val (node, parentIdx) = queue.removeFirst()
+            val nodeIdx = info.size
+
+            if (parentIdx >= 0) {
+                info[parentIdx].children.add(nodeIdx)
+            }
+
+            info.add(NodeInfo.from(node).index(nodeIdx))
+            infoRef.add(node)
+
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let {
+                    queue.add(Pair(it, nodeIdx))
+                }
+            }
+        }
+
+
+        return Pair(info, infoRef)
+    }
+
+    fun measureSceenNodeSearchSpeed() {
+        while (true) {
+
+
+            var start = System.currentTimeMillis()
+            val window = uiAutomation.rootInActiveWindow
+            Log.e("findRoot", "findRoot ${System.currentTimeMillis() - start}ms")
+            start = System.currentTimeMillis()
+//            val out = window.findAccessibilityNodeInfosByText("1")
+            val out = takeScreenNode()
+            val jsonans = Json.encodeToString(out)
+            Log.e(
+                "findText",
+                "findText ${System.currentTimeMillis() - start}ms, ${out.first.size} ${
+                    jsonans
+                }"
+            )
+            start = System.currentTimeMillis()
+
+            Thread.sleep(33)
+        }
+
     }
 
     fun click(x: Float, y: Float) {
@@ -319,6 +448,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         localService = ILocalService.Stub.asInterface(binder)
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     override fun start() {
         Log.e("137", "start in remote service")
 //                localService.toast("ok")
@@ -327,7 +457,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         localService.test()
 
         val repo = File(cacheDir, "repo")
-        val toNative = object {
+
+        val toNative = @Keep object {
             val cache_dir = cacheDir
             fun toast(msg: String) {
                 localService.toast(msg)
@@ -348,6 +479,25 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
                     ParcelFileDescriptor.AutoCloseInputStream(pfd).readBytes()
                 }
             }
+
+            //            fun takeScreenNode(): Pair<ByteArray, ArrayList<AccessibilityNodeInfo>> {
+//                val pair = this@RemoteService.takeScreenNode()
+//                return Pair(pair.first, ArrayList(pair.second))
+//            }
+            fun takeScreenNode(): ScreenNode {
+                val (info, infoRef) = this@RemoteService.takeScreenNode()
+
+                Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
+
+                val stream = ByteArrayOutputStream();
+                Json.encodeToStream(info, stream)
+
+                return ScreenNode(stream.toByteArray(), infoRef.toTypedArray())
+            }
+
+            fun clickNode(node: AccessibilityNodeInfo): Boolean {
+                return node.performAction(ACTION_CLICK)
+            }
         }
         toNative.javaClass.declaredMethods.forEach {
             Log.e("", it.toString())
@@ -355,8 +505,33 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         toNative.javaClass.declaredFields.forEach {
             Log.e("", it.toString())
         }
+        Log.e("", "495")
+
         thread {
+
+//            measureSceenNodeSearchSpeed()
+//            runCatching {
+//            }.onFailure {
+//                Log.e("", "native fail", it)
+//            }
+            Thread.sleep(1000)
+
+            val x = toNative.takeScreenNode()
+            Log.e("", x.second.javaClass.toString())
+            x.javaClass.declaredFields.forEach {
+                Log.e("", "$it")
+            }
+            Log.e("", "496")
+            if (x.second.isNotEmpty()) {
+                x.second[0].javaClass.declaredFields.forEach {
+                    Log.e("", it.toString())
+                }
+//                x.second[0].javaClass.declaredMethods.forEach {
+//                    Log.e("", it.toString())
+//                }
+            }
             native.start(toNative)
+
         }
         Log.e("", "rust call finish")
     }

@@ -1,4 +1,3 @@
-package gamebot.host
 
 class Native {
     companion object {

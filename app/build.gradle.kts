@@ -91,7 +91,7 @@ ksp {
 androidComponents.onVariants { variant ->
     val target = if (variant.buildType == "release") {
 //        listOf("x86_64", "arm64-v8a")
-        listOf("x86_64")
+        listOf( "x86")
     } else {
         listOf("x86")
     }
@@ -110,9 +110,9 @@ androidComponents.onVariants { variant ->
 
 
         add("build")
-        if (variant.buildType == "release") {
-            add("--release")
-        }
+//        if (variant.buildType == "release") {
+//            add("--release")
+//        }
     }
 
     val variantName =

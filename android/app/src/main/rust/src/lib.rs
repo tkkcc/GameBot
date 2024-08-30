@@ -232,12 +232,12 @@ extern "C" fn Java_Native_start(mut env: JNIEnv, class: JClass, host: JObject) {
     //
     let mut state = simple_config();
 
-    loop {
-        let mut proxy = Store::proxy().unwrap();
-        // proxy.update_config_ui(&mut state, simple_view);
-        proxy.fetch_screen_node();
-        sleep(Duration::from_millis(330));
-    }
+    // loop {
+    //     let mut proxy = Store::proxy().unwrap();
+    //     // proxy.update_config_ui(&mut state, simple_view);
+    //     proxy.fetch_screen_node();
+    //     sleep(Duration::from_millis(330));
+    // }
 
     // call updateConfigUI() and waitConfigUIEvent()
     // call updateFloatUI() and waitFloatUIEvent()

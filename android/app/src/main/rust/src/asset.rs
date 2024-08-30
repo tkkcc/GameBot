@@ -46,10 +46,4 @@ fn t() {
     //
     // );
     let ags = vec![0, 2];
-
-    let mut person = (stru!) {
-        name: "John Doe",
-        ags,
-        tags: vec!["developer", "rustacean"],
-    };
 }

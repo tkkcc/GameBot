@@ -39,6 +39,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.lang.Thread.sleep
+import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
@@ -331,7 +332,10 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         mWm.defaultDisplayRotation
     }
 
-    fun refreshScreenshot(): Bitmap {
+    var byteBuffer = ByteBuffer.allocateDirect(0)
+
+    fun refreshScreenshot() {
+
         val startTime = System.currentTimeMillis()
         //        Log.d(
         //            TAG, "callinguid? ${Binder.getCallingUid()} ${Binder.getCallingPid()} " +
@@ -391,20 +395,28 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             }
         }
 
-        Log.d(
-            TAG,
-            "screenshot time ${System.currentTimeMillis() - startTime}ms ${System.currentTimeMillis() - startTime2}ms"
-        )
-
-        val dst = File(cacheDir, "tmp.png")
-        dst.parentFile?.mkdirs()
-        FileOutputStream(dst).use { stream ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 25, stream)
-            Log.d(TAG, "save to file $dst")
-            bitmap.recycle()
+        // check if bytebuffer's size is larger than current bitmap
+        // if so, resize bytebuffer
+        if (byteBuffer.capacity() < bitmap.byteCount) {
+            byteBuffer = ByteBuffer.allocateDirect(bitmap.byteCount)
         }
+        byteBuffer.position(0)
+        bitmap.copyPixelsToBuffer(byteBuffer)
+        bitmap.recycle()
+//        Log.d(
+//            TAG,
+//            "screenshot time ${System.currentTimeMillis() - startTime}ms ${System.currentTimeMillis() - startTime2}ms"
+//        )
 
-        return bitmap
+//        val dst = File(cacheDir, "tmp.png")
+//        dst.parentFile?.mkdirs()
+//        FileOutputStream(dst).use { stream ->
+//            bitmap.compress(Bitmap.CompressFormat.PNG, 25, stream)
+//            Log.d(TAG, "save to file $dst")
+//            bitmap.recycle()
+//        }
+
+//        return bitmap
 
         // TODO save to a rust shared memory?
     }
@@ -418,7 +430,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
                 while (true) {
                     refreshScreenshot()
 //                            click(100f, 100f)
-                    Thread.sleep(1000)
+//                    Thread.sleep(1000)
 //                    break
                 }
             }.onFailure {
@@ -456,7 +468,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         init()
         testUIAutomation()
         localService.test()
-
+        return
         val repo = File(cacheDir, "repo")
 
         val toNative = @Keep object {

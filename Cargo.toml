@@ -1,0 +1,3 @@
+[workspace]
+members = ["./android/app/src/main/rust/", "devtool"]
+resolver = "2"

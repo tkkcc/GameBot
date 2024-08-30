@@ -21,6 +21,7 @@ import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK
 import androidx.annotation.Keep
+import androidx.core.graphics.createBitmap
 import dev.rikka.tools.refine.Refine
 import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
@@ -36,7 +37,6 @@ import kotlinx.serialization.json.encodeToStream
 import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.lang.Thread.sleep
 import java.nio.ByteBuffer
@@ -347,8 +347,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         //        Log.d(TAG, "$size $physical ${size==physical} ${size.equals(physical)}")
         val startTime2 = System.currentTimeMillis()
         // android >= 9.0 时，takeScreenshot尊重overrideDisplaySize
-        val bitmap: Bitmap = if (Build.VERSION.SDK_INT >= 28 || size == physical) {
-            Log.d(TAG, "screenshot using outer api")
+        var bitmap: Bitmap = if (Build.VERSION.SDK_INT >= 28 || size == physical) {
+//            Log.d(TAG, "screenshot using outer api")
             uiAutomation.takeScreenshot()
         } else {
             // android < 9.0时，takeScreenshot存在黑边，要控制尺寸并裁剪
@@ -395,18 +395,29 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             }
         }
 
-        // check if bytebuffer's size is larger than current bitmap
-        // if so, resize bytebuffer
+
+        if (Build.VERSION.SDK_INT >= 26 && bitmap.config == Bitmap.Config.HARDWARE) {
+            Log.e("", "hardware bitmap")
+//            val newBitmap = createBitmap(bitmap.width,bitmap.height,Bitmap.Config.ARGB_8888)
+//            newBitmap.copy
+            val bitmap2 = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+            bitmap.recycle()
+            bitmap2.setHasAlpha(false)
+            bitmap = bitmap2
+        }
+
         if (byteBuffer.capacity() < bitmap.byteCount) {
             byteBuffer = ByteBuffer.allocateDirect(bitmap.byteCount)
         }
         byteBuffer.position(0)
-        bitmap.copyPixelsToBuffer(byteBuffer)
-        bitmap.recycle()
-//        Log.d(
-//            TAG,
-//            "screenshot time ${System.currentTimeMillis() - startTime}ms ${System.currentTimeMillis() - startTime2}ms"
-//        )
+
+//        bitmap.copyPixelsToBuffer(byteBuffer)
+//        bitmap.recycle()
+//        sleep(33)
+        Log.d(
+            TAG,
+            "screenshot time ${System.currentTimeMillis() - startTime}ms ${System.currentTimeMillis() - startTime2}ms"
+        )
 
 //        val dst = File(cacheDir, "tmp.png")
 //        dst.parentFile?.mkdirs()
@@ -522,9 +533,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
         thread {
             localService.test()
-            val cache =  mutableListOf<Pair<List<NodeInfo>, List<AccessibilityNodeInfo>>>()
-            for(i in 0..20000) {
-                Log.e("","cache node $i")
+            val cache = mutableListOf<Pair<List<NodeInfo>, List<AccessibilityNodeInfo>>>()
+            for (i in 0..20000) {
+                Log.e("", "cache node $i")
                 val res = takeScreenNode()
                 cache.add(res)
                 sleep(1000)

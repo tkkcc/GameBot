@@ -34,8 +34,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+//            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -91,9 +91,9 @@ ksp {
 androidComponents.onVariants { variant ->
     val target = if (variant.buildType == "release") {
 //        listOf("x86_64", "arm64-v8a")
-        listOf( "x86")
+        listOf( "x86","x86_64",)
     } else {
-        listOf("x86")
+        listOf("x86","x86_64",)
     }
     val source = Path(projectDir.absolutePath, "src", "main", "rust")
 

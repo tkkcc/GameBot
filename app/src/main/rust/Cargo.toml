@@ -21,6 +21,10 @@ slotmap = { version = "1.0.7", features = ["serde"] }
 strum = { version = "0.26.3", features = ["derive"] }
 typetag = "0.2.16"
 log-panics = { version = "2", features = ["with-backtrace"]}
+static-toml = "1.2.0"
+thiserror = "1.0.63"
+structx = "0.1.11"
+structz = "0.6.0"
 
 # wasmtime = "20.0.1"
 # rustpython-vm = "0.3.1"

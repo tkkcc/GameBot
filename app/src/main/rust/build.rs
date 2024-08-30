@@ -1,7 +1,4 @@
-use std::{
-    env, fs,
-    path::{Path, PathBuf},
-};
+use std::env;
 
 fn main() {
     if env::var("CARGO_CFG_TARGET_OS").unwrap() == "android" {

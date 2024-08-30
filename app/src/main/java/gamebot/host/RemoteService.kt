@@ -38,6 +38,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
+import java.lang.Thread.sleep
 import kotlin.concurrent.thread
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
@@ -508,7 +509,16 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         Log.e("", "495")
 
         thread {
+            localService.test()
+            val cache =  mutableListOf<Pair<List<NodeInfo>, List<AccessibilityNodeInfo>>>()
+            for(i in 0..20000) {
+                Log.e("","cache node $i")
+                val res = takeScreenNode()
+                cache.add(res)
+                sleep(1000)
+            }
 
+            return@thread
 //            measureSceenNodeSearchSpeed()
 //            runCatching {
 //            }.onFailure {
@@ -530,7 +540,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //                    Log.e("", it.toString())
 //                }
             }
-            native.start(toNative)
+//            native.start(toNative)
 
         }
         Log.e("", "rust call finish")

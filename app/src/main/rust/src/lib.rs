@@ -1,4 +1,6 @@
 #![feature(trait_upcasting)]
+mod asset;
+mod find_trait;
 mod mail;
 mod node;
 mod t1;
@@ -99,13 +101,14 @@ impl<'a> Proxy<'a> {
             .call_method(&self.host, "takeScreenNode", "()LScreenNode;", &[])
             .unwrap();
         let obj = ans.l().unwrap();
-        let first = self
-            .env
-            .get_field(&obj, "first", "[B")
-            .unwrap();
+        let first = self.env.get_field(&obj, "first", "[B").unwrap();
         let second = self
             .env
-            .get_field(&obj, "second", "[Landroid/view/accessibility/AccessibilityNodeInfo;")
+            .get_field(
+                &obj,
+                "second",
+                "[Landroid/view/accessibility/AccessibilityNodeInfo;",
+            )
             // /get_field(&obj, "second", "Ljava/util/List;")
             .unwrap();
 
@@ -120,7 +123,6 @@ impl<'a> Proxy<'a> {
 
         for node in first {
             if node.text.contains("mail") {
-
                 let i = node.index.try_into().unwrap();
                 let s = self.env.get_array_length(&second).unwrap();
 

@@ -5,11 +5,16 @@ import android.app.UiAutomationHidden
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.graphics.PixelFormat
 import android.graphics.Point
+import android.graphics.Rect
+import android.hardware.display.DisplayManager
+import android.media.ImageReader
 import android.os.Binder
 import android.os.Build
 import android.os.HandlerThread
 import android.os.IBinder
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.os.ServiceManager
 import android.os.SystemClock
@@ -18,10 +23,10 @@ import android.view.IWindowManager
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.SurfaceControlHidden
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK
 import androidx.annotation.Keep
-import androidx.core.graphics.createBitmap
 import dev.rikka.tools.refine.Refine
 import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
@@ -346,6 +351,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         val physical = getPhysicalDisplaySize()
         //        Log.d(TAG, "$size $physical ${size==physical} ${size.equals(physical)}")
         val startTime2 = System.currentTimeMillis()
+
+        Log.e("","size, ${size}, physical ${physical}")
         // android >= 9.0 时，takeScreenshot尊重overrideDisplaySize
         var bitmap: Bitmap = if (Build.VERSION.SDK_INT >= 28 || size == physical) {
 //            Log.d(TAG, "screenshot using outer api")
@@ -400,10 +407,14 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             Log.e("", "hardware bitmap")
 //            val newBitmap = createBitmap(bitmap.width,bitmap.height,Bitmap.Config.ARGB_8888)
 //            newBitmap.copy
-            val bitmap2 = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+            val swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+//            val bitmap2 = Bitmap.createBitmap(
+//                bitmap, 0, 0, bitmap.width, bitmap.height, null, false
+//            )
+//            bitmap.hardwareBuffer.close()
             bitmap.recycle()
-            bitmap2.setHasAlpha(false)
-            bitmap = bitmap2
+            swBitmap.setHasAlpha(false)
+            bitmap = swBitmap
         }
 
         if (byteBuffer.capacity() < bitmap.byteCount) {
@@ -411,9 +422,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
         byteBuffer.position(0)
 
-//        bitmap.copyPixelsToBuffer(byteBuffer)
-//        bitmap.recycle()
-//        sleep(33)
+        bitmap.copyPixelsToBuffer(byteBuffer)
+        bitmap.recycle()
         Log.d(
             TAG,
             "screenshot time ${System.currentTimeMillis() - startTime}ms ${System.currentTimeMillis() - startTime2}ms"
@@ -432,16 +442,86 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         // TODO save to a rust shared memory?
     }
 
+    fun refreshScreenshot2() {
+        val token = Binder.clearCallingIdentity()
+        val startTime = System.currentTimeMillis()
+        val size = getOverrideDisplaySize()
+        val physical = getPhysicalDisplaySize()
+//        Binder.restoreCallingIdentity(token)
+
+        Log.e("", "uid = ${Binder.getCallingUid()}")
+        Log.e("", "package = ${context.packageName}")
+        val packages = context.packageManager.getPackagesForUid(Binder.getCallingUid())
+        packages?.forEach {
+
+            Log.e("", it)
+        }
+//        return
+//        Binder.clearCallingIdentity()
+//        DisplayManagerGlobal.getInstance().setVirtualDisplaySize(size.x, size.y)
+        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+
+        // Since Android 12 (preview), secure displays could not be created with shell permissions anymore.
+        // On Android 12 preview, SDK_INT is still R (not S), but CODENAME is "S".
+
+//        val displayManager =  DisplayManager(DisplayManagerGlobal.getInstance())
+//        val displayManager = IDisplayManager
+//        val displayManager = DisplayManagerGlobal.getInstance()
+//        displayManager.cr
+//        DisplayManagerHidden.createVirtualDisplay("what")
+//        ServiceManager.checkService()
+        val imageReader = ImageReader.newInstance(720, 1280, PixelFormat.RGB_888, 1)
+        Looper.prepare()
+        Log.e("", "469")
+        imageReader.setOnImageAvailableListener({
+            Log.e("", "image available")
+            imageReader.acquireLatestImage().close();
+        }, null)
+
+        Log.e("", "468")
+        val surface = imageReader.surface
+
+        val secure =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && "S" != Build.VERSION.CODENAME)
+        val display = SurfaceControlHidden.createDisplay("scrcpy1111111", false)
+        SurfaceControlHidden.openTransaction()
+        try {
+            SurfaceControlHidden.setDisplaySurface(display, surface)
+            SurfaceControlHidden.setDisplayProjection(
+                display,
+                0, android.graphics.Rect(0, 0, 720, 1280), android.graphics.Rect(0, 0, 720, 1280)
+            )
+            SurfaceControlHidden.setDisplayLayerStack(display, 0)
+        } catch (e: Exception) {
+            Log.e("", "497", e)
+        } finally {
+            SurfaceControlHidden.closeTransaction()
+        }
+//        displayManager.createVirtualDisplay(
+//            "gamebot",
+//            720,
+//            1280,
+//            320,
+//            imageReader.surface,
+//            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR
+//        )
+
+
+    }
 
     fun testUIAutomation() {
         var startTime = System.currentTimeMillis()
+//        thread {
+//            refreshScreenshot2()
+//            Thread.sleep(10000000)
+//        }
+//        return
         thread {
-
             runCatching {
                 while (true) {
                     refreshScreenshot()
 //                            click(100f, 100f)
-//                    Thread.sleep(1000)
+//                    Thread.sleep(1000000)
 //                    break
                 }
             }.onFailure {
@@ -455,7 +535,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         // no, it's hang
 
         // for android >=13, after clear uid, it's just shell / root uid
-        Binder.clearCallingIdentity()
+        val token =
+            Binder.clearCallingIdentity()
+
 
         mWm = IWindowManager.Stub.asInterface(
             ServiceManager.checkService(
@@ -463,9 +545,11 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             )
         )
 
-        connectUiAutomation()
-        grantOverlayPermission()
 
+        connectUiAutomation()
+//        grantOverlayPermission()
+//        Binder.restoreCallingIdentity(token)
+        Log.e("137", "after init , uid = ${Binder.getCallingUid()}")
     }
 
     override fun setLocalRunBinder(binder: IBinder?) {
@@ -474,12 +558,16 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun start() {
-        Log.e("137", "start in remote service")
-//                localService.toast("ok")
+
+
+        Log.e("137", "start in remote service, uid = ${Binder.getCallingUid()}")
         init()
+        localService.toast("ok")
+
         testUIAutomation()
-        localService.test()
+//        localService.test()
         return
+
         val repo = File(cacheDir, "repo")
 
         val toNative = @Keep object {

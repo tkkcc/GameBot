@@ -6,10 +6,16 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Context.ACTIVITY_SERVICE
 import android.graphics.PixelFormat
+import android.graphics.Point
+import android.media.ImageReader
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import android.view.Gravity
+import android.view.SurfaceControlHidden
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -50,6 +56,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import kotlin.concurrent.thread
 
 @Composable
 fun MemoryMonitor() {
@@ -75,12 +83,58 @@ class LocalService(
 ) : ILocalService.Stub() {
     val configUI: MutableState<Component> = mutableStateOf(Component.Column())
     var configUIEvent = mutableStateOf(Channel<CallbackMsg>())
-
+    var byteBuffer = ByteBuffer.allocateDirect(0)
     init {
 
         context.runOnUiThread {
 
             initConfigUI(context, configUI, configUIEvent)
+        }
+
+        thread {
+            return@thread
+            val screenSize = Point(1240,2772)
+            val imageReader = ImageReader.newInstance(screenSize.x, screenSize.y, PixelFormat.RGBA_8888, 1)
+            imageReader.setOnImageAvailableListener({
+                Log.e("", "image available")
+                val startTime = System.currentTimeMillis()
+                val img = imageReader.acquireLatestImage()
+                val newBuf = img.planes[0].buffer
+                if (byteBuffer.capacity() < newBuf.capacity()) {
+                    byteBuffer = ByteBuffer.allocateDirect(newBuf.capacity())
+                }
+                byteBuffer.position(0)
+                byteBuffer.put(newBuf)
+                img.close();
+                Log.e("","duration ${System.currentTimeMillis()-startTime} size: ${byteBuffer.capacity()}")
+            }, Handler(Looper.getMainLooper()))
+            val secure =
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && "S" != Build.VERSION.CODENAME)
+            val display = SurfaceControlHidden.createDisplay("scrcpy1111111", secure)
+            SurfaceControlHidden.openTransaction()
+            try {
+                SurfaceControlHidden.setDisplaySurface(display, imageReader.surface)
+                SurfaceControlHidden.setDisplayProjection(
+                    display,
+                    0, android.graphics.Rect(0, 0, screenSize.x, screenSize.y), android.graphics.Rect(0, 0, 720, 1280)
+                )
+                SurfaceControlHidden.setDisplayLayerStack(display, 0)
+            } catch (e: Exception) {
+                Log.e("", "497", e)
+            } finally {
+                SurfaceControlHidden.closeTransaction()
+            }
+
+//            val option = Options.parse("")
+//            val device = Device(option)
+//            val sc = ScreenCapture(device)
+//            sc.start(imageReader.surface)
+
+
+//            val createVirtualDisplayMethod = android.hardware.display.DisplayManager::class.java
+//                .getMethod("createVirtualDisplay", String::class.java, Int::class.java, Int::class.java, Int::class.java, Surface::class.java)
+//            val virtualDisplay = createVirtualDisplayMethod.invoke(null, "what", 720, 1280, 0, imageReader.surface) as VirtualDisplay
+
         }
     }
 //            val ui = ComposeUI(context as ComponentActivity, configUI)

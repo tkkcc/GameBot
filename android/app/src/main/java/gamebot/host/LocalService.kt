@@ -95,22 +95,22 @@ class LocalService(
             return@thread
             val screenSize = Point(1240,2772)
             val imageReader = ImageReader.newInstance(screenSize.x, screenSize.y, PixelFormat.RGBA_8888, 1)
-            imageReader.setOnImageAvailableListener({
-                Log.e("", "image available")
-                val startTime = System.currentTimeMillis()
-                val img = imageReader.acquireLatestImage()
-                val newBuf = img.planes[0].buffer
-                if (byteBuffer.capacity() < newBuf.capacity()) {
-                    byteBuffer = ByteBuffer.allocateDirect(newBuf.capacity())
-                }
-                byteBuffer.position(0)
-                byteBuffer.put(newBuf)
-                img.close();
-                Log.e("","duration ${System.currentTimeMillis()-startTime} size: ${byteBuffer.capacity()}")
-            }, Handler(Looper.getMainLooper()))
+//            imageReader.setOnImageAvailableListener({
+//                Log.e("", "image available")
+//                val startTime = System.currentTimeMillis()
+//                val img = imageReader.acquireLatestImage()
+//                val newBuf = img.planes[0].buffer
+//                if (byteBuffer.capacity() < newBuf.capacity()) {
+//                    byteBuffer = ByteBuffer.allocateDirect(newBuf.capacity())
+//                }
+//                byteBuffer.position(0)
+//                byteBuffer.put(newBuf)
+//                img.close();
+//                Log.e("","duration ${System.currentTimeMillis()-startTime} size: ${byteBuffer.capacity()}")
+//            }, Handler(Looper.getMainLooper()))
             val secure =
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && "S" != Build.VERSION.CODENAME)
-            val display = SurfaceControlHidden.createDisplay("scrcpy1111111", secure)
+            val display = SurfaceControlHidden.createDisplay("scrcpy111111221", secure)
             SurfaceControlHidden.openTransaction()
             try {
                 SurfaceControlHidden.setDisplaySurface(display, imageReader.surface)

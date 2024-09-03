@@ -44,7 +44,10 @@ import com.topjohnwu.superuser.ipc.RootService
 import dev.rikka.tools.refine.Refine
 import gamebot.host.RemoteRun.Companion.TAG
 import gamebot.host.overlay.Overlay
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -293,9 +296,9 @@ class MainActivity : ComponentActivity() {
 
 
 
-        var remoteService: IRemoteService
+        lateinit var remoteService: IRemoteService
         val localService: ILocalService = LocalService(this@MainActivity)
-
+        val connectionChannel: Channel<Boolean> = Channel()
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName, service: IBinder) {
                 Log.e("137", "RootServiceConnection onConnected")
@@ -308,7 +311,10 @@ class MainActivity : ComponentActivity() {
                     Thread.sleep(1000)
                 }
                 remoteService.setLocalRunBinder(localService.asBinder())
-                remoteService.start()
+                CoroutineScope(Dispatchers.Default).launch {
+                    connectionChannel.send(true)
+                }
+//                remoteService.start()
 
 //                previousRemoteService = remoteService
 //
@@ -392,6 +398,11 @@ class MainActivity : ComponentActivity() {
             tryShizukuMode()
         }
         Log.d(TAG, "tryRootMode end")
+
+        CoroutineScope(Dispatchers.Default).launch {
+            val started = connectionChannel.receive()
+            remoteService.start()
+        }
     }
 }
 

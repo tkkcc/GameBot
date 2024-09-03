@@ -349,7 +349,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         //        Log.d(TAG, "$size $physical ${size==physical} ${size.equals(physical)}")
         val startTime2 = System.currentTimeMillis()
 
-        Log.e("", "size, ${size}, physical ${physical}")
+//        Log.e("", "size, ${size}, physical ${physical}")
         // android >= 9.0 时，takeScreenshot尊重overrideDisplaySize
         var bitmap: Bitmap = if (Build.VERSION.SDK_INT >= 28 || size == physical) {
 //            Log.d(TAG, "screenshot using outer api")
@@ -402,13 +402,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
         if (Build.VERSION.SDK_INT >= 26 && bitmap.config == Bitmap.Config.HARDWARE) {
             Log.e("", "hardware bitmap")
-//            val newBitmap = createBitmap(bitmap.width,bitmap.height,Bitmap.Config.ARGB_8888)
-//            newBitmap.copy
             val swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-//            val bitmap2 = Bitmap.createBitmap(
-//                bitmap, 0, 0, bitmap.width, bitmap.height, null, false
-//            )
-//            bitmap.hardwareBuffer.close()
             bitmap.recycle()
             swBitmap.setHasAlpha(false)
             bitmap = swBitmap
@@ -418,7 +412,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             byteBuffer = ByteBuffer.allocateDirect(bitmap.byteCount)
         }
         byteBuffer.position(0)
-
         bitmap.copyPixelsToBuffer(byteBuffer)
 
         Log.d(
@@ -435,107 +428,45 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
 
         bitmap.recycle()
-//        return bitmap
-
-        // TODO save to a rust shared memory?
     }
 
-    fun refreshScreenshot2() {
-        val token = Binder.clearCallingIdentity()
-        val startTime = System.currentTimeMillis()
-        val size = getOverrideDisplaySize()
-        val physical = getPhysicalDisplaySize()
-//        Binder.restoreCallingIdentity(token)
-
-        Log.e("", "uid = ${Binder.getCallingUid()}")
-        Log.e("", "package = ${context.packageName}")
-        val packages = context.packageManager.getPackagesForUid(Binder.getCallingUid())
-        packages?.forEach {
-
-            Log.e("", it)
-        }
-//        return
-//        Binder.clearCallingIdentity()
-//        DisplayManagerGlobal.getInstance().setVirtualDisplaySize(size.x, size.y)
-        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-
-        // Since Android 12 (preview), secure displays could not be created with shell permissions anymore.
-        // On Android 12 preview, SDK_INT is still R (not S), but CODENAME is "S".
-
-//        val displayManager =  DisplayManager(DisplayManagerGlobal.getInstance())
-//        val displayManager = IDisplayManager
-//        val displayManager = DisplayManagerGlobal.getInstance()
-//        displayManager.cr
-//        DisplayManagerHidden.createVirtualDisplay("what")
-//        ServiceManager.checkService()
-        val imageReader = ImageReader.newInstance(720, 1280, PixelFormat.RGB_888, 1)
-        Looper.prepare()
-        Log.e("", "469")
-        imageReader.setOnImageAvailableListener({
-            Log.e("", "image available")
-            imageReader.acquireLatestImage().close();
-        }, null)
-
-        Log.e("", "468")
-        val surface = imageReader.surface
-
-        val secure =
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && "S" != Build.VERSION.CODENAME)
-        val display = SurfaceControlHidden.createDisplay("scrcpy1111111", false)
-        SurfaceControlHidden.openTransaction()
-        try {
-            SurfaceControlHidden.setDisplaySurface(display, surface)
-            SurfaceControlHidden.setDisplayProjection(
-                display,
-                0,
-                android.graphics.Rect(0, 0, 720, 1280),
-                android.graphics.Rect(0, 0, 720, 1280)
-            )
-            SurfaceControlHidden.setDisplayLayerStack(display, 0)
-        } catch (e: Exception) {
-            Log.e("", "497", e)
-        } finally {
-            SurfaceControlHidden.closeTransaction()
-        }
-//        displayManager.createVirtualDisplay(
-//            "gamebot",
-//            720,
-//            1280,
-//            320,
-//            imageReader.surface,
-//            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR
-//        )
-
-
-    }
 
     lateinit var imageReader: ImageReader
+    lateinit var display: IBinder
+    lateinit var virtualDisplay: VirtualDisplay
     fun testUIAutomation() {
         var startTime = System.currentTimeMillis()
 //        thread {
-//            refreshScreenshot2()
-//            Thread.sleep(10000000)
+//            while (true) {
+//                refreshScreenshot()
+//            }
 //        }
 //        return
 
 //        thread {
         val screenSize = getPhysicalDisplaySize()
         imageReader =
-            ImageReader.newInstance(screenSize.x, screenSize.y, PixelFormat.RGBA_8888, 1)
+            ImageReader.newInstance(screenSize.x, screenSize.y, PixelFormat.RGBA_8888, 2)
+//        val manager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+//        context.startService(Intent(context,MediaProjection::class.java))
+//
 
         runCatching {
 
-           DisplayManagerHidden.createVirtualDisplay(
+            virtualDisplay = DisplayManagerHidden.createVirtualDisplay(
                 "GameBotDisplay", screenSize.x, screenSize.y, 0, imageReader.surface
             )
+
         }.onFailure {
 
 
             Log.e("", "496", it)
+//            throw NotImplementedError()
 
             val secure =
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && "S" != Build.VERSION.CODENAME)
-            val display = SurfaceControlHidden.createDisplay("GameBotDisplay", secure)
+            display = SurfaceControlHidden.createDisplay("GameBotDisplay", secure)
+//            val display = SurfaceControlHidden.getBuiltInDisplay(0)
             SurfaceControlHidden.openTransaction()
             try {
                 SurfaceControlHidden.setDisplaySurface(display, imageReader.surface)
@@ -549,43 +480,55 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             } catch (e: Exception) {
                 Log.e("", "497", e)
             } finally {
-                SurfaceControlHidden.closeTransaction()
+                SurfaceControlHidden.closeTransactionSync()
             }
         }
-        return
-         thread {
-             return@thread
+        Thread.sleep(1000L)
+        imageReader.acquireLatestImage()?.close()
+        fun t() {
+            val byteArray = ByteArray(10_000_000)
+        }
+
+//        return
+//        thread {
+//             return@thread
+            Thread.sleep(1000)
             while (true) {
+//                Thread.sleep(3300)
 
-
-                Thread.sleep(330)
-                val bitmap = Bitmap.createBitmap(
-                    100,
-                    100,
-                    Bitmap.Config.ARGB_8888
-                )
-                bitmap.recycle()
 
                 val startTime = System.currentTimeMillis()
+
+//                t()
+//                System.gc()
+//                Log.e("", "559")
+
                 val img = imageReader.acquireLatestImage()
                 if (img == null) {
-                    Log.e("", "no image available")
+//                    Log.e("", "no image available")
+                    Thread.sleep(33)
 
                     continue
                 }
                 Log.e("", "yes image available")
 
-                val buf = img.planes[0].buffer
-                val plane = img.planes[0]
-                val pixelStride = plane.pixelStride
-                val rowStride = plane.rowStride
-                val rowPadding: Int = rowStride - pixelStride * screenSize.x
+//                val buf = img.planes[0].buffer
+//                val plane = img.planes[0]
+//                val pixelStride = plane.pixelStride
+//                val rowStride = plane.rowStride
+//                val rowPadding: Int = rowStride - pixelStride * screenSize.x
 
 
 //                Log.e("", "bitmap size ${screenSize.x + rowPadding / pixelStride} x ${screenSize.y}")
 
 
 //                val byteArray = ByteArray(100000)
+
+//                val bitmap = Bitmap.createBitmap(
+//                    screenSize.x + rowPadding / pixelStride,
+//                    screenSize.y,
+//                    Bitmap.Config.ARGB_8888
+//                )
 //                bitmap.copyPixelsFromBuffer(plane.buffer)
 //                val dst = File(cacheDir, "tmp.png")
 //                dst.parentFile?.mkdirs()
@@ -595,22 +538,15 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //                    bitmap.recycle()
 //                }
 
-//                Thread.sleep(1000)
-//                val newBuf = img.planes[0].buffer
-//                if (byteBuffer.capacity() < newBuf.capacity()) {
-//                    byteBuffer = ByteBuffer.allocate(newBuf.capacity())
-//                }
-//                byteBuffer.position(0)
-//                byteBuffer.put(newBuf)
+
+                val newBuf = img.planes[0].buffer
+                if (byteBuffer.capacity() < newBuf.capacity()) {
+                    byteBuffer = ByteBuffer.allocate(newBuf.capacity())
+                }
+                byteBuffer.position(0)
+                byteBuffer.put(newBuf)
 
                 img.close();
-                Thread.sleep(330)
-
-//                val bitmap = Bitmap.createBitmap(
-//                    screenSize.x + rowPadding / pixelStride,
-//                    screenSize.y,
-//                    Bitmap.Config.ARGB_8888
-//                )
 
 
                 Log.e(
@@ -618,7 +554,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
                     "duration ${System.currentTimeMillis() - startTime} direct: ${1} size: ${byteBuffer.capacity()}"
                 )
             }
-        }
+//        }
 
 //            val virtualDisplay =  method.invoke(null, "name", screenSize.x, screenSize.y, 0, imageReader.surface);
 //            val secure =
@@ -651,19 +587,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //            val virtualDisplay = createVirtualDisplayMethod.invoke(null, "what", 720, 1280, 0, imageReader.surface) as VirtualDisplay
 
 //        }
-        return
-        thread {
-            runCatching {
-                while (true) {
-                    refreshScreenshot()
-//                            click(100f, 100f)
-                    Thread.sleep(500L)
-//                    break
-                }
-            }.onFailure {
-                Log.e(TAG, "", it)
-            }
-        }
+
     }
 
     fun init() {
@@ -681,7 +605,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         )
 
 
-//        connectUiAutomation()
+        connectUiAutomation()
 //        grantOverlayPermission()
 //        Binder.restoreCallingIdentity(token)
         Log.e("137", "after init , uid = ${Binder.getCallingUid()}")
@@ -712,77 +636,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //            }
 //        }
         testUIAutomation()
-//        localService.test()
+        localService.test()
 
-//        thread {
-            while (true) {
-
-
-                Thread.sleep(33)
-//                val array = ByteBuffer.allocate(100_000)
-
-//                val bitmap = Bitmap.createBitmap(
-//                    100,
-//                    100,
-//                    Bitmap.Config.ARGB_8888
-//                )
-//                bitmap.recycle()
-
-
-                val startTime = System.currentTimeMillis()
-                val img = imageReader.acquireLatestImage()
-                if (img == null) {
-//                    Log.e("", "no image available")
-//
-                    continue
-                }
-                img.close();
-
-                Log.e("", "yes image available")
-
-//                val buf = img.planes[0].buffer
-//                val plane = img.planes[0]
-//                val pixelStride = plane.pixelStride
-//                val rowStride = plane.rowStride
-//                val rowPadding: Int = rowStride - pixelStride * screenSize.x
-
-
-//                Log.e("", "bitmap size ${screenSize.x + rowPadding / pixelStride} x ${screenSize.y}")
-
-
-//                val byteArray = ByteArray(100000)
-//                bitmap.copyPixelsFromBuffer(plane.buffer)
-//                val dst = File(cacheDir, "tmp.png")
-//                dst.parentFile?.mkdirs()
-//                FileOutputStream(dst).use { stream ->
-//                    bitmap.compress(Bitmap.CompressFormat.PNG, 25, stream)
-//                    Log.d(TAG, "save to file $dst")
-//                    bitmap.recycle()
-//                }
-
-//                Thread.sleep(1000)
-//                val newBuf = img.planes[0].buffer
-//                if (byteBuffer.capacity() < newBuf.capacity()) {
-//                    byteBuffer = ByteBuffer.allocate(newBuf.capacity())
-//                }
-//                byteBuffer.position(0)
-//                byteBuffer.put(newBuf)
-
-//                Thread.sleep(33)
-
-//                val bitmap = Bitmap.createBitmap(
-//                    screenSize.x + rowPadding / pixelStride,
-//                    screenSize.y,
-//                    Bitmap.Config.ARGB_8888
-//                )
-
-
-//                Log.e(
-//                    "",
-//                    "duration ${System.currentTimeMillis() - startTime} direct: ${1} size: ${byteBuffer.capacity()}"
-//                )
-//            }
-        }
 
         return
 

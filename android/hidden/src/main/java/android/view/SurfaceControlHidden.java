@@ -80,4 +80,8 @@ public class SurfaceControlHidden {
         throw new RuntimeException("Stub!");
 
     }
+    public static void closeTransactionSync() {
+        throw new RuntimeException("Stub!");
+
+    }
 }

@@ -7,15 +7,13 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.PixelFormat
 import android.graphics.Point
-import android.hardware.display.DisplayManager
+import android.graphics.Rect
 import android.hardware.display.DisplayManagerHidden
 import android.hardware.display.VirtualDisplay
 import android.media.ImageReader
-import android.os.Binder
 import android.os.Build
 import android.os.HandlerThread
 import android.os.IBinder
-import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.os.ServiceManager
 import android.os.SystemClock
@@ -34,6 +32,9 @@ import gamebot.host.IRemoteService
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
 import gamebot.host.sendLargeData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -47,7 +48,7 @@ import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.lang.Thread.sleep
 import java.nio.ByteBuffer
-import kotlin.concurrent.thread
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
@@ -153,7 +154,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
                 )
                 if (false && nodeInfo.text.contains("Gallery")) {
                     node.performAction(ACTION_CLICK)
-                    val x = AccessibilityNodeInfo.ACTION_CLICK
+                    val x = ACTION_CLICK
                 }
                 return nodeInfo
             }
@@ -217,7 +218,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             )
             start = System.currentTimeMillis()
 
-            Thread.sleep(33)
+            sleep(33)
         }
 
     }
@@ -430,11 +431,94 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         bitmap.recycle()
     }
 
+    var screenshot = Screenshot(
+        width = 0,
+        height = 0,
+        data = ByteBuffer.allocateDirect(0),
+        pixelStride = 0,
+        rowStride = 0,
+        rotation = 0,
+//        timestamp = 0
+    )
+
+    val requestUpdateScreenshot = Channel<Unit>(Channel.CONFLATED)
+
+
+    val screenshotTimestamp = AtomicLong(0)
+    fun updateScreenshotTimestamp() {
+        screenshotTimestamp.set(System.currentTimeMillis())
+    }
+
+    fun isScreenshotInvalid(): Boolean {
+        return (System.currentTimeMillis() - screenshotTimestamp.get()) > 100 // 15fps => 66.6ms
+    }
+
+    @Synchronized
+    fun updateScreenshot() {
+        // do nothing if no one need new screenshot
+        val img = imageReader.acquireLatestImage()
+        if (img == null) {
+            updateScreenshotTimestamp()
+        }
+
+//                    Log.e("", "no image available")
+//            Thread.sleep(33)
+
+//            continue
+//        Log.e("", "yes image available")
+
+//                val buf = img.planes[0].buffer
+//                val plane = img.planes[0]
+//                val pixelStride = plane.pixelStride
+//                val rowStride = plane.rowStride
+//                val rowPadding: Int = rowStride - pixelStride * screenSize.x
+
+
+//                Log.e("", "bitmap size ${screenSize.x + rowPadding / pixelStride} x ${screenSize.y}")
+
+
+//                val byteArray = ByteArray(100000)
+
+//                val bitmap = Bitmap.createBitmap(
+//                    screenSize.x + rowPadding / pixelStride,
+//                    screenSize.y,
+//                    Bitmap.Config.ARGB_8888
+//                )
+//                bitmap.copyPixelsFromBuffer(plane.buffer)
+//                val dst = File(cacheDir, "tmp.png")
+//                dst.parentFile?.mkdirs()
+//                FileOutputStream(dst).use { stream ->
+//                    bitmap.compress(Bitmap.CompressFormat.PNG, 25, stream)
+//                    Log.d(TAG, "save to file $dst")
+//                    bitmap.recycle()
+//                }
+        val buf = img.planes[0].buffer
+        if (screenshot.width != imageReader.width || screenshot.height != imageReader.height) {
+            val data = ByteBuffer.allocateDirect(buf.capacity())
+            data.put(buf)
+            screenshot = Screenshot(
+                width = imageReader.width,
+                height = imageReader.height,
+                data = data,
+                pixelStride = img.planes[0].pixelStride,
+                rowStride = img.planes[0].rowStride,
+                rotation = 0,
+            )
+        } else {
+            // there can be a time we are writing screenshot and user use the updating one
+            screenshot.data.position(0)
+            screenshot.data.put(buf)
+        }
+        updateScreenshotTimestamp()
+
+        img.close()
+    }
+
 
     lateinit var imageReader: ImageReader
     lateinit var display: IBinder
     lateinit var virtualDisplay: VirtualDisplay
-    fun testUIAutomation() {
+    fun initDisplayProjection() {
         var startTime = System.currentTimeMillis()
 //        thread {
 //            while (true) {
@@ -447,6 +531,14 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         val screenSize = getPhysicalDisplaySize()
         imageReader =
             ImageReader.newInstance(screenSize.x, screenSize.y, PixelFormat.RGBA_8888, 2)
+
+        imageReader.setOnImageAvailableListener({
+            runBlocking {
+                requestUpdateScreenshot.receive()
+            }
+            updateScreenshot()
+        }, null)
+
 //        val manager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
 //        context.startService(Intent(context,MediaProjection::class.java))
 //
@@ -466,15 +558,15 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             val secure =
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && "S" != Build.VERSION.CODENAME)
             display = SurfaceControlHidden.createDisplay("GameBotDisplay", secure)
-//            val display = SurfaceControlHidden.getBuiltInDisplay(0)
+//            display = SurfaceControlHidden.getBuiltInDisplay(0)
             SurfaceControlHidden.openTransaction()
             try {
                 SurfaceControlHidden.setDisplaySurface(display, imageReader.surface)
                 SurfaceControlHidden.setDisplayProjection(
                     display,
                     0,
-                    android.graphics.Rect(0, 0, screenSize.x, screenSize.y),
-                    android.graphics.Rect(0, 0, screenSize.x, screenSize.y)
+                    Rect(0, 0, screenSize.x, screenSize.y),
+                    Rect(0, 0, screenSize.x, screenSize.y)
                 )
                 SurfaceControlHidden.setDisplayLayerStack(display, 0)
             } catch (e: Exception) {
@@ -483,34 +575,32 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
                 SurfaceControlHidden.closeTransactionSync()
             }
         }
-        Thread.sleep(1000L)
-        imageReader.acquireLatestImage()?.close()
-        fun t() {
-            val byteArray = ByteArray(10_000_000)
-        }
+        return
+//        Thread.sleep(1000L)
+//        imageReader.acquireLatestImage()?.close()
 
 //        return
 //        thread {
 //             return@thread
-            Thread.sleep(1000)
-            while (true) {
+        sleep(1000)
+        while (true) {
 //                Thread.sleep(3300)
 
 
-                val startTime = System.currentTimeMillis()
+            val startTime = System.currentTimeMillis()
 
 //                t()
 //                System.gc()
 //                Log.e("", "559")
 
-                val img = imageReader.acquireLatestImage()
-                if (img == null) {
+            val img = imageReader.acquireLatestImage()
+            if (img == null) {
 //                    Log.e("", "no image available")
-                    Thread.sleep(33)
+                sleep(33)
 
-                    continue
-                }
-                Log.e("", "yes image available")
+                continue
+            }
+            Log.e("", "yes image available")
 
 //                val buf = img.planes[0].buffer
 //                val plane = img.planes[0]
@@ -539,21 +629,21 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //                }
 
 
-                val newBuf = img.planes[0].buffer
-                if (byteBuffer.capacity() < newBuf.capacity()) {
-                    byteBuffer = ByteBuffer.allocate(newBuf.capacity())
-                }
-                byteBuffer.position(0)
-                byteBuffer.put(newBuf)
-
-                img.close();
-
-
-                Log.e(
-                    "",
-                    "duration ${System.currentTimeMillis() - startTime} direct: ${1} size: ${byteBuffer.capacity()}"
-                )
+            val newBuf = img.planes[0].buffer
+            if (byteBuffer.capacity() < newBuf.capacity()) {
+                byteBuffer = ByteBuffer.allocate(newBuf.capacity())
             }
+            byteBuffer.position(0)
+            byteBuffer.put(newBuf)
+
+            img.close();
+
+
+            Log.e(
+                "",
+                "duration ${System.currentTimeMillis() - startTime} direct: ${1} size: ${byteBuffer.capacity()}"
+            )
+        }
 //        }
 
 //            val virtualDisplay =  method.invoke(null, "name", screenSize.x, screenSize.y, 0, imageReader.surface);
@@ -595,7 +685,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         // no, it's hang
 
         // for android >=13, after clear uid, it's just shell / root uid
-        val token = Binder.clearCallingIdentity()
+        val token = clearCallingIdentity()
 
 
         mWm = IWindowManager.Stub.asInterface(
@@ -608,7 +698,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         connectUiAutomation()
 //        grantOverlayPermission()
 //        Binder.restoreCallingIdentity(token)
-        Log.e("137", "after init , uid = ${Binder.getCallingUid()}")
+        Log.e("137", "after init , uid = ${getCallingUid()}")
     }
 
     override fun setLocalRunBinder(binder: IBinder?) {
@@ -619,7 +709,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     override fun start() {
 //        Looper.prepare()
 
-        Log.e("137", "start in remote service, uid = ${Binder.getCallingUid()}")
+        Log.e("137", "start in remote service, uid = ${getCallingUid()}")
 
         init()
 //        localService.toast("ok")
@@ -635,11 +725,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //                Thread.sleep(33)
 //            }
 //        }
-        testUIAutomation()
+        initDisplayProjection()
         localService.test()
 
-
-        return
 
         val repo = File(cacheDir, "repo")
 
@@ -683,6 +771,20 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             fun clickNode(node: AccessibilityNodeInfo): Boolean {
                 return node.performAction(ACTION_CLICK)
             }
+
+            fun takeScreenshot(): Screenshot {
+                // sync update
+                if (isScreenshotInvalid()) {
+                    updateScreenshot()
+                }
+
+                // async update
+                requestUpdateScreenshot.trySend(Unit)
+
+                // cached
+                return screenshot
+            }
+
         }
         toNative.javaClass.declaredMethods.forEach {
             Log.e("", it.toString())
@@ -692,41 +794,43 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
         Log.e("", "495")
 
-        thread {
-            localService.test()
-            val cache = mutableListOf<Pair<List<NodeInfo>, List<AccessibilityNodeInfo>>>()
-            for (i in 0..20000) {
-                Log.e("", "cache node $i")
-                val res = takeScreenNode()
-                cache.add(res)
-                sleep(1000)
-            }
+        
 
-            return@thread
+//        thread {
+//            localService.test()
+//            val cache = mutableListOf<Pair<List<NodeInfo>, List<AccessibilityNodeInfo>>>()
+//            for (i in 0..20000) {
+//                Log.e("", "cache node $i")
+//                val res = takeScreenNode()
+//                cache.add(res)
+//                sleep(1000)
+//            }
+
+//            return@thread
 //            measureSceenNodeSearchSpeed()
 //            runCatching {
 //            }.onFailure {
 //                Log.e("", "native fail", it)
 //            }
-            Thread.sleep(1000)
+//            Thread.sleep(1000)
 
-            val x = toNative.takeScreenNode()
-            Log.e("", x.second.javaClass.toString())
-            x.javaClass.declaredFields.forEach {
-                Log.e("", "$it")
-            }
-            Log.e("", "496")
-            if (x.second.isNotEmpty()) {
-                x.second[0].javaClass.declaredFields.forEach {
-                    Log.e("", it.toString())
-                }
-//                x.second[0].javaClass.declaredMethods.forEach {
+//            val x = toNative.takeScreenNode()
+//            Log.e("", x.second.javaClass.toString())
+//            x.javaClass.declaredFields.forEach {
+//                Log.e("", "$it")
+//            }
+//            Log.e("", "496")
+//            if (x.second.isNotEmpty()) {
+//                x.second[0].javaClass.declaredFields.forEach {
 //                    Log.e("", it.toString())
 //                }
-            }
-//            native.start(toNative)
+////                x.second[0].javaClass.declaredMethods.forEach {
+////                    Log.e("", it.toString())
+////                }
+//            }
+        native.start(toNative)
 
-        }
+//        }
         Log.e("", "rust call finish")
     }
 }

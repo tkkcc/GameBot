@@ -14,6 +14,7 @@ import android.media.ImageReader
 import android.os.Build
 import android.os.HandlerThread
 import android.os.IBinder
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.os.ServiceManager
 import android.os.SystemClock
@@ -25,14 +26,12 @@ import android.view.MotionEvent
 import android.view.SurfaceControlHidden
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK
-import androidx.annotation.Keep
 import dev.rikka.tools.refine.Refine
 import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
 import gamebot.host.sendLargeData
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -54,7 +53,13 @@ import kotlin.system.exitProcess
 
 class RemoteService(val context: Context) : IRemoteService.Stub() {
 
-    val native = Native()
+    //    val native = Native()
+    companion object {
+        init {
+            System.loadLibrary("rust")
+        }
+    }
+
     lateinit var localService: ILocalService
 
     private lateinit var uiAutomationHidden: UiAutomationHidden
@@ -71,6 +76,67 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     override fun callback(msg: String) {
         TODO("Not yet implemented")
     }
+
+    external fun startGuest(name: String, host: RemoteService)
+    override fun startGuest(name: String) {
+        startGuest(name, this)
+    }
+
+    external override fun stopGuest(name: String)
+
+
+    fun toast(msg: String) {
+        localService.toast(msg)
+    }
+
+    fun showUI(layout: String, state: String) {
+
+    }
+
+    fun updateConfigUI(layout: ByteArray) {
+        sendLargeData(layout).use { pfd ->
+            localService.updateConfigUI(pfd)
+        }
+    }
+
+    fun waitConfigUIEvent(): ByteArray {
+        return localService.waitConfigUIEvent().use { pfd ->
+            ParcelFileDescriptor.AutoCloseInputStream(pfd).readBytes()
+        }
+    }
+
+    //            fun takeScreenNode(): Pair<ByteArray, ArrayList<AccessibilityNodeInfo>> {
+//                val pair = this@RemoteService.takeScreenNode()
+//                return Pair(pair.first, ArrayList(pair.second))
+//            }
+    fun takeScreenNode(): ScreenNode {
+        val (info, infoRef) = takeScreenNodeRaw()
+
+        Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
+
+        val stream = ByteArrayOutputStream();
+        Json.encodeToStream(info, stream)
+
+        return ScreenNode(stream.toByteArray(), infoRef.toTypedArray())
+    }
+
+    fun clickNode(node: AccessibilityNodeInfo): Boolean {
+        return node.performAction(ACTION_CLICK)
+    }
+
+    fun takeScreenshot(): Screenshot {
+        // sync update
+        if (isScreenshotInvalid()) {
+            updateScreenshot()
+        }
+
+        // async update
+        requestUpdateScreenshot.trySend(Unit)
+
+        // cached
+        return screenshot
+    }
+
 
     fun connectUiAutomation() {
         Log.e("137", "connectUiAutomation")
@@ -168,7 +234,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 
     @OptIn(ExperimentalSerializationApi::class)
-    fun takeScreenNode(): Pair<List<NodeInfo>, List<AccessibilityNodeInfo>> {
+    fun takeScreenNodeRaw(): Pair<List<NodeInfo>, List<AccessibilityNodeInfo>> {
         val root = uiAutomation.rootInActiveWindow
         val info = mutableListOf<NodeInfo>()
         val infoRef = mutableListOf<AccessibilityNodeInfo>()
@@ -453,8 +519,11 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         return (System.currentTimeMillis() - screenshotTimestamp.get()) > 100 // 15fps => 66.6ms
     }
 
+
     @Synchronized
     fun updateScreenshot() {
+
+
         // do nothing if no one need new screenshot
         val img = imageReader.acquireLatestImage()
         if (img == null) {
@@ -680,7 +749,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     }
 
-    fun init() {
+    fun initAll() {
         // we can connect to app's database in shell uid?
         // no, it's hang
 
@@ -707,94 +776,79 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun start() {
-//        Looper.prepare()
+        Looper.prepare()
+        Log.e("", "start in remote service, uid = ${getCallingUid()}")
 
-        Log.e("137", "start in remote service, uid = ${getCallingUid()}")
-
-        init()
-//        localService.toast("ok")
-//        thread {
-//            while (true) {
-//                val bitmap = Bitmap.createBitmap(
-//                    1080,
-//                    2400, Bitmap.Config.ARGB_8888
-//                )
-//                bitmap.recycle()
-////                byteBuffer = ByteBuffer.allocateDirect(3666666)
-//                Log.e("", "alloc")
-//                Thread.sleep(33)
-//            }
-//        }
+        initAll()
         initDisplayProjection()
         localService.test()
 
 
         val repo = File(cacheDir, "repo")
 
-        val toNative = @Keep object {
-            val cache_dir = cacheDir
-            fun toast(msg: String) {
-                localService.toast(msg)
-            }
-
-            fun showUI(layout: String, state: String) {
-
-            }
-
-            fun updateConfigUI(layout: ByteArray) {
-                sendLargeData(layout).use { pfd ->
-                    localService.updateConfigUI(pfd)
-                }
-            }
-
-            fun waitConfigUIEvent(): ByteArray {
-                return localService.waitConfigUIEvent().use { pfd ->
-                    ParcelFileDescriptor.AutoCloseInputStream(pfd).readBytes()
-                }
-            }
-
-            //            fun takeScreenNode(): Pair<ByteArray, ArrayList<AccessibilityNodeInfo>> {
-//                val pair = this@RemoteService.takeScreenNode()
-//                return Pair(pair.first, ArrayList(pair.second))
+//        val toNative = @Keep object {
+//            val cache_dir = cacheDir
+//            fun toast(msg: String) {
+//                localService.toast(msg)
 //            }
-            fun takeScreenNode(): ScreenNode {
-                val (info, infoRef) = this@RemoteService.takeScreenNode()
+//
+//            fun showUI(layout: String, state: String) {
+//
+//            }
+//
+//            fun updateConfigUI(layout: ByteArray) {
+//                sendLargeData(layout).use { pfd ->
+//                    localService.updateConfigUI(pfd)
+//                }
+//            }
+//
+//            fun waitConfigUIEvent(): ByteArray {
+//                return localService.waitConfigUIEvent().use { pfd ->
+//                    ParcelFileDescriptor.AutoCloseInputStream(pfd).readBytes()
+//                }
+//            }
+//
+//            //            fun takeScreenNode(): Pair<ByteArray, ArrayList<AccessibilityNodeInfo>> {
+////                val pair = this@RemoteService.takeScreenNode()
+////                return Pair(pair.first, ArrayList(pair.second))
+////            }
+//            fun takeScreenNode(): ScreenNode {
+//                val (info, infoRef) = this@RemoteService.takeScreenNode()
+//
+//                Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
+//
+//                val stream = ByteArrayOutputStream();
+//                Json.encodeToStream(info, stream)
+//
+//                return ScreenNode(stream.toByteArray(), infoRef.toTypedArray())
+//            }
+//
+//            fun clickNode(node: AccessibilityNodeInfo): Boolean {
+//                return node.performAction(ACTION_CLICK)
+//            }
+//
+//            fun takeScreenshot(): Screenshot {
+//                // sync update
+//                if (isScreenshotInvalid()) {
+//                    updateScreenshot()
+//                }
+//
+//                // async update
+//                requestUpdateScreenshot.trySend(Unit)
+//
+//                // cached
+//                return screenshot
+//            }
+//
+//        }
+//        toNative.javaClass.declaredMethods.forEach {
+//            Log.e("", it.toString())
+//        }
+//        toNative.javaClass.declaredFields.forEach {
+//            Log.e("", it.toString())
+//        }
+//        Log.e("", "495")
 
-                Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
-
-                val stream = ByteArrayOutputStream();
-                Json.encodeToStream(info, stream)
-
-                return ScreenNode(stream.toByteArray(), infoRef.toTypedArray())
-            }
-
-            fun clickNode(node: AccessibilityNodeInfo): Boolean {
-                return node.performAction(ACTION_CLICK)
-            }
-
-            fun takeScreenshot(): Screenshot {
-                // sync update
-                if (isScreenshotInvalid()) {
-                    updateScreenshot()
-                }
-
-                // async update
-                requestUpdateScreenshot.trySend(Unit)
-
-                // cached
-                return screenshot
-            }
-
-        }
-        toNative.javaClass.declaredMethods.forEach {
-            Log.e("", it.toString())
-        }
-        toNative.javaClass.declaredFields.forEach {
-            Log.e("", it.toString())
-        }
-        Log.e("", "495")
-
-        
 
 //        thread {
 //            localService.test()
@@ -828,7 +882,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 ////                    Log.e("", it.toString())
 ////                }
 //            }
-        native.start(toNative)
+//        native.start(toNative)
 
 //        }
         Log.e("", "rust call finish")

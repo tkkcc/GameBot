@@ -1,3 +1,10 @@
 [workspace]
-members = ["./android/app/src/main/rust/", "devtool"]
+members = ["./android/app/src/main/rust/", "devtool", "gamebot"]
 resolver = "2"
+
+[profile.release]
+strip = true
+opt-level = "s"
+# lto = true
+# codegen-units = 1
+# panic = "abort"

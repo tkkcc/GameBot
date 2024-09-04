@@ -6,22 +6,18 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Context.ACTIVITY_SERVICE
 import android.graphics.PixelFormat
-import android.graphics.Point
-import android.media.ImageReader
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.view.Gravity
-import android.view.SurfaceControlHidden
 import android.view.WindowManager
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -30,6 +26,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
@@ -46,8 +43,10 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import gamebot.host.presentation.CenterView
 import initConfigUI
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.builtins.ListSerializer
@@ -57,7 +56,6 @@ import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
-import kotlin.concurrent.thread
 
 @Composable
 fun MemoryMonitor() {
@@ -84,6 +82,7 @@ class LocalService(
     val configUI: MutableState<Component> = mutableStateOf(Component.Column())
     var configUIEvent = mutableStateOf(Channel<CallbackMsg>())
     var byteBuffer = ByteBuffer.allocateDirect(0)
+
     init {
 
         context.runOnUiThread {
@@ -91,100 +90,12 @@ class LocalService(
             initConfigUI(context, configUI, configUIEvent)
         }
 
-        thread {
-            return@thread
-            val screenSize = Point(1240,2772)
-            val imageReader = ImageReader.newInstance(screenSize.x, screenSize.y, PixelFormat.RGBA_8888, 1)
-//            imageReader.setOnImageAvailableListener({
-//                Log.e("", "image available")
-//                val startTime = System.currentTimeMillis()
-//                val img = imageReader.acquireLatestImage()
-//                val newBuf = img.planes[0].buffer
-//                if (byteBuffer.capacity() < newBuf.capacity()) {
-//                    byteBuffer = ByteBuffer.allocateDirect(newBuf.capacity())
-//                }
-//                byteBuffer.position(0)
-//                byteBuffer.put(newBuf)
-//                img.close();
-//                Log.e("","duration ${System.currentTimeMillis()-startTime} size: ${byteBuffer.capacity()}")
-//            }, Handler(Looper.getMainLooper()))
-            val secure =
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && "S" != Build.VERSION.CODENAME)
-            val display = SurfaceControlHidden.createDisplay("scrcpy111111221", secure)
-            SurfaceControlHidden.openTransaction()
-            try {
-                SurfaceControlHidden.setDisplaySurface(display, imageReader.surface)
-                SurfaceControlHidden.setDisplayProjection(
-                    display,
-                    0, android.graphics.Rect(0, 0, screenSize.x, screenSize.y), android.graphics.Rect(0, 0, 720, 1280)
-                )
-                SurfaceControlHidden.setDisplayLayerStack(display, 0)
-            } catch (e: Exception) {
-                Log.e("", "497", e)
-            } finally {
-                SurfaceControlHidden.closeTransaction()
-            }
 
-//            val option = Options.parse("")
-//            val device = Device(option)
-//            val sc = ScreenCapture(device)
-//            sc.start(imageReader.surface)
-
-
-//            val createVirtualDisplayMethod = android.hardware.display.DisplayManager::class.java
-//                .getMethod("createVirtualDisplay", String::class.java, Int::class.java, Int::class.java, Int::class.java, Surface::class.java)
-//            val virtualDisplay = createVirtualDisplayMethod.invoke(null, "what", 720, 1280, 0, imageReader.surface) as VirtualDisplay
-
-        }
     }
 //            val ui = ComposeUI(context as ComponentActivity, configUI)
 
     override fun toast(text: String) {
         context.runOnUiThread {
-//                    this@MainActivity.setContent { FF() }
-//                    val layout = Component.Column(
-//                        children = listOf(
-//                            Component.TextField(text = "abc"),
-//                            Component.TextField(text = "abc1")
-//                        )
-//                    )
-//                    val xx = Json.encodeToString(Component.serializer(), layout)
-//                    Log.e("", xx)
-//                    ui.render(xx)
-//                    CoroutineScope(Dispatchers.Default).launch {
-//                        while (true) {
-//                            delay(3000)
-//
-//                            layout.children = layout.children.toMutableList().apply {
-//                                this[0] = Component.TextField(text="${random()}")
-//                                add(Component.TextField(text="${random()}"))
-//                            }.toList()
-//                            val xx = Json.encodeToString(Component.serializer(), layout)
-//                            withContext(Dispatchers.Main) {
-//                                ui.context.setContent {
-//
-//                                }
-//                            }
-//                            delay(1000)
-//
-//                            withContext(Dispatchers.Main) {
-//
-//                                ui.render(xx)
-//                            }
-//                            Log.e("","render 671")
-//                        }
-//                    }
-//                    runBlocking {
-//
-//                        while(true) {
-//
-//                            withContext(Dispatchers.Main) {
-//
-//                                ui.render(xx)
-//                            }
-//                            delay(1000)
-//                        }
-//                    }
             Toast.makeText(context, text, Toast.LENGTH_SHORT).show()
         }
     }
@@ -193,9 +104,31 @@ class LocalService(
 
     override fun test() {
         context.setContent {
+            val scope = rememberCoroutineScope()
             CenterView {
-
                 MemoryMonitor()
+                var isRunning by remember { mutableStateOf(false) }
+//                var pluginRunningState =
+                Text(isRunning.toString())
+                Button({
+                    scope.launch(Dispatchers.Default) {
+                        isRunning = true
+                        Log.e("", "start guest")
+                        remoteService.startGuest("devtool")
+                        Log.e("", "start guest done")
+                        isRunning = false
+                    }
+                }) {
+                    Text("start devtool")
+                }
+                Button({
+                    scope.launch(Dispatchers.Default) {
+                        Log.e("", "stop guest")
+                        remoteService.stopGuest("devtool")
+                    }
+                }) {
+                    Text("stop devtool")
+                }
             }
         }
     }

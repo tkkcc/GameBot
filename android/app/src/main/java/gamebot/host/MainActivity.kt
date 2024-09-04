@@ -291,14 +291,8 @@ class MainActivity : ComponentActivity() {
 //            }
         }
 
-
-
-
-
-
         lateinit var remoteService: IRemoteService
         val localService: ILocalService = LocalService(this@MainActivity)
-        val connectionChannel: Channel<Boolean> = Channel()
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName, service: IBinder) {
                 Log.e("137", "RootServiceConnection onConnected")
@@ -311,10 +305,8 @@ class MainActivity : ComponentActivity() {
                     Thread.sleep(1000)
                 }
                 remoteService.setLocalRunBinder(localService.asBinder())
-                CoroutineScope(Dispatchers.Default).launch {
-                    connectionChannel.send(true)
-                }
-//                remoteService.start()
+                (localService as LocalService).remoteService = remoteService
+                remoteService.start()
 
 //                previousRemoteService = remoteService
 //
@@ -399,10 +391,6 @@ class MainActivity : ComponentActivity() {
         }
         Log.d(TAG, "tryRootMode end")
 
-        CoroutineScope(Dispatchers.Default).launch {
-            val started = connectionChannel.receive()
-            remoteService.start()
-        }
     }
 }
 

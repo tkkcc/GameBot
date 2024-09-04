@@ -90,10 +90,10 @@ ksp {
 
 androidComponents.onVariants { variant ->
     val target = if (variant.buildType == "release") {
-        listOf("x86_64", "arm64-v8a")
+        listOf("x86", "x86_64", "arm64-v8a")
 //        listOf( "x86","x86_64",)
     } else {
-        listOf("x86_64", "arm64-v8a")
+        listOf("x86", "x86_64", "arm64-v8a")
 //        listOf("x86","x86_64",)
     }
     val source = Path(projectDir.absolutePath, "src", "main", "rust")

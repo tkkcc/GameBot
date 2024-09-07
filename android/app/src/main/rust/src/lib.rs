@@ -42,14 +42,15 @@ extern "C" fn Java_RemoteService_startGuest(
     if load_library(&name).is_err() {
         return;
     };
-    let method = (&STORE.lock().unwrap()[&name]).start.clone();
+    let func = (&STORE.lock().unwrap()[&name]).start.clone();
 
-    method(env, host);
+    func(env, host);
 }
 
 #[no_mangle]
 extern "C" fn Java_RemoteService_stopGuest(mut env: JNIEnv, class: JClass, name: JString) {
     let name: String = env.get_string(&name).unwrap().into();
-    let method = (&STORE.lock().unwrap()[&name]).stop.clone();
-    method();
+    if let Some(func) = STORE.lock().unwrap().get(&name).map(|x| x.stop.clone()) {
+        func();
+    }
 }

@@ -6,7 +6,7 @@ mod node;
 mod t1;
 mod ui;
 
-use core::error;
+use core::{error, panic};
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::{i32, thread};
@@ -66,7 +66,8 @@ struct ScreenNode {
     info_ref: Option<GlobalRef>,
 }
 
-static CANCEL_TOKEN: LazyLock<Futex<Private>> = LazyLock::new(|| Futex::new(0));
+static STATUS_TOKEN: LazyLock<Futex<Private>> =
+    LazyLock::new(|| Futex::new(Status::Stopped as u32));
 
 struct Store {
     vm: JavaVM,
@@ -229,43 +230,80 @@ fn click() {
 }
 
 pub fn sleep(s: impl IntoSeconds) {
-    let _ = CANCEL_TOKEN.wait_for(0, s.into_seconds());
-    check_cancel_token();
+    let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_seconds());
+    is_running_status();
 }
 
-pub fn reset_cancel_token() {
-    CANCEL_TOKEN
-        .value
-        .store(0, std::sync::atomic::Ordering::Relaxed);
+pub enum Status {
+    Stopped = 0,
+    Running = 1,
 }
 
-pub fn check_cancel_token() {
-    if CANCEL_TOKEN
+pub fn status() -> Status {
+    let i = STATUS_TOKEN
         .value
-        .load(std::sync::atomic::Ordering::Relaxed)
-        != 0
-    {
+        .load(std::sync::atomic::Ordering::Relaxed);
+
+    match i {
+        0 => Status::Stopped,
+        1 => Status::Running,
+        _ => panic!(),
+    }
+}
+pub fn set_status(status: Status) {
+    STATUS_TOKEN
+        .value
+        .store(status as u32, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn is_running_status() {
+    if !matches!(status(), Status::Running) {
         panic!();
     }
 }
 
+// static ENTRY: OnceLock<fn()> = OnceLock::new();
+
 #[no_mangle]
-extern "C" fn start(mut env: JNIEnv, host: JObject) {
+pub extern "C" fn start(mut env: JNIEnv, host: JObject) {
     let _ = std::panic::catch_unwind(move || {
-        reset_cancel_token();
-        let msg: JObject = env.new_string("from").unwrap().into();
+        // running before previous stopped? unexpected!
+        if matches!(status(), Status::Running) {
+            panic!();
+        }
+
+        set_status(Status::Running);
+
+        android_logger::init_once(
+            android_logger::Config::default().with_max_level(log::LevelFilter::Info),
+        );
+
+        // trace!("trace log after init");
+
+        // change log level at anytime
+        // log::set_max_level(log::LevelFilter::Warn);
+
+        trace!("trace log after init?");
+
+        // if let Some(f) = ENTRY.get() {
+        //     f();
+        // }
+
+        let msg: JObject = env.new_string("1from").unwrap().into();
+        thread::spawn(|| {
+            sleep(1);
+            error!("259");
+        });
 
         sleep(3);
-        check_cancel_token();
 
         let _ = env.call_method(&host, "toast", "(Ljava/lang/String;)V", &[(&msg).into()]);
     });
+    stop();
 }
 
 #[no_mangle]
 extern "C" fn stop() {
-    CANCEL_TOKEN
-        .value
-        .store(1, std::sync::atomic::Ordering::Relaxed);
-    CANCEL_TOKEN.wake(i32::MAX);
+    set_status(Status::Stopped);
+    STATUS_TOKEN.wake(i32::MAX);
 }

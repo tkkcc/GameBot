@@ -1,5 +1,6 @@
+use gamebot;
 use log::error;
 
-fn start() {
+fn start2() {
     error!("what");
 }

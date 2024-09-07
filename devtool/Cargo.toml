@@ -3,6 +3,9 @@ name = "devtool"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
-gamebot = { path = "../gamebot/" }
+gamebot = { path = "../gamebot" }
 log = "0.4.22"

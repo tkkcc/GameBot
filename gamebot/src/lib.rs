@@ -28,13 +28,11 @@ use jni::{
     JNIEnv, JavaVM,
 };
 use linux_futex::{Futex, Private};
+use mail::IntoSeconds;
 use node::Node;
 use serde::{Deserialize, Serialize};
 use ui::CallbackValue;
 use ui::Element;
-// use wasmtime::{Caller, Engine, Linker, Module, Store};
-// use tracing::{debug, error, Subscriber};
-// use tracing_subscriber::Registry;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
@@ -68,14 +66,18 @@ struct ScreenNode {
     info_ref: Option<GlobalRef>,
 }
 
+static CANCEL_TOKEN: LazyLock<Futex<Private>> = LazyLock::new(|| Futex::new(0));
+
 struct Store {
     vm: JavaVM,
     host_ref: GlobalRef,
     screen_node: ScreenNode,
-    pub cancel_token: Futex<Private>,
 }
 static STORE: OnceLock<Store> = OnceLock::new();
 impl Store {
+    pub fn store() -> &'static Store {
+        STORE.get().unwrap()
+    }
     fn init(env: &JNIEnv, obj: &JObject) -> Result<()> {
         let vm = env.get_java_vm()?;
         let obj_ref = env.new_global_ref(obj)?;
@@ -84,7 +86,6 @@ impl Store {
                 vm,
                 host_ref: obj_ref,
                 screen_node: ScreenNode::default(),
-                cancel_token: Futex::new(0),
             })
             .map_err(|_| Error::msg("Store set fail"))?;
         Ok(())
@@ -227,13 +228,44 @@ fn click() {
     let obj = get_object();
 }
 
-pub fn cancel_token() {}
+pub fn sleep(s: impl IntoSeconds) {
+    let _ = CANCEL_TOKEN.wait_for(0, s.into_seconds());
+    check_cancel_token();
+}
 
-#[no_mangle]
-extern "C" fn start(mut env: JNIEnv, host: JObject) {
-    let msg: JObject = env.new_string("from").unwrap().into();
-    let _ = env.call_method(&host, "toast", "(Ljava/lang/String;)V", &[(&msg).into()]);
+pub fn reset_cancel_token() {
+    CANCEL_TOKEN
+        .value
+        .store(0, std::sync::atomic::Ordering::Relaxed);
+}
+
+pub fn check_cancel_token() {
+    if CANCEL_TOKEN
+        .value
+        .load(std::sync::atomic::Ordering::Relaxed)
+        != 0
+    {
+        panic!();
+    }
 }
 
 #[no_mangle]
-extern "C" fn stop() {}
+extern "C" fn start(mut env: JNIEnv, host: JObject) {
+    let _ = std::panic::catch_unwind(move || {
+        reset_cancel_token();
+        let msg: JObject = env.new_string("from").unwrap().into();
+
+        sleep(3);
+        check_cancel_token();
+
+        let _ = env.call_method(&host, "toast", "(Ljava/lang/String;)V", &[(&msg).into()]);
+    });
+}
+
+#[no_mangle]
+extern "C" fn stop() {
+    CANCEL_TOKEN
+        .value
+        .store(1, std::sync::atomic::Ordering::Relaxed);
+    CANCEL_TOKEN.wake(i32::MAX);
+}

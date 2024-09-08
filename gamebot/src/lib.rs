@@ -23,6 +23,7 @@ use std::{
 
 use anyhow::{Error, Result};
 
+use jni::objects::JByteBuffer;
 // use erased_serde::Serialize;
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
 use jni::{
@@ -36,12 +37,36 @@ use serde::{Deserialize, Serialize};
 use ui::CallbackValue;
 use ui::Element;
 
+pub use log::error;
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
 
-#[macro_use]
-extern crate log;
+#[macro_export]
+macro_rules! log {
+    // NOTE: We cannot use `concat!` to make a static string as a format argument
+    // of `eprintln!` because `file!` could contain a `{` or
+    // `$val` expression could be a block (`{ .. }`), in which case the `eprintln!`
+    // will be malformed.
+    () => {
+        $crate::error!("[{}:{}:{}]", $crate::file!(), $crate::line!(), $crate::column!())
+    };
+    ($val:expr $(,)?) => {
+        // Use of `match` here is intentional because it affects the lifetimes
+        // of temporaries - https://stackoverflow.com/a/48732525/1063961
+        match $val {
+            tmp => {
+                $crate::error!("[{}:{}:{}] {} = {:#?}",
+                    file!(), line!(), column!(), stringify!($val), &tmp);
+                tmp
+            }
+        }
+    };
+    ($($val:expr),+ $(,)?) => {
+        ($($crate::log!($val)),+,)
+    };
+}
 
 extern crate android_logger;
 
@@ -66,6 +91,16 @@ fn get_env() -> JNIEnv<'static> {
 struct ScreenNode {
     info: Vec<Node>,
     info_ref: Option<GlobalRef>,
+}
+
+#[derive(Default, Debug)]
+pub struct Screenshot<'a> {
+    pub width: i32,
+    pub height: i32,
+    pub pixel_stride: i32,
+    pub row_stride: i32,
+    pub data: &'a [u8],
+    // pub data: Vec<u8>,
 }
 
 static STATUS_TOKEN: LazyLock<Futex<Private>> =
@@ -112,9 +147,6 @@ struct Proxy<'a> {
 }
 
 impl<'a> Proxy<'a> {
-    fn find(&self) {}
-    fn try_fetch_screen_node(&self) {}
-
     fn fetch_screen_node(&mut self) {
         let ans = self
             .env
@@ -248,6 +280,56 @@ impl<'a> Proxy<'a> {
             )
             .unwrap();
     }
+    fn take_screenshot(&mut self) -> Screenshot<'static> {
+        let screenshot: Result<Screenshot, Box<dyn std::error::Error>> =
+            self.env.with_local_frame(32, |mut env| {
+                let screenshot = env
+                    .call_method(self.host, "takeScreenshot", "()LScreenshot;", &[])
+                    .unwrap()
+                    .l()
+                    .unwrap();
+                let width = env
+                    .get_field(&screenshot, "width", "I")
+                    .unwrap()
+                    .i()
+                    .unwrap();
+                let height = env
+                    .get_field(&screenshot, "height", "I")
+                    .unwrap()
+                    .i()
+                    .unwrap();
+                let pixel_stride = env
+                    .get_field(&screenshot, "pixelStride", "I")
+                    .unwrap()
+                    .i()
+                    .unwrap();
+                let row_stride = env
+                    .get_field(&screenshot, "rowStride", "I")
+                    .unwrap()
+                    .i()
+                    .unwrap();
+
+                let data: JByteBuffer = env
+                    .get_field(&screenshot, "data", "Ljava/nio/ByteBuffer;")
+                    .unwrap()
+                    .l()
+                    .unwrap()
+                    .into();
+
+                let addr = env.get_direct_buffer_address(&data).unwrap();
+                let capacity = env.get_direct_buffer_capacity(&data).unwrap();
+                let data = unsafe { std::slice::from_raw_parts(addr, capacity) };
+                Ok(Screenshot {
+                    width,
+                    height,
+                    pixel_stride,
+                    row_stride,
+                    data,
+                })
+            });
+        screenshot.unwrap()
+        // TODO memory leak ?
+    }
 }
 
 // static CELL3: OnceLock<JObject> = OnceLock::new();
@@ -262,10 +344,16 @@ pub fn toast2(msg: &str) {
     Store::proxy().unwrap().toast2(msg);
 }
 
-pub fn sleep(s: impl IntoSeconds) {
+pub fn take_screenshot() -> Screenshot<'static> {
+    Store::proxy().unwrap().take_screenshot()
+}
+
+pub fn ssleep(s: impl IntoSeconds) {
     let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_seconds());
     is_running_status();
 }
+
+pub fn update_screen_shot() {}
 
 pub enum Status {
     Stopped = 0,

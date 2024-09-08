@@ -12,6 +12,7 @@ import android.hardware.display.DisplayManagerHidden
 import android.hardware.display.VirtualDisplay
 import android.media.ImageReader
 import android.os.Build
+import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Looper
@@ -32,6 +33,7 @@ import gamebot.host.IRemoteService
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
 import gamebot.host.sendLargeData
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -65,7 +67,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     private lateinit var uiAutomationHidden: UiAutomationHidden
     private lateinit var uiAutomationConnection: UiAutomationConnection
     private lateinit var uiAutomation: UiAutomation
-    private val handlerThread = HandlerThread("GameBotHandlerThread")
+    private val uiAutomationThread = HandlerThread("GameBotUiAutomationThread")
+    private val imageReaderThread = HandlerThread("GameBotImageReaderThread")
     lateinit var mWm: IWindowManager
 
     override fun destroy() {
@@ -131,7 +134,11 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     fun takeScreenshot(): Screenshot {
         // sync update
         if (isScreenshotInvalid()) {
+            Log.e("","sync update screenshot")
             updateScreenshot()
+        } else {
+//            Log.e("","async update screenshot")
+
         }
 
         // async update
@@ -144,10 +151,10 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     fun connectUiAutomation() {
         Log.e("137", "connectUiAutomation")
-        handlerThread.start()
+        uiAutomationThread.start()
 
         uiAutomationConnection = UiAutomationConnection()
-        uiAutomationHidden = UiAutomationHidden(handlerThread.looper, uiAutomationConnection)
+        uiAutomationHidden = UiAutomationHidden(uiAutomationThread.looper, uiAutomationConnection)
 
         Log.d(TAG, "UiAutomation connect")
 
@@ -531,10 +538,13 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         // do nothing if no one need new screenshot
         val img = imageReader.acquireLatestImage()
         if (img == null) {
+            Log.e("", "no image")
+
             updateScreenshotTimestamp()
+            return
         }
 
-//                    Log.e("", "no image available")
+        Log.e("", "new image got")
 //            Thread.sleep(33)
 
 //            continue
@@ -561,7 +571,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //                val dst = File(cacheDir, "tmp.png")
 //                dst.parentFile?.mkdirs()
 //                FileOutputStream(dst).use { stream ->
-//                    bitmap.compress(Bitmap.CompressFormat.PNG, 25, stream)
+//                    bitmap.compress(Bitmap.CompressFofrmat.PNG, 25, stream)
 //                    Log.d(TAG, "save to file $dst")
 //                    bitmap.recycle()
 //                }
@@ -602,15 +612,21 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 //        thread {
         val screenSize = getPhysicalDisplaySize()
+        imageReaderThread.start()
         imageReader =
             ImageReader.newInstance(screenSize.x, screenSize.y, PixelFormat.RGBA_8888, 2)
-
         imageReader.setOnImageAvailableListener({
-            runBlocking {
+//            Log.e("","new screenshot available")
+
+            runBlocking(Dispatchers.Default) {
                 requestUpdateScreenshot.receive()
             }
+//            Log.e("","update screenshot from callback")
             updateScreenshot()
-        }, null)
+        }, Handler(imageReaderThread.looper))
+
+        // is android Image plane align row stride to times of 4?
+        byteBuffer = ByteBuffer.allocateDirect(screenSize.x * screenSize.y * 4)
 
 //        val manager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
 //        context.startService(Intent(context,MediaProjection::class.java))
@@ -704,7 +720,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
             val newBuf = img.planes[0].buffer
             if (byteBuffer.capacity() < newBuf.capacity()) {
-                byteBuffer = ByteBuffer.allocate(newBuf.capacity())
+                throw NotImplementedError("screenshot size even larger? ${byteBuffer.capacity()} ${newBuf.capacity()}")
+//                byteBuffer = ByteBuffer.allocate(newBuf.capacity())
             }
             byteBuffer.position(0)
             byteBuffer.put(newBuf)
@@ -786,7 +803,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         initAll()
         initDisplayProjection()
         localService.test()
-
+        this.javaClass.declaredMethods.forEach {
+            Log.e("", "790 ${it}")
+        }
 
         val repo = File(cacheDir, "repo")
 

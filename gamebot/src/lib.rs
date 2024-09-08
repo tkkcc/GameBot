@@ -262,10 +262,20 @@ pub fn is_running_status() {
     }
 }
 
-// static ENTRY: OnceLock<fn()> = OnceLock::new();
+pub static USER_START: OnceLock<fn()> = OnceLock::new();
+
+#[macro_export]
+macro_rules! entry {
+    ($f:expr) => {
+        #[no_mangle]
+        extern "C" fn before_start() {
+            $crate::USER_START.set($f);
+        }
+    };
+}
 
 #[no_mangle]
-pub extern "C" fn start(mut env: JNIEnv, host: JObject) {
+extern "C" fn start(mut env: JNIEnv, host: JObject) {
     let _ = std::panic::catch_unwind(move || {
         // running before previous stopped? unexpected!
         if matches!(status(), Status::Running) {
@@ -285,9 +295,9 @@ pub extern "C" fn start(mut env: JNIEnv, host: JObject) {
 
         trace!("trace log after init?");
 
-        // if let Some(f) = ENTRY.get() {
-        //     f();
-        // }
+        if let Some(f) = USER_START.get() {
+            f();
+        }
 
         let msg: JObject = env.new_string("1from").unwrap().into();
         thread::spawn(|| {

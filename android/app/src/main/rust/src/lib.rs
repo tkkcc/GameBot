@@ -10,6 +10,7 @@ static STORE: LazyLock<Mutex<HashMap<String, Guest>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 struct Guest<'a> {
+    pub before_start: libloading::Symbol<'a, extern "C" fn()>,
     pub start: libloading::Symbol<'a, extern "C" fn(JNIEnv, JObject)>,
     pub stop: libloading::Symbol<'a, extern "C" fn()>,
 }
@@ -21,12 +22,17 @@ fn load_library(name: &str) -> Result<(), Box<dyn std::error::Error>> {
     unsafe {
         let lib = libloading::Library::new("/data/local/tmp/libgamebot.so")?;
         let lib = Box::leak(Box::new(lib));
+        let before_start: libloading::Symbol<extern "C" fn()> = lib.get(b"before_start")?;
         let start: libloading::Symbol<extern "C" fn(JNIEnv, JObject)> = lib.get(b"start")?;
         let stop: libloading::Symbol<extern "C" fn()> = lib.get(b"stop")?;
-        STORE
-            .lock()
-            .unwrap()
-            .insert(name.to_owned(), Guest { start, stop });
+        STORE.lock().unwrap().insert(
+            name.to_owned(),
+            Guest {
+                before_start,
+                start,
+                stop,
+            },
+        );
     }
     Ok(())
 }
@@ -42,8 +48,9 @@ extern "C" fn Java_RemoteService_startGuest(
     if load_library(&name).is_err() {
         return;
     };
-    let func = (&STORE.lock().unwrap()[&name]).start.clone();
-
+    let func = (STORE.lock().unwrap()[&name]).before_start.clone();
+    func();
+    let func = (STORE.lock().unwrap()[&name]).start.clone();
     func(env, host);
 }
 

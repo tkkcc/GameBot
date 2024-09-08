@@ -330,6 +330,11 @@ impl<'a> Proxy<'a> {
         screenshot.unwrap()
         // TODO memory leak ?
     }
+    fn click(&mut self, x: i32, y: i32) {
+        self.env
+            .call_method(&self.host, "click", "(II)V", &[x.into(), y.into()])
+            .unwrap();
+    }
 }
 
 // static CELL3: OnceLock<JObject> = OnceLock::new();
@@ -346,6 +351,9 @@ pub fn toast2(msg: &str) {
 
 pub fn take_screenshot() -> Screenshot<'static> {
     Store::proxy().unwrap().take_screenshot()
+}
+pub fn click(x: i32, y: i32) {
+    Store::proxy().unwrap().click(x, y);
 }
 
 pub fn ssleep(s: impl IntoSeconds) {

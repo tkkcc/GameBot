@@ -6,7 +6,6 @@ run() {
   adb push ../target/i686-linux-android/release/libdevtool.so /data/local/tmp/libgamebot.so
   # cargo ndk -t x86_64 build --release
   # adb push ../target/x86_64-linux-android/release/libgamebot.so /data/local/tmp/
-
 }
 dev() {
   cargo watch -w . -w ../gamebot -s './0.sh run'

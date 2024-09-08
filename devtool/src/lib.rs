@@ -1,17 +1,20 @@
 use std::{thread, time::Instant};
 
-use gamebot::{self, log, ssleep, take_screenshot, toast, toast2};
+use gamebot::{self, click, log, ssleep, take_screenshot, toast, toast2};
 use log::error;
 
 fn start() {
     error!("what");
 
-    ssleep(3);
+    // ssleep(3);
     let start_time = Instant::now();
-    for i in (0..).cycle() {
+    for i in (0..) {
+        let start_time = Instant::now();
+        click(400, 400);
+        log!(start_time.elapsed());
         // toast2("what1");
-        let screenshot = take_screenshot();
-        ssleep(0.03);
+        // let screenshot = take_screenshot();
+        ssleep(1);
 
         // log!(screenshot);
         // break;

@@ -9,7 +9,7 @@ run() {
 
 }
 dev() {
-  cargo watch -w src -s './0.sh run'
+  cargo watch -w . -w ../gamebot -s './0.sh run'
 }
 
 "$@"

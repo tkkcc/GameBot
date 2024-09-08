@@ -89,6 +89,10 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         localService.toast(msg)
     }
 
+    fun toast2(msg: String) {
+//        localService.toast(msg)
+    }
+
     fun showUI(layout: String, state: String) {
 
     }

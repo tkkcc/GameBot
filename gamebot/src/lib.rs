@@ -7,8 +7,10 @@ mod t1;
 mod ui;
 
 use core::{error, panic};
+use std::backtrace::Backtrace;
+use std::cell::Cell;
 use std::sync::atomic::AtomicU32;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::{i32, thread};
 use std::{
     sync::{
@@ -80,6 +82,9 @@ impl Store {
         STORE.get().unwrap()
     }
     fn init(env: &JNIEnv, obj: &JObject) -> Result<()> {
+        if STORE.get().is_some() {
+            return Ok(());
+        }
         let vm = env.get_java_vm()?;
         let obj_ref = env.new_global_ref(obj)?;
         let _ = STORE
@@ -218,6 +223,31 @@ impl<'a> Proxy<'a> {
     fn handle_config_ui_event<State>(&mut self, element: Element<State>) {}
 
     fn update_float_ui() {}
+
+    fn toast(&mut self, msg: &str) {
+        let msg: JObject = self.env.new_string(&msg).unwrap().into();
+        let msg = self.env.auto_local(msg);
+        self.env
+            .call_method(
+                self.host,
+                "toast",
+                "(Ljava/lang/String;)V",
+                &[msg.as_ref().into()],
+            )
+            .unwrap();
+    }
+    fn toast2(&mut self, msg: &str) {
+        let msg: JObject = self.env.new_string(&msg).unwrap().into();
+        let msg = self.env.auto_local(msg);
+        self.env
+            .call_method(
+                self.host,
+                "toast2",
+                "(Ljava/lang/String;)V",
+                &[msg.as_ref().into()],
+            )
+            .unwrap();
+    }
 }
 
 // static CELL3: OnceLock<JObject> = OnceLock::new();
@@ -225,8 +255,11 @@ impl<'a> Proxy<'a> {
 //     CELL3.get().unwrap()
 // }
 
-fn click() {
-    let obj = get_object();
+pub fn toast(msg: &str) {
+    Store::proxy().unwrap().toast(msg);
+}
+pub fn toast2(msg: &str) {
+    Store::proxy().unwrap().toast2(msg);
 }
 
 pub fn sleep(s: impl IntoSeconds) {
@@ -269,18 +302,24 @@ macro_rules! entry {
     ($f:expr) => {
         #[no_mangle]
         extern "C" fn before_start() {
-            $crate::USER_START.set($f);
+            let _ = $crate::USER_START.set($f);
         }
     };
 }
 
+// static BACKSTRACE: RwLock<Option<Backtrace>> = RwLock::new(None);
+
 #[no_mangle]
 extern "C" fn start(mut env: JNIEnv, host: JObject) {
+    log_panics::init();
+
     let _ = std::panic::catch_unwind(move || {
         // running before previous stopped? unexpected!
         if matches!(status(), Status::Running) {
             panic!();
         }
+
+        Store::init(&env, &host).unwrap();
 
         set_status(Status::Running);
 
@@ -293,21 +332,21 @@ extern "C" fn start(mut env: JNIEnv, host: JObject) {
         // change log level at anytime
         // log::set_max_level(log::LevelFilter::Warn);
 
-        trace!("trace log after init?");
+        // trace!("trace log after init?");
 
         if let Some(f) = USER_START.get() {
             f();
         }
 
-        let msg: JObject = env.new_string("1from").unwrap().into();
-        thread::spawn(|| {
-            sleep(1);
-            error!("259");
-        });
-
-        sleep(3);
-
-        let _ = env.call_method(&host, "toast", "(Ljava/lang/String;)V", &[(&msg).into()]);
+        // let msg: JObject = env.new_string("1from").unwrap().into();
+        // thread::spawn(|| {
+        //     sleep(1);
+        //     error!("259");
+        // });
+        //
+        // sleep(3);
+        //
+        // let _ = env.call_method(&host, "toast", "(Ljava/lang/String;)V", &[(&msg).into()]);
     });
     stop();
 }

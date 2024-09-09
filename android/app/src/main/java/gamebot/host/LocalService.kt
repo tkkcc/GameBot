@@ -104,8 +104,17 @@ class LocalService(
 
     override fun test() {
         context.setContent {
+            val context = LocalContext.current
             val scope = rememberCoroutineScope()
             CenterView {
+                Button({
+                    (context as MainActivity).restart()
+//                    context.startActivity(Intent(context, MainActivity::class.java))
+//                    context.stopService(Intent(context, LocalService::class.java))
+//                    exitProcess(0)
+                }) {
+                    Text("restart")
+                }
                 MemoryMonitor()
                 var isRunning by remember { mutableStateOf(false) }
 //                var pluginRunningState =

@@ -196,6 +196,20 @@ impl IntoSeconds for Duration {
         self
     }
 }
+pub trait IntoMilliseconds {
+    fn into_milliseconds(self) -> Duration;
+}
+impl IntoMilliseconds for u64 {
+    fn into_milliseconds(self) -> Duration {
+        Duration::from_millis(self)
+    }
+}
+impl IntoMilliseconds for Duration {
+    fn into_milliseconds(self) -> Duration {
+        self
+    }
+}
+
 fn mail4() {
     fn cp(data: &str) -> ColorPoint {
         ColorPoint::default()

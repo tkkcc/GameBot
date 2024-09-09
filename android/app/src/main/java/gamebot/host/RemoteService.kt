@@ -10,6 +10,7 @@ import android.graphics.Point
 import android.graphics.Rect
 import android.hardware.display.DisplayManagerHidden
 import android.hardware.display.VirtualDisplay
+import android.hardware.input.IInputManager
 import android.media.Image
 import android.media.ImageReader
 import android.os.Binder
@@ -29,6 +30,7 @@ import android.view.MotionEvent
 import android.view.SurfaceControlHidden
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK
+import androidx.compose.runtime.key
 import dev.rikka.tools.refine.Refine
 import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
@@ -55,6 +57,13 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
+
+const val INJECT_INPUT_EVENT_MODE_ASYNC = 0
+
+const val INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT = 1
+
+const val INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH = 2
+
 class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     //    val native = Native()
@@ -72,6 +81,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     private val uiAutomationThread = HandlerThread("GameBotUiAutomationThread")
     private val imageReaderThread = HandlerThread("GameBotImageReaderThread")
     lateinit var mWm: IWindowManager
+    lateinit var mIm: IInputManager
 
     override fun destroy() {
         Log.e("", "destroy in remote service")
@@ -130,9 +140,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         return ScreenNode(stream.toByteArray(), infoRef.toTypedArray())
     }
 
+
     fun click(x: Int, y: Int) {
-        // TODO this will block user input?
-        val t=SystemClock.uptimeMillis()
+        Binder.clearCallingIdentity()
+
+//        Log.e("","click $x $y")
+        val t = SystemClock.uptimeMillis()
         val event = MotionEvent.obtain(
             t,
             t,
@@ -142,10 +155,100 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             0
         )
         event.source = InputDevice.SOURCE_TOUCHSCREEN
-        uiAutomation.injectInputEvent(event, false)
+        mIm.injectInputEvent(event, 0)
+//        InputManagerGlobal.getInstance().injectInputEvent(event, INJECT_INPUT_EVENT_MODE_ASYNC)
+//        uiAutomation.injectInputEvent(event, false)
         event.action = MotionEvent.ACTION_UP
-        uiAutomation.injectInputEvent(event, false)
+        mIm.injectInputEvent(event, 0)
+
+//        InputManagerGlobal.getInstance().injectInputEvent(event, INJECT_INPUT_EVENT_MODE_ASYNC)
+
+//        uiAutomation.injectInputEvent(event, false)
         event.recycle()
+    }
+
+    fun touchDown(x: Int, y: Int) {
+        Binder.clearCallingIdentity()
+//        Log.e("","click $x $y")
+        val t = SystemClock.uptimeMillis()
+        val event = MotionEvent.obtain(
+            t,
+            t,
+            MotionEvent.ACTION_DOWN,
+            x.toFloat(),
+            y.toFloat(),
+            0
+        )
+        event.source = InputDevice.SOURCE_TOUCHSCREEN
+        mIm.injectInputEvent(event, 0)
+        event.recycle()
+    }
+
+    fun touchMove(x: Int, y: Int) {
+        Binder.clearCallingIdentity()
+
+//        Log.e("","click $x $y")
+        val t = SystemClock.uptimeMillis()
+        val event = MotionEvent.obtain(
+            t,
+            t,
+            MotionEvent.ACTION_MOVE,
+            x.toFloat(),
+            y.toFloat(),
+            0
+        )
+        event.source = InputDevice.SOURCE_TOUCHSCREEN
+        mIm.injectInputEvent(event, 0)
+        event.recycle()
+    }
+
+    fun touchUp(x: Int, y: Int) {
+        Binder.clearCallingIdentity()
+
+//        Log.e("","click $x $y")
+        val t = SystemClock.uptimeMillis()
+        val event = MotionEvent.obtain(
+            t,
+            t,
+            MotionEvent.ACTION_UP,
+            x.toFloat(),
+            y.toFloat(),
+            0
+        )
+        event.source = InputDevice.SOURCE_TOUCHSCREEN
+        mIm.injectInputEvent(event, 0)
+        event.recycle()
+    }
+
+    fun keyDown(keyCode: Int) {
+        Binder.clearCallingIdentity()
+
+//        val t = SystemClock.uptimeMillis()
+        val event = KeyEvent(KeyEvent.ACTION_DOWN, keyCode)
+        mIm.injectInputEvent(event, 0)
+//        event.recy()
+    }
+
+    fun keyUp(keyCode: Int) {
+        Binder.clearCallingIdentity()
+
+//        val t = SystemClock.uptimeMillis()
+        val event = KeyEvent(KeyEvent.ACTION_UP, keyCode)
+        mIm.injectInputEvent(event, 0)
+//        event.recy()
+    }
+    fun clickRecent(){
+        Binder.clearCallingIdentity()
+
+        keyDown(KeyEvent.KEYCODE_APP_SWITCH)
+//        sleep(500)
+        keyUp(KeyEvent.KEYCODE_APP_SWITCH)
+    }
+    fun clickHome(){
+        Binder.clearCallingIdentity()
+
+        keyDown(KeyEvent.KEYCODE_HOME)
+        keyUp(KeyEvent.KEYCODE_HOME)
     }
 
     fun clickNode(node: AccessibilityNodeInfo): Boolean {
@@ -676,8 +779,14 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 
         mWm = IWindowManager.Stub.asInterface(
-            ServiceManager.checkService(
+            ServiceManager.getService(
                 Context.WINDOW_SERVICE
+            )
+        )
+
+        mIm = IInputManager.Stub.asInterface(
+            ServiceManager.getService(
+                Context.INPUT_SERVICE
             )
         )
 
@@ -698,7 +807,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun start() {
-        Looper.prepare()
 
         Log.e("", "start in remote service, uid = ${getCallingUid()}")
 
@@ -708,8 +816,21 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         this.javaClass.declaredMethods.forEach {
             Log.e("", "790 ${it}")
         }
+//        clickRecent()
 
-        click(200,200)
+//        sleep(3000)
+//        touchDown(500, 500)
+//        sleep(500)
+//        touchMove(100,500)
+//        touchUp(100, 100)
+
+//        sleep(500)
+//        touchMove(700,700)
+//        sleep(500)
+//        touchMove(600,600)
+//        touchUp(600, 600)
+
+//        click(200,200)
         Log.e("", "rust call finish")
     }
 }

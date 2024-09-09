@@ -306,30 +306,6 @@ class RemoteRun(val context: Context) : IRemoteRun.Stub() {
         return null
     }
 
-
-    fun click(x: Float, y: Float) {
-        //A MotionEvent is a type of InputEvent.
-        //The event time must be the current uptime.
-        val eventTime = SystemClock.uptimeMillis()
-
-        //A typical click event triggered by a user click on the touchscreen creates two MotionEvents,
-        //first one with the action KeyEvent.ACTION_DOWN and the 2nd with the action KeyEvent.ACTION_UP
-        val motionDown = MotionEvent.obtain(
-            eventTime, eventTime, KeyEvent.ACTION_DOWN, x, y, 0
-        )
-        //We must set the source of the MotionEvent or the click doesn't work.
-        motionDown.source = InputDevice.SOURCE_TOUCHSCREEN
-        uiAutomation.injectInputEvent(motionDown, true)
-        val motionUp = MotionEvent.obtain(
-            eventTime, eventTime, KeyEvent.ACTION_UP, x, y, 0
-        )
-        motionUp.source = InputDevice.SOURCE_TOUCHSCREEN
-        uiAutomation.injectInputEvent(motionUp, true)
-        //Recycle our events back to the system pool.
-        motionUp.recycle()
-        motionDown.recycle()
-    }
-
     fun touchDown() {
 
     }

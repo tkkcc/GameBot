@@ -392,6 +392,19 @@ class MainActivity : ComponentActivity() {
         Log.d(TAG, "tryRootMode end")
 
     }
+
+    fun restart() {
+//        destroyTask()
+//
+        // for DexClassLoader and jni memory leak
+        val intent = Intent(this, MainActivity::class.java)
+
+//        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        finish()
+
+        startActivity(intent)
+        System.exit(0)
+    }
 }
 
 // transfer over 1M via AIDL

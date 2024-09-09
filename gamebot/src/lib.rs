@@ -31,7 +31,7 @@ use jni::{
     JNIEnv, JavaVM,
 };
 use linux_futex::{Futex, Private};
-use mail::IntoSeconds;
+use mail::{IntoMilliseconds, IntoSeconds};
 use node::Node;
 use serde::{Deserialize, Serialize};
 use ui::CallbackValue;
@@ -335,6 +335,27 @@ impl<'a> Proxy<'a> {
             .call_method(&self.host, "click", "(II)V", &[x.into(), y.into()])
             .unwrap();
     }
+    fn touch_down(&mut self, x: i32, y: i32) {
+        self.env
+            .call_method(&self.host, "touchDown", "(II)V", &[x.into(), y.into()])
+            .unwrap();
+    }
+    fn touch_up(&mut self, x: i32, y: i32) {
+        self.env
+            .call_method(&self.host, "touchUp", "(II)V", &[x.into(), y.into()])
+            .unwrap();
+    }
+    fn touch_move(&mut self, x: i32, y: i32) {
+        self.env
+            .call_method(&self.host, "touchMove", "(II)V", &[x.into(), y.into()])
+            .unwrap();
+    }
+
+    fn click_recent(&mut self) {
+        self.env
+            .call_method(&self.host, "clickRecent", "()V", &[])
+            .unwrap();
+    }
 }
 
 // static CELL3: OnceLock<JObject> = OnceLock::new();
@@ -355,9 +376,25 @@ pub fn take_screenshot() -> Screenshot<'static> {
 pub fn click(x: i32, y: i32) {
     Store::proxy().unwrap().click(x, y);
 }
+pub fn touch_down(x: i32, y: i32) {
+    Store::proxy().unwrap().touch_down(x, y);
+}
+pub fn touch_up(x: i32, y: i32) {
+    Store::proxy().unwrap().touch_up(x, y);
+}
+pub fn touch_move(x: i32, y: i32) {
+    Store::proxy().unwrap().touch_move(x, y);
+}
+pub fn click_recent() {
+    Store::proxy().unwrap().click_recent();
+}
 
 pub fn ssleep(s: impl IntoSeconds) {
     let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_seconds());
+    is_running_status();
+}
+pub fn msleep(s: impl IntoMilliseconds) {
+    let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_milliseconds());
     is_running_status();
 }
 

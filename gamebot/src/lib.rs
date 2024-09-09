@@ -31,7 +31,10 @@ use jni::{
     JNIEnv, JavaVM,
 };
 use linux_futex::{Futex, Private};
-use mail::{IntoMilliseconds, IntoSeconds};
+use mail::{
+    ColorPoint, ColorPointGroup, ColorPointGroupIn, ColorPointIn, IntoMilliseconds, IntoSeconds,
+    Point,
+};
 use node::Node;
 use serde::{Deserialize, Serialize};
 use ui::CallbackValue;
@@ -95,12 +98,82 @@ struct ScreenNode {
 
 #[derive(Default, Debug)]
 pub struct Screenshot<'a> {
-    pub width: i32,
-    pub height: i32,
-    pub pixel_stride: i32,
-    pub row_stride: i32,
+    pub width: u32,
+    pub height: u32,
+    // pub pixel_stride: i32,
+    // pub row_stride: i32,
     pub data: &'a [u8],
     // pub data: Vec<u8>,
+}
+
+impl<'a> Screenshot<'a> {
+    fn find_color_point(
+        &self,
+        &ColorPoint {
+            x,
+            y,
+            red,
+            blue,
+            green,
+        }: &ColorPoint,
+    ) -> Option<Point> {
+        if x >= self.width || y >= self.height {
+            return None;
+        }
+        let i = (y * self.width * 4 + x) as usize;
+        if self.data[i].abs_diff(red) > 0
+            || self.data[i + 1].abs_diff(green) > 0
+            || self.data[i + 2].abs_diff(blue) > 0
+        {
+            return None;
+        }
+        Some(Point { x, y })
+    }
+    fn find_color_point_group(&self, cgp: &ColorPointGroup) -> Option<Point> {
+        for cp in &cgp.group {
+            if cp.x >= self.width || cp.y >= self.height {
+                return None;
+            }
+            let i = (cp.y * self.width * 4 + cp.x) as usize;
+            if self.data[i].abs_diff(cp.red) > cgp.color_tolerance
+                || self.data[i + 1].abs_diff(cp.green) > cgp.color_tolerance
+                || self.data[i + 2].abs_diff(cp.blue) > cgp.color_tolerance
+            {
+                return None;
+            }
+        }
+        cgp.group.get(0).map(Into::into)
+    }
+    fn find_color_point_group_in(&self, cgpi: &ColorPointGroupIn) -> Option<Point> {
+        // we visit all possible localtion: iter on delta x and y, use color point x + delta x
+
+        let mut t = u32::MAX;
+        let mut l = u32::MAX;
+        let mut b = 0;
+        let mut r = 0;
+        for cp in &cgpi.group {
+            l = l.min(cp.x);
+            r = r.max(cp.x);
+            t = t.min(cp.y);
+            b = b.max(cp.y);
+        }
+
+        None
+
+        // for cp in &cgp.group {
+        //     if cp.x >= self.width || cp.y >= self.height {
+        //         return None;
+        //     }
+        //     let i = (cp.y * self.width * 4 + cp.x) as usize;
+        //     if self.data[i].abs_diff(cp.red) > cgp.color_tolerance
+        //         || self.data[i + 1].abs_diff(cp.green) > cgp.color_tolerance
+        //         || self.data[i + 2].abs_diff(cp.blue) > cgp.color_tolerance
+        //     {
+        //         return None;
+        //     }
+        // }
+        // cgp.group.get(0).map(Into::into)
+    }
 }
 
 static STATUS_TOKEN: LazyLock<Futex<Private>> =
@@ -111,7 +184,7 @@ struct Store {
     host_ref: GlobalRef,
     screen_node: ScreenNode,
 }
-static STORE: OnceLock<Store> = OnceLock::new();
+pub static STORE: OnceLock<Store> = OnceLock::new();
 impl Store {
     pub fn store() -> &'static Store {
         STORE.get().unwrap()
@@ -132,12 +205,12 @@ impl Store {
         Ok(())
     }
 
-    fn proxy() -> Result<Proxy<'static>> {
-        let store = STORE.get().ok_or(Error::msg("Store get fail"))?;
-        let env = store.vm.attach_current_thread_permanently()?;
+    fn proxy() -> Proxy<'static> {
+        let store = STORE.get().ok_or(Error::msg("Store get fail")).unwrap();
+        let env = store.vm.attach_current_thread_permanently().unwrap();
         let host = store.host_ref.as_obj();
 
-        Ok(Proxy { env, host })
+        Proxy { env, host }
     }
 }
 
@@ -292,11 +365,15 @@ impl<'a> Proxy<'a> {
                     .get_field(&screenshot, "width", "I")
                     .unwrap()
                     .i()
+                    .unwrap()
+                    .try_into()
                     .unwrap();
                 let height = env
                     .get_field(&screenshot, "height", "I")
                     .unwrap()
                     .i()
+                    .unwrap()
+                    .try_into()
                     .unwrap();
                 let pixel_stride = env
                     .get_field(&screenshot, "pixelStride", "I")
@@ -322,8 +399,8 @@ impl<'a> Proxy<'a> {
                 Ok(Screenshot {
                     width,
                     height,
-                    pixel_stride,
-                    row_stride,
+                    // pixel_stride,
+                    // row_stride,
                     data,
                 })
             });
@@ -364,29 +441,29 @@ impl<'a> Proxy<'a> {
 // }
 
 pub fn toast(msg: &str) {
-    Store::proxy().unwrap().toast(msg);
+    Store::proxy().toast(msg);
 }
 pub fn toast2(msg: &str) {
-    Store::proxy().unwrap().toast2(msg);
+    Store::proxy().toast2(msg);
 }
 
 pub fn take_screenshot() -> Screenshot<'static> {
-    Store::proxy().unwrap().take_screenshot()
+    Store::proxy().take_screenshot()
 }
 pub fn click(x: i32, y: i32) {
-    Store::proxy().unwrap().click(x, y);
+    Store::proxy().click(x, y);
 }
 pub fn touch_down(x: i32, y: i32) {
-    Store::proxy().unwrap().touch_down(x, y);
+    Store::proxy().touch_down(x, y);
 }
 pub fn touch_up(x: i32, y: i32) {
-    Store::proxy().unwrap().touch_up(x, y);
+    Store::proxy().touch_up(x, y);
 }
 pub fn touch_move(x: i32, y: i32) {
-    Store::proxy().unwrap().touch_move(x, y);
+    Store::proxy().touch_move(x, y);
 }
 pub fn click_recent() {
-    Store::proxy().unwrap().click_recent();
+    Store::proxy().click_recent();
 }
 
 pub fn ssleep(s: impl IntoSeconds) {

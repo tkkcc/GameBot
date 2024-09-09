@@ -49,12 +49,23 @@ impl Point {
 struct Img(String);
 
 #[derive(Default, Clone)]
-pub(crate) struct ColorPoint {
-    red: u8,
-    green: u8,
-    blue: u8,
-    x: u32,
-    y: u32,
+pub struct ColorPoint {
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
+    pub x: u32,
+    pub y: u32,
+}
+
+#[derive(Default, Clone)]
+pub struct ColorPointIn {
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
+    pub tolerance: u8,
+    pub x: u32,
+    pub y: u32,
+    pub region: Rect,
 }
 
 #[derive(Debug)]
@@ -90,36 +101,36 @@ impl ImageSource {
     }
 }
 
-#[derive(Deserialize, Default)]
-pub(crate) struct Rect {
-    left: u32,
-    top: u32,
-    right: u32,
-    bottom: u32,
+#[derive(Deserialize, Default, Debug, Clone)]
+pub struct Rect {
+    pub left: u32,
+    pub top: u32,
+    pub right: u32,
+    pub bottom: u32,
 }
 
-pub(crate) struct ImageAt {
-    img: ImageSource,
-    left_top_point: Point,
-    color_tolerance: u8,
+pub struct ImageAt {
+    pub img: ImageSource,
+    pub left_top_point: Point,
+    pub color_tolerance: u8,
 }
 
-pub(crate) struct ImageIn {
-    img: ImageSource,
-    left_top_region: Rect,
-    color_tolerance: u8,
+pub struct ImageIn {
+    pub img: ImageSource,
+    pub left_top_region: Rect,
+    pub color_tolerance: u8,
 }
 
 #[derive(Default)]
-pub(crate) struct ColorPointGroup {
-    group: Vec<ColorPoint>,
-    color_tolerance: u8,
+pub struct ColorPointGroup {
+    pub group: Vec<ColorPoint>,
+    pub color_tolerance: u8,
 }
 
-pub(crate) struct ColorPointGroupIn {
-    img: ImageSource,
-    first_point_region: Rect,
-    color_tolerance: u8,
+pub struct ColorPointGroupIn {
+    pub group: Vec<ColorPoint>,
+    pub color_tolerance: u8,
+    pub region: Rect,
 }
 
 fn img(path: impl Into<String>) -> Img {
@@ -131,28 +142,28 @@ fn img(path: impl Into<String>) -> Img {
 // }
 
 // first way: point is static in central
-mod R1 {
-    use std::{cell::LazyCell, sync::LazyLock};
+// mod R1 {
+//     use std::{cell::LazyCell, sync::LazyLock};
+//
+//     use super::ColorPoint;
+//
+//     // can't use function
+//     pub static A1: ColorPoint = ColorPoint {
+//         red: 0,
+//         green: 0,
+//         blue: 0,
+//         x: 0,
+//         y: 0,
+//     };
+//
+//     // can use function
+//     pub static A2: LazyLock<ColorPoint> = LazyLock::new(|| ColorPoint::default());
+// }
 
-    use super::ColorPoint;
-
-    // can't use function
-    pub static A1: ColorPoint = ColorPoint {
-        red: 0,
-        green: 0,
-        blue: 0,
-        x: 0,
-        y: 0,
-    };
-
-    // can use function
-    pub static A2: LazyLock<ColorPoint> = LazyLock::new(|| ColorPoint::default());
-}
-
-fn mail1() {
-    R1::A1.click();
-    R1::A2.click();
-}
+// fn mail1() {
+//     R1::A1.click();
+//     R1::A2.click();
+// }
 
 // second way: point is in static struct in central
 struct R2 {
@@ -228,4 +239,10 @@ fn mail4() {
     let a = 1.0;
     let a1 = cp("#FFFFFF,1,1");
     a1.click();
+}
+
+impl From<&ColorPoint> for Point {
+    fn from(&ColorPoint { x, y, .. }: &ColorPoint) -> Self {
+        Point { x, y }
+    }
 }

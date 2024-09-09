@@ -1,12 +1,15 @@
-use std::sync::LazyLock;
+use std::{mem::take, sync::LazyLock};
 
-use crate::mail::{ColorPoint, ColorPointGroup, IntoSeconds, Point};
+use crate::{
+    mail::{ColorPoint, ColorPointGroup, ColorPointGroupIn, IntoSeconds, Point},
+    take_screenshot, Store, STORE,
+};
 
 pub(crate) trait Find {
     type Return;
 
     fn find(&self) -> Option<Self::Return>;
-    fn find_all(&self) -> Vec<Self::Return>;
+    // fn find_all(&self) -> Vec<Self::Return>;
     fn exist(&self) -> bool {
         self.find().is_some()
     }
@@ -107,11 +110,7 @@ impl Find for ColorPoint {
     type Return = Point;
 
     fn find(&self) -> Option<Self::Return> {
-        todo!()
-    }
-
-    fn find_all(&self) -> Vec<Self::Return> {
-        todo!()
+        take_screenshot().find_color_point(self)
     }
 }
 
@@ -119,11 +118,16 @@ impl Find for ColorPointGroup {
     type Return = Point;
 
     fn find(&self) -> Option<Self::Return> {
-        todo!()
+        take_screenshot().find_color_point_group(self)
     }
+}
 
-    fn find_all(&self) -> Vec<Self::Return> {
-        todo!()
+impl Find for ColorPointGroupIn {
+    type Return = Point;
+
+    fn find(&self) -> Option<Self::Return> {
+        None
+        // take_screenshot().find_color_point_group_in(, )
     }
 }
 

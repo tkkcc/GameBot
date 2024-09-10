@@ -1,3 +1,4 @@
+use core::f64;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -117,6 +118,18 @@ pub struct Rect {
     pub right: u32,
     pub bottom: u32,
 }
+impl Rect {
+    pub fn width(&self) -> u32 {
+        self.right - self.left
+    }
+
+    pub fn height(&self) -> u32 {
+        self.bottom - self.top
+    }
+    // pub fn is_empty(&self) -> bool {
+    //     self.right <= self.left || self.bottom <= self.top
+    // }
+}
 
 // pub struct ImageAt {
 //     pub img: ImageSource,
@@ -125,7 +138,7 @@ pub struct Rect {
 // }
 
 #[derive(Clone)]
-enum Tolerance {
+pub enum Tolerance {
     MAE(f32),
     MSE(f32),
     MAX(f32),

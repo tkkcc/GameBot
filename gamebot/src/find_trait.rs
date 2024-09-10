@@ -7,24 +7,30 @@ use crate::{
     take_screenshot,
 };
 
-pub(crate) trait Find {
+pub trait Find {
     type Return;
 
     fn find(&self) -> Option<Self::Return>;
+
     // fn find_all(&self) -> Vec<Self::Return>;
     fn exist(&self) -> bool {
         self.find().is_some()
     }
 }
 
-pub(crate) trait Appear {
+pub trait FindAll {
+    type Return;
+    fn find_all(&self) -> Vec<Self::Return>;
+}
+
+pub trait Appear {
     type Return;
     fn appear(&self, timeout: impl IntoSeconds) -> Option<Self::Return> {
         loop {}
     }
 }
 
-pub(crate) trait FindGroup {
+pub trait FindGroup {
     type T;
 
     fn all_exist(&self) -> bool {
@@ -47,7 +53,7 @@ pub(crate) trait FindGroup {
     }
 }
 
-pub(crate) trait AppearGroup {
+pub trait AppearGroup {
     type T;
     fn all_appear(&self, timeout: impl IntoSeconds) -> Option<Vec<Self::T>> {
         todo!()
@@ -62,7 +68,7 @@ pub(crate) trait AppearGroup {
     }
 }
 
-pub(crate) trait FindGroupDynamic {
+pub trait FindGroupDynamic {
     fn all_exist(&self) -> bool {
         todo!()
     }
@@ -139,11 +145,36 @@ impl Find for ImageIn {
         take_screenshot().find_image_in(self)
     }
 }
+
 impl Find for DiskImageIn {
     type Return = Point;
 
     fn find(&self) -> Option<Self::Return> {
         ImageIn::from(self.clone()).find()
+    }
+}
+
+impl FindAll for ColorPointGroupIn {
+    type Return = Point;
+
+    fn find_all(&self) -> Vec<Self::Return> {
+        take_screenshot().find_all_color_point_group_in(self, usize::MAX)
+    }
+}
+
+impl FindAll for ImageIn {
+    type Return = Point;
+
+    fn find_all(&self) -> Vec<Self::Return> {
+        take_screenshot().find_all_image_in(self, usize::MAX)
+    }
+}
+
+impl FindAll for DiskImageIn {
+    type Return = Point;
+
+    fn find_all(&self) -> Vec<Self::Return> {
+        ImageIn::from(self.clone()).find_all()
     }
 }
 

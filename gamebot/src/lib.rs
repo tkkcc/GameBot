@@ -23,6 +23,7 @@ use std::{
 
 use anyhow::{Error, Result};
 
+use image::ImageReader;
 use jni::objects::JByteBuffer;
 // use erased_serde::Serialize;
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
@@ -32,8 +33,8 @@ use jni::{
 };
 use linux_futex::{Futex, Private};
 use mail::{
-    ColorPoint, ColorPointGroup, ColorPointGroupIn, ColorPointIn, IntoMilliseconds, IntoSeconds,
-    Point,
+    ColorPoint, ColorPointGroup, ColorPointGroupIn, ColorPointIn, ImageIn, IntoMilliseconds,
+    IntoSeconds, Point,
 };
 use node::Node;
 use serde::{Deserialize, Serialize};
@@ -129,50 +130,87 @@ impl<'a> Screenshot<'a> {
         }
         Some(Point { x, y })
     }
-    fn find_color_point_group(&self, cgp: &ColorPointGroup) -> Option<Point> {
-        for cp in &cgp.group {
+    fn find_color_point_group(&self, cpg: &ColorPointGroup) -> Option<Point> {
+        if cpg.group.is_empty() {
+            return None;
+        }
+        let tolerance = (cpg.tolerance * 255.0) as u8;
+        for cp in &cpg.group {
             if cp.x >= self.width || cp.y >= self.height {
                 return None;
             }
             let i = (cp.y * self.width * 4 + cp.x) as usize;
-            if self.data[i].abs_diff(cp.red) > cgp.color_tolerance
-                || self.data[i + 1].abs_diff(cp.green) > cgp.color_tolerance
-                || self.data[i + 2].abs_diff(cp.blue) > cgp.color_tolerance
+            if self.data[i].abs_diff(cp.red) > tolerance
+                || self.data[i + 1].abs_diff(cp.green) > tolerance
+                || self.data[i + 2].abs_diff(cp.blue) > tolerance
             {
                 return None;
             }
         }
-        cgp.group.get(0).map(Into::into)
+        Some((&cpg.group[0]).into())
     }
-    fn find_color_point_group_in(&self, cgpi: &ColorPointGroupIn) -> Option<Point> {
-        // we visit all possible localtion: iter on delta x and y, use color point x + delta x
+
+    fn find_color_point_group_in(&self, cpg: &ColorPointGroupIn) -> Option<Point> {
+        let res = self.find_all_color_point_group_in(cpg, 1);
+        if !res.is_empty() {
+            Some(res[0])
+        } else {
+            None
+        }
+    }
+
+    fn find_all_color_point_group_in(&self, cpg: &ColorPointGroupIn, max_num: usize) -> Vec<Point> {
+        // we visit all valid localtion: iter on delta x and y, move via color point x + delta x
+        let mut ans = vec![];
+        if cpg.group.is_empty() {
+            return ans;
+        }
 
         let mut t = u32::MAX;
         let mut l = u32::MAX;
         let mut b = 0;
         let mut r = 0;
-        for cp in &cgpi.group {
+        for cp in &cpg.group {
             l = l.min(cp.x);
             r = r.max(cp.x);
             t = t.min(cp.y);
             b = b.max(cp.y);
         }
+        let region = &cpg.region;
+        let tolerance = (cpg.tolerance * 255.0) as u8;
 
-        None
+        for dx in (region.top as i32 - t as i32)..=(region.bottom as i32 - b as i32) {
+            'outer: for dy in (region.left as i32 - l as i32)..=(region.right as i32 - r as i32) {
+                for cp in &cpg.group {
+                    let i =
+                        ((cp.y as i32 + dy) * self.width as i32 * 4 + cp.x as i32 + dx) as usize;
+                    if self.data[i].abs_diff(cp.red) > tolerance
+                        || self.data[i + 1].abs_diff(cp.green) > tolerance
+                        || self.data[i + 2].abs_diff(cp.blue) > tolerance
+                    {
+                        continue 'outer;
+                    }
+                }
 
-        // for cp in &cgp.group {
-        //     if cp.x >= self.width || cp.y >= self.height {
-        //         return None;
-        //     }
-        //     let i = (cp.y * self.width * 4 + cp.x) as usize;
-        //     if self.data[i].abs_diff(cp.red) > cgp.color_tolerance
-        //         || self.data[i + 1].abs_diff(cp.green) > cgp.color_tolerance
-        //         || self.data[i + 2].abs_diff(cp.blue) > cgp.color_tolerance
-        //     {
-        //         return None;
-        //     }
-        // }
-        // cgp.group.get(0).map(Into::into)
+                ans.push(Point {
+                    x: (cpg.group[0].x as i32 + dx) as u32,
+                    y: (cpg.group[0].y as i32 + dy) as u32,
+                });
+
+                if ans.len() >= max_num {
+                    return ans;
+                }
+            }
+        }
+        ans
+    }
+
+    fn find_image_in(&self, img: &ImageIn) -> Option<Point> {
+        //
+
+        // img.img.load();
+
+        todo!()
     }
 }
 

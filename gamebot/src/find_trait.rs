@@ -1,8 +1,10 @@
 use std::{mem::take, sync::LazyLock};
 
 use crate::{
-    mail::{ColorPoint, ColorPointGroup, ColorPointGroupIn, IntoSeconds, Point},
-    take_screenshot, Store, STORE,
+    mail::{
+        ColorPoint, ColorPointGroup, ColorPointGroupIn, DiskImageIn, ImageIn, IntoSeconds, Point,
+    },
+    take_screenshot,
 };
 
 pub(crate) trait Find {
@@ -126,8 +128,22 @@ impl Find for ColorPointGroupIn {
     type Return = Point;
 
     fn find(&self) -> Option<Self::Return> {
-        None
-        // take_screenshot().find_color_point_group_in(, )
+        take_screenshot().find_color_point_group_in(self)
+    }
+}
+
+impl Find for ImageIn {
+    type Return = Point;
+
+    fn find(&self) -> Option<Self::Return> {
+        take_screenshot().find_image_in(self)
+    }
+}
+impl Find for DiskImageIn {
+    type Return = Point;
+
+    fn find(&self) -> Option<Self::Return> {
+        ImageIn::from(self.clone()).find()
     }
 }
 

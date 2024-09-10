@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+use image::{ImageReader, RgbaImage};
 use serde::Deserialize;
 use static_toml::static_toml;
 
@@ -91,15 +92,23 @@ impl TryFrom<&str> for ColorPointGroup {
     }
 }
 
-enum ImageSource {
-    UnLoaded(PathBuf),
-    Loaded(Vec<u8>),
-}
-impl ImageSource {
-    fn load() -> ImageSource {
-        ImageSource::Loaded(vec![])
-    }
-}
+// enum ImageSource {
+//     UnLoaded(PathBuf),
+//     Loaded(RgbaImage),
+// }
+//
+// impl ImageSource {
+//     pub fn load(&mut self) {
+//         if let ImageSource::UnLoaded(path) = self {
+//             let img = ImageReader::open(path)
+//                 .unwrap()
+//                 .decode()
+//                 .unwrap()
+//                 .into_rgba8();
+//             *self = ImageSource::Loaded(img);
+//         }
+//     }
+// }
 
 #[derive(Deserialize, Default, Debug, Clone)]
 pub struct Rect {
@@ -109,27 +118,61 @@ pub struct Rect {
     pub bottom: u32,
 }
 
-pub struct ImageAt {
-    pub img: ImageSource,
-    pub left_top_point: Point,
-    pub color_tolerance: u8,
+// pub struct ImageAt {
+//     pub img: ImageSource,
+//     pub left_top_point: Point,
+//     pub color_tolerance: u8,
+// }
+
+#[derive(Clone)]
+enum Tolerance {
+    MAE(f32),
+    MSE(f32),
+    MAX(f32),
 }
 
+#[derive(Clone)]
+pub struct DiskImageIn {
+    pub img: PathBuf,
+    pub region: Rect,
+    pub tolerance: Tolerance,
+}
 pub struct ImageIn {
-    pub img: ImageSource,
-    pub left_top_region: Rect,
-    pub color_tolerance: u8,
+    pub img: RgbaImage,
+    pub region: Rect,
+    pub tolerance: Tolerance,
+}
+
+impl From<DiskImageIn> for ImageIn {
+    fn from(
+        DiskImageIn {
+            img,
+            region,
+            tolerance,
+        }: DiskImageIn,
+    ) -> Self {
+        let img = ImageReader::open(img)
+            .unwrap()
+            .decode()
+            .unwrap()
+            .into_rgba8();
+        Self {
+            img,
+            region: region.clone(),
+            tolerance: tolerance.clone(),
+        }
+    }
 }
 
 #[derive(Default)]
 pub struct ColorPointGroup {
     pub group: Vec<ColorPoint>,
-    pub color_tolerance: u8,
+    pub tolerance: f32,
 }
 
 pub struct ColorPointGroupIn {
     pub group: Vec<ColorPoint>,
-    pub color_tolerance: u8,
+    pub tolerance: f32,
     pub region: Rect,
 }
 

@@ -27,6 +27,7 @@ structx = "0.1.11"
 structz = "0.6.0"
 linux-futex = "1.0.0"
 libloading = "0.8.5"
+image = "0.25.2"
 
 # wasmtime = "20.0.1"
 # rustpython-vm = "0.3.1"

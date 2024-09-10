@@ -21,7 +21,7 @@ run() {
   adb push ../target/$target-linux-android/release/libdevtool.so /data/local/tmp/libgamebot.so
 }
 dev() {
-  cargo watch -w . -w ../gamebot -s './0.sh run'
+  cargo watch -w . -w ../gamebot -s "$0 run"
 }
 
 "$@"

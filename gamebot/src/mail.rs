@@ -23,32 +23,10 @@ pub struct Point {
 
 impl Point {
     // only return jni error
-    fn click(&self) -> Result<()> {
-        // let btn = ColorPointGroup::from_str("#FFFFFF,0,0|#AAAAAA,100,100").at([100, 100]);
-        //
-        // let btn =
-        //     cpg("#FFFFFF,0,0|#AAAAAA,100,100,#FFFFFF,0,0|#AAAAAA,100,100,0,0|#AAAAAA,100,100")
-        //         .at([100, 100, 200, 200]);
-
-        // let btn =
-        //     cpg("#FFFFFF,0,0|#AAAAAA,100,100,#FFFFFF,0,0|#AAAAAA,100,100,0,0|#AAAAAA,100,100#FFFFFF,0,0|#AAAAAA,100,100,#FFFFFF,0,0|#AAAAAA,100,100,0,0|#AAAAAA,100,100");
-        fn fff() -> Result<u8> {
-            Ok(0)
-        }
-
-        fn fff2() -> Option<u8> {
-            Some(0)
-        }
-
-        // fs::read("path");
-        fff2();
-
-        // TODO: click via jni
-        Ok(())
+    fn click(&self) {
+        Store::proxy().click(self.x as f32, self.y as f32)
     }
 }
-
-struct Img(String);
 
 #[derive(Default, Clone)]
 pub struct ColorPoint {
@@ -74,6 +52,8 @@ pub struct ColorPointIn {
 struct ParseError {}
 use thiserror::Error;
 
+use crate::Store;
+
 #[derive(Error, Debug)]
 pub enum GameBotError {
     #[error("wrong format")]
@@ -93,24 +73,6 @@ impl TryFrom<&str> for ColorPointGroup {
     }
 }
 
-// enum ImageSource {
-//     UnLoaded(PathBuf),
-//     Loaded(RgbaImage),
-// }
-//
-// impl ImageSource {
-//     pub fn load(&mut self) {
-//         if let ImageSource::UnLoaded(path) = self {
-//             let img = ImageReader::open(path)
-//                 .unwrap()
-//                 .decode()
-//                 .unwrap()
-//                 .into_rgba8();
-//             *self = ImageSource::Loaded(img);
-//         }
-//     }
-// }
-
 #[derive(Deserialize, Default, Debug, Clone)]
 pub struct Rect {
     pub left: u32,
@@ -126,16 +88,7 @@ impl Rect {
     pub fn height(&self) -> u32 {
         self.bottom - self.top
     }
-    // pub fn is_empty(&self) -> bool {
-    //     self.right <= self.left || self.bottom <= self.top
-    // }
 }
-
-// pub struct ImageAt {
-//     pub img: ImageSource,
-//     pub left_top_point: Point,
-//     pub color_tolerance: u8,
-// }
 
 #[derive(Clone)]
 pub enum Tolerance {
@@ -171,8 +124,8 @@ impl From<DiskImageIn> for ImageIn {
             .into_rgba8();
         Self {
             img,
-            region: region.clone(),
-            tolerance: tolerance.clone(),
+            region: region,
+            tolerance: tolerance,
         }
     }
 }
@@ -187,62 +140,6 @@ pub struct ColorPointGroupIn {
     pub group: Vec<ColorPoint>,
     pub tolerance: f32,
     pub region: Rect,
-}
-
-fn img(path: impl Into<String>) -> Img {
-    Img(path.into())
-}
-
-// static_toml! {
-//     static P = include_toml!("src/assert/mod.toml");
-// }
-
-// first way: point is static in central
-// mod R1 {
-//     use std::{cell::LazyCell, sync::LazyLock};
-//
-//     use super::ColorPoint;
-//
-//     // can't use function
-//     pub static A1: ColorPoint = ColorPoint {
-//         red: 0,
-//         green: 0,
-//         blue: 0,
-//         x: 0,
-//         y: 0,
-//     };
-//
-//     // can use function
-//     pub static A2: LazyLock<ColorPoint> = LazyLock::new(|| ColorPoint::default());
-// }
-
-// fn mail1() {
-//     R1::A1.click();
-//     R1::A2.click();
-// }
-
-// second way: point is in static struct in central
-struct R2 {
-    a1: ColorPoint,
-    a2: ColorPoint,
-}
-static R2: LazyLock<R2> = LazyLock::new(|| R2 {
-    a1: ColorPoint::default(),
-    a2: ColorPoint::default(),
-});
-
-fn mail2() {
-    R2.a1.click();
-    R2.a2.click();
-    let a3 = R2.a2.clone();
-}
-
-// third way: point is in struct, the initial way
-fn mail3() {
-    let a1 = ColorPoint::default();
-    let a2 = ColorPoint::default();
-    a1.click();
-    a2.click();
 }
 
 pub trait IntoSeconds {
@@ -275,26 +172,6 @@ impl IntoMilliseconds for Duration {
     fn into_milliseconds(self) -> Duration {
         self
     }
-}
-
-fn mail4() {
-    fn cp(data: &str) -> ColorPoint {
-        ColorPoint::default()
-    }
-
-    let t = Duration::from_millis(500);
-    let t2 = Duration::from_millis(500);
-    let t3 = Duration::from_secs(20);
-
-    trait TT {
-        fn appear<T: IntoSeconds>(timeout: T) {
-            let x: Duration = T::into_seconds(timeout);
-        }
-    }
-
-    let a = 1.0;
-    let a1 = cp("#FFFFFF,1,1");
-    a1.click();
 }
 
 impl From<&ColorPoint> for Point {

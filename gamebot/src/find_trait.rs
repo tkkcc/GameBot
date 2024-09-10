@@ -1,4 +1,4 @@
-use std::{mem::take, sync::LazyLock};
+use std::sync::LazyLock;
 
 use crate::{
     mail::{
@@ -12,25 +12,24 @@ pub trait Find {
 
     fn find(&self) -> Option<Self::Return>;
 
-    // fn find_all(&self) -> Vec<Self::Return>;
     fn exist(&self) -> bool {
         self.find().is_some()
     }
 }
 
-pub trait FindAll {
-    type Return;
-    fn find_all(&self) -> Vec<Self::Return>;
-}
+// pub trait FindAll {
+//     type Return;
+//     fn find_all(&self) -> Vec<Self::Return>;
+// }
 
 pub trait Appear {
     type Return;
     fn appear(&self, timeout: impl IntoSeconds) -> Option<Self::Return> {
-        loop {}
+        todo!()
     }
 }
 
-pub trait FindGroup {
+pub trait GroupFind {
     type T;
 
     fn all_exist(&self) -> bool {
@@ -53,7 +52,7 @@ pub trait FindGroup {
     }
 }
 
-pub trait AppearGroup {
+pub trait GroupAppear {
     type T;
     fn all_appear(&self, timeout: impl IntoSeconds) -> Option<Vec<Self::T>> {
         todo!()
@@ -87,14 +86,14 @@ where
 {
 }
 
-impl<R> FindGroup for [Box<dyn Find<Return = R>>] {
+impl<R> GroupFind for [Box<dyn Find<Return = R>>] {
     type T = R;
 }
 
-impl FindGroup for [ColorPoint] {
+impl GroupFind for [ColorPoint] {
     type T = Point;
 }
-impl AppearGroup for [ColorPoint] {
+impl GroupAppear for [ColorPoint] {
     type T = Point;
 }
 
@@ -154,26 +153,20 @@ impl Find for DiskImageIn {
     }
 }
 
-impl FindAll for ColorPointGroupIn {
-    type Return = Point;
-
-    fn find_all(&self) -> Vec<Self::Return> {
+impl ColorPointGroupIn {
+    fn find_all(&self) -> Vec<Point> {
         take_screenshot().find_all_color_point_group_in(self, usize::MAX)
     }
 }
 
-impl FindAll for ImageIn {
-    type Return = Point;
-
-    fn find_all(&self) -> Vec<Self::Return> {
+impl ImageIn {
+    fn find_all(&self) -> Vec<Point> {
         take_screenshot().find_all_image_in(self, usize::MAX)
     }
 }
 
-impl FindAll for DiskImageIn {
-    type Return = Point;
-
-    fn find_all(&self) -> Vec<Self::Return> {
+impl DiskImageIn {
+    fn find_all(&self) -> Vec<Point> {
         ImageIn::from(self.clone()).find_all()
     }
 }

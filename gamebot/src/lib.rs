@@ -529,24 +529,39 @@ impl<'a> Proxy<'a> {
         screenshot.unwrap()
         // TODO memory leak ?
     }
-    fn click(&mut self, x: i32, y: i32) {
+    fn click(&mut self, x: f32, y: f32) {
         self.env
-            .call_method(&self.host, "click", "(II)V", &[x.into(), y.into()])
+            .call_method(&self.host, "click", "(FF)V", &[x.into(), y.into()])
             .unwrap();
     }
-    fn touch_down(&mut self, x: i32, y: i32) {
+    fn touch_down(&mut self, x: f32, y: f32, id: i32) {
         self.env
-            .call_method(&self.host, "touchDown", "(II)V", &[x.into(), y.into()])
+            .call_method(
+                &self.host,
+                "touchDown",
+                "(FFI)V",
+                &[x.into(), y.into(), id.into()],
+            )
             .unwrap();
     }
-    fn touch_up(&mut self, x: i32, y: i32) {
+    fn touch_up(&mut self, x: f32, y: f32, id: i32) {
         self.env
-            .call_method(&self.host, "touchUp", "(II)V", &[x.into(), y.into()])
+            .call_method(
+                &self.host,
+                "touchUp",
+                "(FFI)V",
+                &[x.into(), y.into(), id.into()],
+            )
             .unwrap();
     }
-    fn touch_move(&mut self, x: i32, y: i32) {
+    fn touch_move(&mut self, x: f32, y: f32, id: i32) {
         self.env
-            .call_method(&self.host, "touchMove", "(II)V", &[x.into(), y.into()])
+            .call_method(
+                &self.host,
+                "touchMove",
+                "(FFI)V",
+                &[x.into(), y.into(), id.into()],
+            )
             .unwrap();
     }
 
@@ -572,27 +587,27 @@ pub fn toast2(msg: &str) {
 pub fn take_screenshot() -> Screenshot<'static> {
     Store::proxy().take_screenshot()
 }
-pub fn click(x: i32, y: i32) {
+pub fn click(x: f32, y: f32) {
     Store::proxy().click(x, y);
 }
-pub fn touch_down(x: i32, y: i32) {
-    Store::proxy().touch_down(x, y);
+pub fn touch_down(x: f32, y: f32, id: i32) {
+    Store::proxy().touch_down(x, y, id);
 }
-pub fn touch_up(x: i32, y: i32) {
-    Store::proxy().touch_up(x, y);
+pub fn touch_up(x: f32, y: f32, id: i32) {
+    Store::proxy().touch_up(x, y, id);
 }
-pub fn touch_move(x: i32, y: i32) {
-    Store::proxy().touch_move(x, y);
+pub fn touch_move(x: f32, y: f32, id: i32) {
+    Store::proxy().touch_move(x, y, id);
 }
 pub fn click_recent() {
     Store::proxy().click_recent();
 }
 
-pub fn ssleep(s: impl IntoSeconds) {
+pub fn wait_secs(s: impl IntoSeconds) {
     let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_seconds());
     is_running_status();
 }
-pub fn msleep(s: impl IntoMilliseconds) {
+pub fn wait_millis(s: impl IntoMilliseconds) {
     let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_milliseconds());
     is_running_status();
 }

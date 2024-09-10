@@ -18,7 +18,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
-import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.os.ServiceManager
 import android.os.SystemClock
@@ -30,7 +29,6 @@ import android.view.MotionEvent
 import android.view.SurfaceControlHidden
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK
-import androidx.compose.runtime.key
 import dev.rikka.tools.refine.Refine
 import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
@@ -141,7 +139,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
 
-    fun click(x: Int, y: Int) {
+    fun click(x: Float, y: Float) {
         Binder.clearCallingIdentity()
 
 //        Log.e("","click $x $y")
@@ -150,8 +148,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             t,
             t,
             MotionEvent.ACTION_DOWN,
-            x.toFloat(),
-            y.toFloat(),
+            x,
+            y,
             0
         )
         event.source = InputDevice.SOURCE_TOUCHSCREEN
@@ -167,16 +165,22 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         event.recycle()
     }
 
-    fun touchDown(x: Int, y: Int) {
+    fun touchDown(x: Float, y: Float, id: Int) {
         Binder.clearCallingIdentity()
 //        Log.e("","click $x $y")
         val t = SystemClock.uptimeMillis()
+        val action = if (id == 0) {
+            MotionEvent.ACTION_DOWN
+        } else {
+            MotionEvent.ACTION_POINTER_DOWN or ((id+1) shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
+        }
+
         val event = MotionEvent.obtain(
             t,
             t,
-            MotionEvent.ACTION_DOWN,
-            x.toFloat(),
-            y.toFloat(),
+            action,
+            x,
+            y,
             0
         )
         event.source = InputDevice.SOURCE_TOUCHSCREEN
@@ -184,17 +188,49 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         event.recycle()
     }
 
-    fun touchMove(x: Int, y: Int) {
+    fun touchMove(x: Float, y: Float, id: Int) {
         Binder.clearCallingIdentity()
 
 //        Log.e("","click $x $y")
         val t = SystemClock.uptimeMillis()
+        val action = if (id == 0) {
+            MotionEvent.ACTION_MOVE
+        } else {
+            MotionEvent.ACTION_MOVE or (id shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
+        }
+
         val event = MotionEvent.obtain(
             t,
             t,
-            MotionEvent.ACTION_MOVE,
-            x.toFloat(),
-            y.toFloat(),
+            action,
+            x,
+            y,
+            0
+        )
+
+
+        event.source = InputDevice.SOURCE_TOUCHSCREEN
+        mIm.injectInputEvent(event, 0)
+        event.recycle()
+    }
+
+    fun touchUp(x: Float, y: Float, id: Int) {
+        Binder.clearCallingIdentity()
+
+//        Log.e("","click $x $y")
+        val t = SystemClock.uptimeMillis()
+        val action = if (id == 0) {
+            MotionEvent.ACTION_UP
+        } else {
+            MotionEvent.ACTION_POINTER_UP or ((id+1) shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
+        }
+
+        val event = MotionEvent.obtain(
+            t,
+            t,
+            action,
+            x,
+            y,
             0
         )
         event.source = InputDevice.SOURCE_TOUCHSCREEN
@@ -202,23 +238,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         event.recycle()
     }
 
-    fun touchUp(x: Int, y: Int) {
-        Binder.clearCallingIdentity()
 
-//        Log.e("","click $x $y")
-        val t = SystemClock.uptimeMillis()
-        val event = MotionEvent.obtain(
-            t,
-            t,
-            MotionEvent.ACTION_UP,
-            x.toFloat(),
-            y.toFloat(),
-            0
-        )
-        event.source = InputDevice.SOURCE_TOUCHSCREEN
-        mIm.injectInputEvent(event, 0)
-        event.recycle()
-    }
 
     fun keyDown(keyCode: Int) {
         Binder.clearCallingIdentity()
@@ -237,14 +257,16 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         mIm.injectInputEvent(event, 0)
 //        event.recy()
     }
-    fun clickRecent(){
+
+    fun clickRecent() {
         Binder.clearCallingIdentity()
 
         keyDown(KeyEvent.KEYCODE_APP_SWITCH)
 //        sleep(500)
         keyUp(KeyEvent.KEYCODE_APP_SWITCH)
     }
-    fun clickHome(){
+
+    fun clickHome() {
         Binder.clearCallingIdentity()
 
         keyDown(KeyEvent.KEYCODE_HOME)
@@ -449,13 +471,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //        motionDown.recycle()
 //    }
 
-    fun touchDown() {
-
-    }
-
-    fun touchUp() {
-
-    }
 
     fun getPhysicalDisplaySize(): Point = Point().apply {
         mWm.getInitialDisplaySize(0, this)
@@ -744,7 +759,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             virtualDisplay = DisplayManagerHidden.createVirtualDisplay(
                 "GameBotDisplay", screenSize.x, screenSize.y, 0, imageReader.surface
             )
-
         }.onFailure {
             Log.e("", "496", it)
 //            throw NotImplementedError()
@@ -816,6 +830,23 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         this.javaClass.declaredMethods.forEach {
             Log.e("", "790 ${it}")
         }
+
+
+        // test float touch
+//        clickRecent()
+//        sleep(500)
+//        clickRecent()
+
+//        sleep(3000)
+
+//        touchDownFloat(-500f,500f)
+//        for (i in 0..10000000000) {
+//            sleep(10)
+////            touchMoveFloat(500f+i*0.5f,500f)
+//            touchMoveFloat(500f-i*0.5f,500f)
+//        }
+
+
 //        clickRecent()
 
 //        sleep(3000)

@@ -19,6 +19,8 @@ run() {
   esac
   cargo ndk -t $target-linux-android build --release
   adb push ../target/$target-linux-android/release/libdevtool.so /data/local/tmp/libgamebot.so
+  adb shell am force-stop gamebot.host
+  adb shell am start -n gamebot.host/.MainActivity
 }
 dev() {
   cargo watch -w . -w ../gamebot -s "$0 run"

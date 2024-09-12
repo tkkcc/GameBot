@@ -3,7 +3,7 @@ use std::sync::Arc;
 use jni::objects::{AutoLocal, JObject};
 use serde::Deserialize;
 
-use crate::{find_all_node, find_node, mail::Rect, root_node, Store};
+use crate::{find_all_node_at, find_node_at, mail::Rect, root_node, Store};
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
@@ -46,23 +46,21 @@ pub struct Enabled(bool);
 pub struct Focused(bool);
 pub struct Selected(bool);
 
-#[derive(Clone)]
-pub struct Node2 {
-    pub inner: Arc<AutoLocal<'static, JObject<'static>>>,
-}
+#[derive(Clone, Debug)]
+pub struct Node2(pub Arc<AutoLocal<'static, JObject<'static>>>);
 
 impl Node2 {
     pub fn find(&self, filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
-        Store::proxy().find_node(self, filter)
+        find_node_at(self, filter)
     }
     pub fn find_all(&self, filter: impl Fn(&Node2) -> bool) -> Vec<Node2> {
-        Store::proxy().find_all_node(self, filter)
+        find_all_node_at(self, filter)
     }
     pub fn id(&self) -> String {
-        Store::proxy().get_node_id(self)
+        Store::proxy().get_node_id(self.0.as_ref())
     }
     pub fn text(&self) -> String {
-        todo!()
+        Store::proxy().get_node_text(self.0.as_ref())
     }
     pub fn region(&self) -> Rect {
         todo!()
@@ -71,7 +69,11 @@ impl Node2 {
         todo!()
     }
     pub fn children(&self) -> Vec<Node2> {
-        todo!()
+        Store::proxy()
+            .get_node_children(self.0.as_ref())
+            .into_iter()
+            .map(|x| Node2(Arc::new(x)))
+            .collect()
     }
     pub fn is_focused(&self) -> bool {
         todo!()
@@ -81,19 +83,20 @@ impl Node2 {
     }
 }
 
-struct NodeSelector {
+pub struct NodeSelector {
     pub filter: Box<dyn Fn(&Node2) -> bool>,
 }
+
 impl NodeSelector {
-    fn new(filter: impl Fn(&Node2) -> bool + 'static) -> Self {
+    pub fn new(filter: impl Fn(&Node2) -> bool + 'static) -> Self {
         NodeSelector {
             filter: Box::new(filter),
         }
     }
-    fn find(&self) -> Option<Node2> {
-        find_node(&self.filter)
+    pub fn find(&self) -> Option<Node2> {
+        root_node().and_then(|n| find_node_at(&n, &self.filter))
     }
-    fn find_all(&self) -> Vec<Node2> {
-        find_all_node(&self.filter)
+    pub fn find_all(&self) -> Vec<Node2> {
+        root_node().map_or(vec![], |n| find_all_node_at(&n, &self.filter))
     }
 }

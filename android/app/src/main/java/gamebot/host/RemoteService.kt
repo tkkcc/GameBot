@@ -288,7 +288,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         // cached
         return screenshot
     }
-
+    fun rootNode(): AccessibilityNodeInfo? {
+       return uiAutomation.rootInActiveWindow
+    }
 
     fun connectUiAutomation() {
         Log.e("137", "connectUiAutomation")
@@ -786,8 +788,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
 
-    fun rootNode(): AccessibilityNodeInfo? {
-        return uiAutomation.rootInActiveWindow
+    fun findNodeInKotlin() {
+        refreshScreenNode()
+//        return uiAutomation.rootInActiveWindow
     }
 
     override fun setLocalRunBinder(binder: IBinder?) {

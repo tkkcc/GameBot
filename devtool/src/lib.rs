@@ -1,8 +1,9 @@
 use std::{thread, time::Instant};
 
 use gamebot::{
-    self, click, click_recent, find_node, log, root_node, take_screenshot, toast, toast2,
-    touch_down, touch_move, touch_up, wait_millis, wait_secs,
+    self, click, click_recent, log, root_node, take_nodeshot, take_nodeshot_in_kotlin,
+    take_screenshot, toast, toast2, touch_down, touch_move, touch_up, wait_millis, wait_secs,
+    NodeSelector,
 };
 use log::error;
 
@@ -54,6 +55,7 @@ fn fight_swipe() {
     touch_up(-4000.0, 301.0, 0);
 }
 
+gamebot::entry!(start);
 fn start() {
     error!("what");
 
@@ -62,7 +64,28 @@ fn start() {
     click_recent();
     wait_secs(1);
 
-    find_node(|x| x.text() == "abc");
-}
+    // take_nodeshot();
+    let start = Instant::now();
 
-gamebot::entry!(start);
+    // for n in take_nodeshot() {
+    //     error!("68 {:?}", start.elapsed());
+    //     if n.text().is_empty() {
+    //         continue;
+    //     }
+    //     error!("{}", n.text());
+    //     error!("69 {:?}", start.elapsed());
+    // }
+
+    for i in 0..10 {
+        take_nodeshot_in_kotlin();
+        // take_nodeshot();
+        // let node =
+        //     NodeSelector::new(|node| node.text().to_ascii_lowercase().contains("dev")).find();
+        // if let Some(node) = node {
+        error!("78,  {:?}", start.elapsed());
+        // }
+    }
+    error!("{:?}", start.elapsed());
+
+    // find_node(root_node().uwwrap(), |x| x.text() == "abc");
+}

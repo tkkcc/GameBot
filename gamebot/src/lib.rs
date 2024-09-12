@@ -24,7 +24,7 @@ use std::{
 use anyhow::{Error, Result};
 
 use image::{GenericImageView, ImageReader};
-use jni::objects::{JByteBuffer, JString};
+use jni::objects::{AutoLocal, JByteBuffer, JString};
 // use erased_serde::Serialize;
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
 use jni::{
@@ -42,6 +42,7 @@ use ui::CallbackValue;
 use ui::Element;
 
 pub use log::error;
+pub use node::NodeSelector;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
@@ -571,7 +572,7 @@ impl Proxy {
             .unwrap();
     }
 
-    fn root_node(&mut self) -> Option<Node2> {
+    fn root_node(&mut self) -> Option<AutoLocal<'static, JObject<'static>>> {
         let obj = self
             .env
             .call_method(
@@ -586,74 +587,35 @@ impl Proxy {
         if obj.is_null() {
             None
         } else {
-            Some(Node2 {
-                inner: Arc::new(self.env.auto_local(obj)),
-            })
+            Some(self.env.auto_local(obj))
         }
     }
 
-    // fn take_node_shot() -> ScreenNode2 {
-    //
-    // }
-
-    fn find_node_by_view_id(&mut self, arg: &Node2, id: &str) -> Option<Node2> {
-        let id: JObject = self.env.new_string(id).unwrap().into();
-        let res: JObjectArray = self
-            .env
-            .call_method(
-                arg.inner.as_ref(),
-                "findAccessibilityNodeInfosByViewId",
-                "(Ljava/lang/String;)[Landroid/view/accessibility/AccessibilityNodeInfo;",
-                &[(&id).into()],
-            )
-            .unwrap()
-            .l()
-            .unwrap()
-            .into();
-        let len = self.env.get_array_length(&res).unwrap();
-        error!("len ${len}");
-        None
-        // if res.is_null() {
-        //     None
-        // } else {
-        //     Some(Node2 {
-        //         inner: self.env.auto_local(res),
-        //     })
-        // }
-    }
-
-    fn get_node_id(&mut self, arg: &Node2) -> String {
+    fn get_node_id(&mut self, arg: &JObject) -> String {
         let res = self
             .env
             .call_method(
                 self.host,
                 "getNodeId",
                 "(Landroid/view/accessibility/AccessibilityNodeInfo;Ljava/lang/String;)V",
-                &[arg.inner.as_ref().into()],
+                &[arg.into()], // &[arg.inner.as_ref().into()],
             )
             .unwrap()
             .l()
             .unwrap();
         "".into()
-        // if res.is_null() {
-        // } else {
-        //     Some(Node2 {
-        //         inner: self.env.auto_local(res),
-        //     })
-        // }
     }
-    fn get_node_text(&mut self, arg: &Node2) -> String {
+
+    fn get_node_text(&mut self, node: &JObject) -> String {
         let char_seq = self
             .env
-            .call_method(
-                self.host,
-                "getText",
-                "(Landroid/view/accessibility/AccessibilityNodeInfo)Ljava/lang/CharSequence;",
-                &[arg.inner.as_ref().into()],
-            )
+            .call_method(node, "getText", "()Ljava/lang/CharSequence;", &[])
             .unwrap()
             .l()
             .unwrap();
+        if char_seq.is_null() {
+            return String::new();
+        }
 
         let s: JString = self
             .env
@@ -668,21 +630,34 @@ impl Proxy {
         s
     }
 
-    fn find_node(&self, root: &Node2, filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
-        let mut stack = vec![root.clone()];
-        while !stack.is_empty() {
-            for root in std::mem::take(&mut stack) {
-                if filter(&root) {
-                    return Some(root);
-                }
-                stack.extend(root.children());
-            }
+    fn get_node_children(&mut self, node: &JObject) -> Vec<AutoLocal<'static, JObject<'static>>> {
+        let child_count = self
+            .env
+            .call_method(node, "getChildCount", "()I", &[])
+            .unwrap()
+            .i()
+            .unwrap() as usize;
+        let mut ans = Vec::with_capacity(child_count);
+        for i in 0..child_count {
+            let child = self
+                .env
+                .call_method(
+                    node,
+                    "getChild",
+                    "(I)Landroid/view/accessibility/AccessibilityNodeInfo;",
+                    &[(i as i32).into()],
+                )
+                .unwrap()
+                .l()
+                .unwrap();
+            ans.push(self.env.auto_local(child));
         }
-        None
+        ans
     }
 
-    fn find_all_node(&self, root: &Node2, filter: impl Fn(&Node2) -> bool) -> Vec<Node2> {
-        todo!()
+    fn take_nodeshot_in_kotlin(&mut self) {
+        self.env
+            .call_method(&self.host, "findNodeInKotlin", "()V", &[]);
     }
 }
 
@@ -719,13 +694,42 @@ pub fn click_recent() {
 
 // find node from root
 pub fn root_node() -> Option<Node2> {
-    Store::proxy().root_node()
+    Store::proxy().root_node().map(|n| Node2(Arc::new(n)))
 }
-pub fn find_node(filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
-    root_node().and_then(|node| node.find(filter))
+
+pub fn take_nodeshot() -> Vec<Node2> {
+    root_node().map_or(vec![], |n| n.find_all(|_| true))
 }
-pub fn find_all_node(filter: impl Fn(&Node2) -> bool) -> Vec<Node2> {
-    root_node().map_or(vec![], |node| node.find_all(filter))
+
+pub fn find_node_at(root: &Node2, filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
+    let mut stack = vec![root.clone()];
+    while !stack.is_empty() {
+        for root in std::mem::take(&mut stack) {
+            if filter(&root) {
+                return Some(root);
+            }
+            stack.extend(root.children());
+        }
+    }
+    None
+}
+
+pub fn find_all_node_at(root: &Node2, filter: impl Fn(&Node2) -> bool) -> Vec<Node2> {
+    let mut ans = vec![];
+    let mut stack = vec![root.clone()];
+    while !stack.is_empty() {
+        for root in std::mem::take(&mut stack) {
+            if filter(&root) {
+                ans.push(root.clone());
+            }
+            stack.extend(root.children());
+        }
+    }
+    ans
+}
+
+pub fn take_nodeshot_in_kotlin() {
+    Store::proxy().take_nodeshot_in_kotlin()
 }
 
 pub fn wait_secs(s: impl IntoSeconds) {

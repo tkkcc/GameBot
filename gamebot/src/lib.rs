@@ -24,7 +24,7 @@ use std::{
 use anyhow::{Error, Result};
 
 use image::{GenericImageView, ImageReader};
-use jni::objects::JByteBuffer;
+use jni::objects::{JByteBuffer, JString};
 // use erased_serde::Serialize;
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
 use jni::{
@@ -36,7 +36,7 @@ use mail::{
     ColorPoint, ColorPointGroup, ColorPointGroupIn, ColorPointIn, ImageIn, IntoMilliseconds,
     IntoSeconds, Point, Tolerance,
 };
-use node::Node;
+use node::{Node, Node2};
 use serde::{Deserialize, Serialize};
 use ui::CallbackValue;
 use ui::Element;
@@ -570,6 +570,111 @@ impl<'a> Proxy<'a> {
             .call_method(&self.host, "clickRecent", "()V", &[])
             .unwrap();
     }
+
+    fn root_node(&mut self) -> Option<Node2<'a>> {
+        let obj = self
+            .env
+            .call_method(
+                &self.host,
+                "rootNode",
+                "()Landroid/view/accessibility/AccessibilityNodeInfo;",
+                &[],
+            )
+            .unwrap()
+            .l()
+            .unwrap();
+        if obj.is_null() {
+            None
+        } else {
+            Some(Node2 {
+                inner: self.env.auto_local(obj),
+            })
+        }
+    }
+
+    // fn take_node_shot() -> ScreenNode2 {
+    //
+    // }
+
+    fn find_node_by_view_id(&mut self, arg: &Node2, id: &str) -> Option<Node2<'a>> {
+        let id: JObject = self.env.new_string(id).unwrap().into();
+        let res: JObjectArray = self
+            .env
+            .call_method(
+                &arg.inner,
+                "findAccessibilityNodeInfosByViewId",
+                "(Ljava/lang/String;)[Landroid/view/accessibility/AccessibilityNodeInfo;",
+                &[(&id).into()],
+            )
+            .unwrap()
+            .l()
+            .unwrap()
+            .into();
+        let len = self.env.get_array_length(&res).unwrap();
+        error!("len ${len}");
+        None
+        // if res.is_null() {
+        //     None
+        // } else {
+        //     Some(Node2 {
+        //         inner: self.env.auto_local(res),
+        //     })
+        // }
+    }
+
+    fn get_node_id(&mut self, arg: &Node2) -> String {
+        let res = self
+            .env
+            .call_method(
+                self.host,
+                "getNodeId",
+                "(Landroid/view/accessibility/AccessibilityNodeInfo;Ljava/lang/String;)V",
+                &[arg.inner.as_ref().into()],
+            )
+            .unwrap()
+            .l()
+            .unwrap();
+        "".into()
+        // if res.is_null() {
+        // } else {
+        //     Some(Node2 {
+        //         inner: self.env.auto_local(res),
+        //     })
+        // }
+    }
+    fn get_node_text(&mut self, arg: &Node2) -> String {
+        let char_seq = self
+            .env
+            .call_method(
+                self.host,
+                "getText",
+                "(Landroid/view/accessibility/AccessibilityNodeInfo)Ljava/lang/CharSequence;",
+                &[arg.inner.as_ref().into()],
+            )
+            .unwrap()
+            .l()
+            .unwrap();
+
+        let s: JString = self
+            .env
+            .call_method(char_seq, "toString", "()Ljava/lang/String;", &[])
+            .unwrap()
+            .l()
+            .unwrap()
+            .into();
+
+        let s = self.env.get_string(&s).unwrap().into();
+
+        s
+    }
+
+    fn find_node(&self, root: &Node2, filter: impl Fn(&Node2) -> bool) -> Option<Node2<'a>> {
+        todo!()
+    }
+
+    fn find_all_node(&self, root: &Node2, filter: impl Fn(&Node2) -> bool) -> Vec<Node2<'a>> {
+        todo!()
+    }
 }
 
 // static CELL3: OnceLock<JObject> = OnceLock::new();
@@ -601,6 +706,23 @@ pub fn touch_move(x: f32, y: f32, id: i32) {
 }
 pub fn click_recent() {
     Store::proxy().click_recent();
+}
+pub fn root_node<'a>() -> Option<Node2<'a>> {
+    Store::proxy().root_node()
+}
+
+pub fn find_node<'a>(filter: impl Fn(&Node2) -> bool) -> Option<Node2<'a>> {
+    let mut proxy = Store::proxy();
+    let root = proxy.root_node()?;
+    proxy.find_node(&root, filter)
+}
+pub fn find_all_node<'a>(filter: impl Fn(&Node2) -> bool) -> Vec<Node2<'a>> {
+    let mut proxy = Store::proxy();
+    let root = proxy.root_node();
+    match root {
+        Some(root) => proxy.find_all_node(&root, filter),
+        _ => vec![],
+    }
 }
 
 pub fn wait_secs(s: impl IntoSeconds) {
@@ -666,6 +788,13 @@ extern "C" fn start(mut env: JNIEnv, host: JObject) {
         if matches!(status(), Status::Running) {
             panic!();
         }
+
+        // let mut proxy = Proxy {
+        //     env: env,
+        //     host: &host,
+        // };
+        // let n1 = proxy.root_node().unwrap();
+        // n1.find_by_id("a");
 
         Store::init(&env, &host).unwrap();
 

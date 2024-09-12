@@ -1,8 +1,8 @@
 use std::{thread, time::Instant};
 
 use gamebot::{
-    self, click, click_recent, log, take_screenshot, toast, toast2, touch_down, touch_move,
-    touch_up, wait_millis, wait_secs,
+    self, click, click_recent, find_node, log, root_node, take_screenshot, toast, toast2,
+    touch_down, touch_move, touch_up, wait_millis, wait_secs,
 };
 use log::error;
 
@@ -53,6 +53,7 @@ fn fight_swipe() {
     wait_millis(66);
     touch_up(-4000.0, 301.0, 0);
 }
+
 fn start() {
     error!("what");
 
@@ -60,7 +61,8 @@ fn start() {
     wait_millis(500);
     click_recent();
     wait_secs(1);
-    infrastructure_overview_swipe();
+
+    find_node(|x| x.text() == "abc");
 }
 
 gamebot::entry!(start);

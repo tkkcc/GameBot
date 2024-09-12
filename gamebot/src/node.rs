@@ -1,6 +1,7 @@
+use jni::objects::{AutoLocal, JObject};
 use serde::Deserialize;
 
-use crate::mail::Rect;
+use crate::{find_all_node, find_node, mail::Rect, root_node, Store};
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
@@ -42,3 +43,54 @@ pub struct Checked(bool);
 pub struct Enabled(bool);
 pub struct Focused(bool);
 pub struct Selected(bool);
+
+pub struct Node2<'a> {
+    pub inner: AutoLocal<'a, JObject<'a>>,
+}
+
+impl<'a> Node2<'a> {
+    pub fn find(&self, filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
+        Store::proxy().find_node(self, filter)
+    }
+    pub fn find_all(&self, filter: impl Fn(&Node2) -> bool) -> Vec<Node2> {
+        Store::proxy().find_all_node(self, filter)
+    }
+    pub fn id(&self) -> String {
+        Store::proxy().get_node_id(self)
+    }
+    pub fn text(&self) -> String {
+        todo!()
+    }
+    pub fn region(&self) -> Rect {
+        todo!()
+    }
+    pub fn parent(&self) -> Option<Node2> {
+        todo!()
+    }
+    pub fn children(&self) -> Vec<Node2> {
+        todo!()
+    }
+    pub fn is_focused(&self) -> bool {
+        todo!()
+    }
+    pub fn is_focusable(&self) -> bool {
+        todo!()
+    }
+}
+
+struct NodeSelector<'a> {
+    pub filter: Box<dyn Fn(&Node2) -> bool + 'a>,
+}
+impl<'a> NodeSelector<'a> {
+    fn new(filter: impl Fn(&Node2) -> bool + 'a) -> Self {
+        NodeSelector {
+            filter: Box::new(filter),
+        }
+    }
+    fn find(&self) -> Option<Node2> {
+        find_node(&self.filter)
+    }
+    fn find_all(&self) -> Vec<Node2> {
+        find_all_node(&self.filter)
+    }
+}

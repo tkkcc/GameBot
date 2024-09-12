@@ -56,11 +56,6 @@ import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
 
-const val INJECT_INPUT_EVENT_MODE_ASYNC = 0
-
-const val INJECT_INPUT_EVENT_MODE_WAIT_FOR_RESULT = 1
-
-const val INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH = 2
 
 class RemoteService(val context: Context) : IRemoteService.Stub() {
 
@@ -446,31 +441,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     }
 
-//    fun click(x: Float, y: Float) {
-//        //A MotionEvent is a type of InputEvent.
-//        //The event time must be the current uptime.
-//        val eventTime = SystemClock.uptimeMillis()
-//
-//        //A typical click event triggered by a user click on the touchscreen creates two MotionEvents,
-//        //first one with the action KeyEvent.ACTION_DOWN and the 2nd with the action KeyEvent.ACTION_UP
-//        val motionDown = MotionEvent.obtain(
-//            eventTime, eventTime, KeyEvent.ACTION_DOWN, x, y, 0
-//        )
-//        //We must set the source of the MotionEvent or the click doesn't work.
-//        motionDown.source = InputDevice.SOURCE_TOUCHSCREEN
-//        uiAutomation.injectInputEvent(motionDown, true)
-//        val motionUp = MotionEvent.obtain(
-//            eventTime, eventTime, KeyEvent.ACTION_UP, x, y, 0
-//        )
-//        motionUp.source = InputDevice.SOURCE_TOUCHSCREEN
-//        uiAutomation.injectInputEvent(motionUp, true)
-//
-//        // TODO do i really need this?
-//        //Recycle our events back to the system pool.
-//        motionUp.recycle()
-//        motionDown.recycle()
-//    }
-
 
     fun getPhysicalDisplaySize(): Point = Point().apply {
         mWm.getInitialDisplaySize(0, this)
@@ -815,6 +785,11 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         Log.e("137", "after init , uid = ${getCallingUid()}")
     }
 
+
+    fun rootNode(): AccessibilityNodeInfo? {
+        return uiAutomation.rootInActiveWindow
+    }
+
     override fun setLocalRunBinder(binder: IBinder?) {
         localService = ILocalService.Stub.asInterface(binder)
     }
@@ -831,37 +806,17 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             Log.e("", "790 ${it}")
         }
 
-
-        // test float touch
-//        clickRecent()
-//        sleep(500)
-//        clickRecent()
-
-//        sleep(3000)
-
-//        touchDownFloat(-500f,500f)
-//        for (i in 0..10000000000) {
-//            sleep(10)
-////            touchMoveFloat(500f+i*0.5f,500f)
-//            touchMoveFloat(500f-i*0.5f,500f)
+//        thread {
+////            sleep(1000)
+////            Log.e("", "root node: ${takeNode()}")
+//            val root = takeNode()
+//            val region = Rect()
+//            root?.getBoundsInScreen(region)
+//            Log.e("", "root region ${region}")
 //        }
+//        if (root!=null) {
 
-
-//        clickRecent()
-
-//        sleep(3000)
-//        touchDown(500, 500)
-//        sleep(500)
-//        touchMove(100,500)
-//        touchUp(100, 100)
-
-//        sleep(500)
-//        touchMove(700,700)
-//        sleep(500)
-//        touchMove(600,600)
-//        touchUp(600, 600)
-
-//        click(200,200)
+//        }
         Log.e("", "rust call finish")
     }
 }

@@ -327,7 +327,7 @@ impl Store {
         Ok(())
     }
 
-    fn proxy() -> Proxy<'static> {
+    fn proxy() -> Proxy {
         let store = STORE.get().ok_or(Error::msg("Store get fail")).unwrap();
         let env = store.vm.attach_current_thread_permanently().unwrap();
         let host = store.host_ref.as_obj();
@@ -336,12 +336,12 @@ impl Store {
     }
 }
 
-struct Proxy<'a> {
-    env: JNIEnv<'a>,
-    host: &'a JObject<'a>,
+struct Proxy {
+    env: JNIEnv<'static>,
+    host: &'static JObject<'static>,
 }
 
-impl<'a> Proxy<'a> {
+impl Proxy {
     fn fetch_screen_node(&mut self) {
         let ans = self
             .env
@@ -571,7 +571,7 @@ impl<'a> Proxy<'a> {
             .unwrap();
     }
 
-    fn root_node(&mut self) -> Option<Node2<'a>> {
+    fn root_node(&mut self) -> Option<Node2> {
         let obj = self
             .env
             .call_method(
@@ -587,7 +587,7 @@ impl<'a> Proxy<'a> {
             None
         } else {
             Some(Node2 {
-                inner: self.env.auto_local(obj),
+                inner: Arc::new(self.env.auto_local(obj)),
             })
         }
     }
@@ -596,12 +596,12 @@ impl<'a> Proxy<'a> {
     //
     // }
 
-    fn find_node_by_view_id(&mut self, arg: &Node2, id: &str) -> Option<Node2<'a>> {
+    fn find_node_by_view_id(&mut self, arg: &Node2, id: &str) -> Option<Node2> {
         let id: JObject = self.env.new_string(id).unwrap().into();
         let res: JObjectArray = self
             .env
             .call_method(
-                &arg.inner,
+                arg.inner.as_ref(),
                 "findAccessibilityNodeInfosByViewId",
                 "(Ljava/lang/String;)[Landroid/view/accessibility/AccessibilityNodeInfo;",
                 &[(&id).into()],
@@ -668,11 +668,20 @@ impl<'a> Proxy<'a> {
         s
     }
 
-    fn find_node(&self, root: &Node2, filter: impl Fn(&Node2) -> bool) -> Option<Node2<'a>> {
-        todo!()
+    fn find_node(&self, root: &Node2, filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
+        let mut stack = vec![root.clone()];
+        while !stack.is_empty() {
+            for root in std::mem::take(&mut stack) {
+                if filter(&root) {
+                    return Some(root);
+                }
+                stack.extend(root.children());
+            }
+        }
+        None
     }
 
-    fn find_all_node(&self, root: &Node2, filter: impl Fn(&Node2) -> bool) -> Vec<Node2<'a>> {
+    fn find_all_node(&self, root: &Node2, filter: impl Fn(&Node2) -> bool) -> Vec<Node2> {
         todo!()
     }
 }
@@ -707,22 +716,16 @@ pub fn touch_move(x: f32, y: f32, id: i32) {
 pub fn click_recent() {
     Store::proxy().click_recent();
 }
-pub fn root_node<'a>() -> Option<Node2<'a>> {
+
+// find node from root
+pub fn root_node() -> Option<Node2> {
     Store::proxy().root_node()
 }
-
-pub fn find_node<'a>(filter: impl Fn(&Node2) -> bool) -> Option<Node2<'a>> {
-    let mut proxy = Store::proxy();
-    let root = proxy.root_node()?;
-    proxy.find_node(&root, filter)
+pub fn find_node(filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
+    root_node().and_then(|node| node.find(filter))
 }
-pub fn find_all_node<'a>(filter: impl Fn(&Node2) -> bool) -> Vec<Node2<'a>> {
-    let mut proxy = Store::proxy();
-    let root = proxy.root_node();
-    match root {
-        Some(root) => proxy.find_all_node(&root, filter),
-        _ => vec![],
-    }
+pub fn find_all_node(filter: impl Fn(&Node2) -> bool) -> Vec<Node2> {
+    root_node().map_or(vec![], |node| node.find_all(filter))
 }
 
 pub fn wait_secs(s: impl IntoSeconds) {

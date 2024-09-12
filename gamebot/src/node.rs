@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use jni::objects::{AutoLocal, JObject};
 use serde::Deserialize;
 
@@ -44,11 +46,12 @@ pub struct Enabled(bool);
 pub struct Focused(bool);
 pub struct Selected(bool);
 
-pub struct Node2<'a> {
-    pub inner: AutoLocal<'a, JObject<'a>>,
+#[derive(Clone)]
+pub struct Node2 {
+    pub inner: Arc<AutoLocal<'static, JObject<'static>>>,
 }
 
-impl<'a> Node2<'a> {
+impl Node2 {
     pub fn find(&self, filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
         Store::proxy().find_node(self, filter)
     }
@@ -78,11 +81,11 @@ impl<'a> Node2<'a> {
     }
 }
 
-struct NodeSelector<'a> {
-    pub filter: Box<dyn Fn(&Node2) -> bool + 'a>,
+struct NodeSelector {
+    pub filter: Box<dyn Fn(&Node2) -> bool>,
 }
-impl<'a> NodeSelector<'a> {
-    fn new(filter: impl Fn(&Node2) -> bool + 'a) -> Self {
+impl NodeSelector {
+    fn new(filter: impl Fn(&Node2) -> bool + 'static) -> Self {
         NodeSelector {
             filter: Box::new(filter),
         }

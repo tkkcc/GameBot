@@ -1,9 +1,13 @@
-use std::sync::Arc;
+use std::{cell::RefCell, sync::Arc};
 
 use jni::objects::{AutoLocal, JObject};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{find_all_node_at, find_node_at, mail::Rect, root_node, take_nodeshot, Store};
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct NodeInfo {}
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
@@ -25,31 +29,36 @@ pub struct Node {
     pub focused: bool,
     pub selected: bool,
     pub parent: usize,
-    pub parent2: usize,
     pub children: Vec<usize>,
-    pub index: usize,
 }
 
-pub struct Id(String);
-pub struct Region(Rect);
-pub struct Text(Rect);
-pub struct Class(Rect);
-pub struct Package(Rect);
-pub struct Description(Rect);
-pub struct Checkable(bool);
-pub struct Clickable(bool);
-pub struct LongClickable(bool);
-pub struct Focusable(bool);
-pub struct Visible(bool);
-pub struct Checked(bool);
-pub struct Enabled(bool);
-pub struct Focused(bool);
-pub struct Selected(bool);
+#[derive(Default)]
+pub struct Node4 {
+    pub info: Node,
+    pub parent: Option<Arc<RefCell<Node4>>>,
+    pub children: Vec<Arc<RefCell<Node4>>>,
+}
+
+// pub struct Id(String);
+// pub struct Region(Rect);
+// pub struct Text(Rect);
+// pub struct Class(Rect);
+// pub struct Package(Rect);
+// pub struct Description(Rect);
+// pub struct Checkable(bool);
+// pub struct Clickable(bool);
+// pub struct LongClickable(bool);
+// pub struct Focusable(bool);
+// pub struct Visible(bool);
+// pub struct Checked(bool);
+// pub struct Enabled(bool);
+// pub struct Focused(bool);
+// pub struct Selected(bool);
 
 #[derive(Clone, Debug)]
 pub struct Node2(pub Arc<AutoLocal<'static, JObject<'static>>>);
-#[derive(Clone, Debug)]
-pub struct Node3(pub Arc<JObject<'static>>);
+// #[derive(Clone, Debug)]
+// pub struct Node3(pub Arc<JObject<'static>>);
 
 impl Node2 {
     pub fn find(&self, filter: impl Fn(&Node2) -> bool) -> Option<Node2> {

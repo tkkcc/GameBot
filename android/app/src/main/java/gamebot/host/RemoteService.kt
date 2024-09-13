@@ -53,6 +53,7 @@ import java.lang.Thread.sleep
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
+import kotlin.reflect.full.declaredMembers
 import kotlin.system.exitProcess
 
 
@@ -64,6 +65,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             System.loadLibrary("rust")
         }
     }
+
+    val what: Int = 0
+    val what2: String = "888dsaf"
 
     lateinit var localService: ILocalService
 
@@ -121,16 +125,37 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //                val pair = this@RemoteService.takeScreenNode()
 //                return Pair(pair.first, ArrayList(pair.second))
 //            }
+
+    var screenNodeCache: ScreenNode? = null
+    @OptIn(ExperimentalSerializationApi::class)
     fun takeScreenNode(): ScreenNode {
-        val (info, infoRef) = takeScreenNodeRaw()
+        if (screenNodeCache == null) {
+            val (info, infoRef) = takeScreenNodeRaw()
 
-        Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
+            Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
 
-        val stream = ByteArrayOutputStream();
-        Json.encodeToStream(info, stream)
-
-        return ScreenNode(stream.toByteArray(), infoRef.toTypedArray())
+            val stream = ByteArrayOutputStream()
+            Json.encodeToStream(info, stream)
+            val buf = ByteBuffer.allocateDirect(stream.size())
+            buf.put(stream.toByteArray())
+            screenNodeCache = ScreenNode(buf, info.toTypedArray(), infoRef.toTypedArray())
+        }
+//        ByteBuffer.allocateDirect()
+        return screenNodeCache!!
     }
+//    val screenNodeCache2 : ByteBuffer? = null
+//    fun takeScreenNode2(): ByteBuffer {
+//        if (screenNode2Cache2==null) {
+//            val (info, infoRef) = takeScreenNodeRaw()
+//
+//            Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
+//
+//            val stream = ByteBuffer();
+//            Json.encodeToStream(info, stream)
+//            ScreenNode(stream, infoRef.toTypedArray())
+//        }
+//        return screenNodeCache!!
+//    }
 
 
     fun click(x: Float, y: Float) {
@@ -346,57 +371,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 
 
-    @Serializable
-    data class Rect(
-        val left: UInt,
-        val top: UInt,
-        val right: UInt,
-        val bottom: UInt,
-    )
 
-    @Serializable
-    data class NodeInfo(
-        val id: String = "",
-        val region: Rect = Rect(0u, 0u, 0u, 0u),
-        val text: String = "",
-        @SerialName("class") val className: String = "",
-        @SerialName("package") val packageName: String = "",
-        val description: String = "",
-        val checkable: Boolean = false,
-        val clickable: Boolean = false,
-        @SerialName("long_clickable") val longClickable: Boolean = false,
-        val focusable: Boolean = false,
-        val scrollable: Boolean = false,
-        val visible: Boolean = false,
-        val checked: Boolean = false,
-        val enabled: Boolean = false,
-        val focused: Boolean = false,
-        val selected: Boolean = false,
-        val parent: Int = 0,
-        val children: MutableList<Int> = mutableListOf(),
-        val index: Int = 0
-    ) {
-        companion object {
-            fun from(node: AccessibilityNodeInfo): NodeInfo {
-                val nodeInfo = NodeInfo(
-                    id = node.viewIdResourceName ?: "",
-                    className = (node.className ?: "").toString(),
-                    packageName = (node.packageName ?: "").toString(),
-                    text = (node.text ?: "").toString()
-                )
-                if (false && nodeInfo.text.contains("Gallery")) {
-                    node.performAction(ACTION_CLICK)
-                    val x = ACTION_CLICK
-                }
-                return nodeInfo
-            }
-
-        }
-
-        fun index(index: Int): NodeInfo {
-            return this.copy(index = index)
-        }
-    }
 
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -444,7 +419,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             val out = takeScreenNode()
             val jsonans = Json.encodeToString(out)
             Log.e(
-                "findText", "findText ${System.currentTimeMillis() - start}ms, ${out.first.size} ${
+                "findText", "findText ${System.currentTimeMillis() - start}ms, ${out.data.capacity()} ${
                     jsonans
                 }"
             )
@@ -834,7 +809,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //        return uiAutomation.rootInActiveWindow
     }
 
-    fun getStringTest(){
+    fun getStringTest() {
 //        return null
 //        return "83332334214"
     }
@@ -854,6 +829,11 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         localService.test()
         this.javaClass.declaredMethods.forEach {
             Log.e("", "790 ${it}")
+        }
+
+        ScreenNode::class.declaredMembers.forEach {
+            Log.e("", "791 ${it}")
+
         }
 
 

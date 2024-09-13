@@ -8,7 +8,7 @@ mod ui;
 
 use core::{error, f64, panic};
 use std::backtrace::Backtrace;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::i32;
 use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, RwLock};
@@ -38,7 +38,7 @@ pub use mail::{
     IntoSeconds, Point, Rect, Tolerance,
 };
 pub use node::NodeSelector;
-use node::{Node, Node2};
+pub use node::{Node, Node2, Node4};
 use serde::{Deserialize, Serialize};
 use ui::CallbackValue;
 use ui::Element;
@@ -350,58 +350,137 @@ pub struct Proxy {
 }
 
 impl Proxy {
-    fn fetch_screen_node(&mut self) {
-        let ans = self
-            .env
-            // .call_method(&self.host, "takeScreenNode", "()Ljava/lang/Object;", &[])
-            .call_method(&self.host, "takeScreenNode", "()LScreenNode;", &[])
-            .unwrap();
-        let obj = ans.l().unwrap();
-        let first = self.env.get_field(&obj, "first", "[B").unwrap();
-        let second = self
-            .env
-            .get_field(
-                &obj,
-                "second",
-                "[Landroid/view/accessibility/AccessibilityNodeInfo;",
-            )
-            // /get_field(&obj, "second", "Ljava/util/List;")
-            .unwrap();
-
-        let first: JByteArray = first.l().unwrap().into();
-        let first = self.env.convert_byte_array(first).unwrap();
-        error!("114: {first:?}");
-        let first: Vec<Node> = serde_json::from_slice(&first).unwrap();
-
-        // let second = self.env.new_global_ref(second.l().unwrap()).unwrap();
-        // let second: &JObjectArray = second.as_obj().into();
-        let second: JObjectArray = second.l().unwrap().into();
-
-        for node in first {
-            if node.text.contains("mail") {
-                let i = node.index.try_into().unwrap();
-                let s = self.env.get_array_length(&second).unwrap();
-
-                error!("get array element {} / {}", 1, s);
-                let e0 = self.env.get_object_array_element(&second, i).unwrap();
-
-                const ACTION_CLICK: i32 = 0x00000010;
-                self.env
-                    .call_method(&e0, "performAction", "(I)Z", &[ACTION_CLICK.into()])
+    fn take_screen_node(&mut self) -> Vec<Arc<RefCell<Node4>>> {
+        self.env
+            .with_local_frame(32, |env| -> std::result::Result<_, Error> {
+                let ans = env
+                    .call_method(&self.host, "takeScreenNode", "()LScreenNode;", &[])
                     .unwrap();
-                // self.env
-                //     .call_method(
-                //         &self.host,
-                //         "clickNode",
-                //         "(Landroid/view/accessibility/AccessibilityNodeInfo;)Z",
-                //         &[(&e0).into()],
-                //     )
-                //     .unwrap();
+                let obj = ans.l().unwrap();
+                let data: JByteBuffer = env
+                    .get_field(&obj, "data", "Ljava/nio/ByteBuffer;")
+                    .unwrap()
+                    .l()
+                    .unwrap()
+                    .into();
+                let data_raw: JObjectArray = env
+                    .get_field(&obj, "data_raw", "[LNodeInfo;")
+                    .unwrap()
+                    .l()
+                    .unwrap()
+                    .into();
+                let reference: JObjectArray = env
+                    .get_field(
+                        &obj,
+                        "reference",
+                        "[Landroid/view/accessibility/AccessibilityNodeInfo;",
+                    )
+                    .unwrap()
+                    .l()
+                    .unwrap()
+                    .into();
 
-                error!("141");
-            }
-            error!("142");
-        }
+                let addr = env.get_direct_buffer_address(&data).unwrap();
+                let capacity = env.get_direct_buffer_capacity(&data).unwrap();
+                let data = unsafe { std::slice::from_raw_parts(addr, capacity) };
+
+                // most time consuming part
+                // let data: Vec<Node> = serde_json::from_slice(&data).unwrap();
+
+                // how about do without Deserialize?
+                let count = env.get_array_length(&data_raw).unwrap();
+                let data: Vec<Node> = (0..count)
+                    .map(|i| {
+                        let x = env.get_object_array_element(&data_raw, i).unwrap();
+                        for j in 0..5 {
+                            let id: JString = env
+                                .get_field(&x, "id", "Ljava/lang/String;")
+                                .unwrap()
+                                .l()
+                                .unwrap()
+                                .into();
+                            let id: String = env.get_string(&id).unwrap().into();
+                        }
+                        let id: JString = env
+                            .get_field(&x, "id", "Ljava/lang/String;")
+                            .unwrap()
+                            .l()
+                            .unwrap()
+                            .into();
+                        let id: String = env.get_string(&id).unwrap().into();
+
+                        let parent =
+                            env.get_field(&x, "parent", "I").unwrap().i().unwrap() as usize;
+
+                        Node {
+                            id,
+                            parent,
+                            ..Default::default()
+                        }
+                    })
+                    .collect();
+
+                let data: Vec<Arc<RefCell<Node4>>> = data
+                    .into_iter()
+                    .map(|x| {
+                        Arc::new(RefCell::new(Node4 {
+                            info: x,
+                            ..Default::default()
+                        }))
+                    })
+                    .collect();
+
+                for x in data.iter() {
+                    let t = Some(data[x.borrow().info.parent].clone());
+                    x.borrow_mut().parent = t;
+                    let t = x
+                        .borrow()
+                        .info
+                        .children
+                        .iter()
+                        .map(|&i| data[i].clone())
+                        .collect();
+
+                    x.borrow_mut().children = t;
+                }
+
+                Ok(data)
+                // for i in &data {
+                //     new_data.
+                // }
+
+                // let second = self.env.new_global_ref(second.l().unwrap()).unwrap();
+                // let second: &JObjectArray = second.as_obj().into();
+                // let second: JObjectArray = second.l().unwrap().into();
+                // Ok(first)
+            })
+            .unwrap()
+
+        // for node in first {
+        //     if node.text.contains("mail") {
+        //         let i = node.index.try_into().unwrap();
+        //         let s = self.env.get_array_length(&second).unwrap();
+        //
+        //         error!("get array element {} / {}", 1, s);
+        //         let e0 = self.env.get_object_array_element(&second, i).unwrap();
+        //
+        //         const ACTION_CLICK: i32 = 0x00000010;
+        //         self.env
+        //             .call_method(&e0, "performAction", "(I)Z", &[ACTION_CLICK.into()])
+        //             .unwrap();
+        //         // self.env
+        //         //     .call_method(
+        //         //         &self.host,
+        //         //         "clickNode",
+        //         //         "(Landroid/view/accessibility/AccessibilityNodeInfo;)Z",
+        //         //         &[(&e0).into()],
+        //         //     )
+        //         //     .unwrap();
+        //
+        //         error!("141");
+        //     }
+        //     error!("142");
+        // }
     }
 
     fn update_config_ui<State: Serialize + 'static>(
@@ -621,9 +700,17 @@ impl Proxy {
     fn get_string_test(&mut self) -> String {
         self.env
             .with_local_frame(4, |env| -> std::result::Result<String, Error> {
-                let res = env
-                    .call_method(&self.host, "getStringTest", "()V", &[])
-                    .unwrap();
+                // let res = env
+                //     .call_method(&self.host, "getStringTest", "()V", &[])
+                //     .unwrap();
+                let res: JString = env
+                    .get_field(&self.host, "what2", "Ljava/lang/String;")
+                    .unwrap()
+                    .l()
+                    .unwrap()
+                    .into();
+                let res = env.get_string(&res).unwrap();
+
                 return Ok(String::from(""));
                 // if res.is_null() {
                 //     return Ok(String::from(""));
@@ -762,8 +849,14 @@ pub fn take_nodeshot() -> Vec<Node2> {
 }
 
 pub fn get_string_test() -> String {
-    Store::proxy().get_string_test()
+    Store::proxy().get_string_test();
+    // Store::proxy().fetch_screen_node();
+    String::from("")
     // root_node().map_or(vec![], |n| n.find_all(|_| true))
+}
+
+pub fn take_nodeshot_serde() -> Vec<Arc<RefCell<Node4>>> {
+    Store::proxy().take_screen_node()
 }
 
 pub fn take_nodeshot_locally() -> Vec<Node2> {

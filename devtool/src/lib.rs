@@ -117,49 +117,49 @@ fn start() {
 
         // take_screenshot();
         // take_nodeshot_in_kotlin();
-        // let nodeshot = Store::proxy().take_nodeshot();
-        // let mail: Vec<_> = nodeshot
-        //     .iter()
-        //     .filter(|n| {
-        //         n.text().to_ascii_lowercase().contains("热点")
-        //         // n.text().to_ascii_lowercase().contains("mail")
-        //         //     || n.view_id().contains("aa")
-        //         //     || n.children().len() == 3
-        //     })
-        //     .collect();
+        let nodeshot = take_nodeshot();
+        let mail: Vec<_> = nodeshot
+            .iter()
+            .filter(|n| {
+                n.view_id().contains("热点") || n.view_id().contains("热点")
+                // n.text().to_ascii_lowercase().contains("mail")
+                //     || n.view_id().contains("aa")
+                //     || n.children().len() == 3
+            })
+            .collect();
 
         // let mail = take_nodeshot();
         // let mail = take_screenshot();
 
-        let nodeshot = take_nodeshot_serde();
-        let b: Vec<_> = nodeshot
-            .into_iter()
-            .filter(|node| {
-                node.borrow()
-                    .info
-                    .id
-                    .to_ascii_lowercase()
-                    .contains("mail111111111")
-                    || node
-                        .borrow()
-                        .info
-                        .text
-                        .to_ascii_lowercase()
-                        .contains("mail111111111")
-                    || node
-                        .borrow()
-                        .info
-                        .id
-                        .to_ascii_lowercase()
-                        .contains("mail111111111")
-                    || node
-                        .borrow()
-                        .info
-                        .text
-                        .to_ascii_lowercase()
-                        .contains("mail111111111")
-            })
-            .collect();
+        // let nodeshot = take_nodeshot_serde();
+        // let b: Vec<_> = nodeshot
+        //     .into_iter()
+        //     .filter(|node| {
+        //         node.borrow()
+        //             .info
+        //             .id
+        //             .to_ascii_lowercase()
+        //             .contains("mail111111111")
+        //             || node
+        //                 .borrow()
+        //                 .info
+        //                 .text
+        //                 .to_ascii_lowercase()
+        //                 .contains("mail111111111")
+        //             || node
+        //                 .borrow()
+        //                 .info
+        //                 .id
+        //                 .to_ascii_lowercase()
+        //                 .contains("mail111111111")
+        //             || node
+        //                 .borrow()
+        //                 .info
+        //                 .text
+        //                 .to_ascii_lowercase()
+        //                 .contains("mail111111111")
+        //     })
+        //     .collect();
 
         // wait_millis(3);
 

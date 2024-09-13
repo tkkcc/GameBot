@@ -25,7 +25,9 @@ use std::{
 use anyhow::{Error, Result};
 
 use image::{GenericImageView, ImageReader};
-use jni::objects::{AutoLocal, JByteBuffer, JString};
+use jni::descriptors::Desc;
+use jni::objects::{AutoLocal, JByteBuffer, JFieldID, JString};
+use jni::signature::ReturnType;
 // use erased_serde::Serialize;
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
 use jni::{
@@ -319,10 +321,22 @@ impl Store {
     pub fn store() -> &'static Store {
         STORE.get().unwrap()
     }
-    pub fn init(env: &JNIEnv, obj: &JObject) -> Result<()> {
+    pub fn init(env: &mut JNIEnv, obj: &JObject) -> Result<()> {
         if STORE.get().is_some() {
             return Ok(());
         }
+
+        let c = env.find_class("java/lang/String").unwrap();
+        let c = env.new_global_ref(c).unwrap();
+        // let c2: &JObject = c.as_ref();
+        let _ = STRING_CLASS.set(c);
+
+        let c = env
+            .find_class("android/view/accessibility/AccessibilityNodeInfo")
+            .unwrap();
+        let c = env.new_global_ref(c).unwrap();
+        let _ = NODE_CLASS.set(c);
+
         let vm = env.get_java_vm()?;
         let obj_ref = env.new_global_ref(obj)?;
         let _ = STORE
@@ -348,6 +362,9 @@ pub struct Proxy {
     env: JNIEnv<'static>,
     host: &'static JObject<'static>,
 }
+
+static STRING_CLASS: OnceLock<GlobalRef> = OnceLock::new();
+static NODE_CLASS: OnceLock<GlobalRef> = OnceLock::new();
 
 impl Proxy {
     fn take_screen_node(&mut self) -> Vec<Arc<RefCell<Node4>>> {
@@ -389,32 +406,57 @@ impl Proxy {
 
                 // how about do without Deserialize?
                 let count = env.get_array_length(&data_raw).unwrap();
+
+                // let obj = obj.as_ref();
+                let class = env.find_class("NodeInfo").unwrap();
+                //
+                // let field_id: JFieldID =
+                //     Desc::<JFieldID>::lookup((&class, "visible", "Z"), env).unwrap();
+
+                // let class2 = env.find_class("java/lang/String").unwrap();
+                let field_id2: JFieldID =
+                    Desc::<JFieldID>::lookup((&class, "id", "Ljava/lang/String;"), env).unwrap();
+
                 let data: Vec<Node> = (0..count)
                     .map(|i| {
                         let x = env.get_object_array_element(&data_raw, i).unwrap();
                         for j in 0..5 {
+                            // let parsed = ReturnType::Primitive(jni::signature::Primitive::Boolean);
+                            // env.get_field_unchecked(&data_raw, &field_id, parsed)
+                            //     .unwrap()
+                            //     .z()
+                            //     .unwrap();
+                            // let id: JString = env
+                            //     .get_field(&x, "id", "Ljava/lang/String;")
+                            //     .unwrap()
+                            //     .l()
+                            //     .unwrap()
+                            //     .into();
+                            // let id: String = env.get_string(&id).unwrap().into();
                             let id: JString = env
-                                .get_field(&x, "id", "Ljava/lang/String;")
+                                // .get_field(&x, "id", "Ljava/lang/String;")
+                                .get_field_unchecked(&x, &field_id2, ReturnType::Object)
                                 .unwrap()
                                 .l()
                                 .unwrap()
                                 .into();
-                            let id: String = env.get_string(&id).unwrap().into();
+                            let id: String =
+                                unsafe { env.get_string_unchecked(&id) }.unwrap().into();
                         }
                         let id: JString = env
-                            .get_field(&x, "id", "Ljava/lang/String;")
+                            // .get_field(&x, "id", "Ljava/lang/String;")
+                            .get_field_unchecked(&x, &field_id2, ReturnType::Object)
                             .unwrap()
                             .l()
                             .unwrap()
                             .into();
-                        let id: String = env.get_string(&id).unwrap().into();
+                        let id: String = unsafe { env.get_string_unchecked(&id) }.unwrap().into();
 
-                        let parent =
-                            env.get_field(&x, "parent", "I").unwrap().i().unwrap() as usize;
+                        // let parent =
+                        //     env.get_field(&x, "parent", "I").unwrap().i().unwrap() as usize;
 
                         Node {
                             id,
-                            parent,
                             ..Default::default()
                         }
                     })
@@ -683,16 +725,25 @@ impl Proxy {
     fn get_node_view_id(&mut self, node: &JObject) -> String {
         self.env
             .with_local_frame(4, |env| -> std::result::Result<String, Error> {
-                let res: JString = env
-                    .call_method(node, "getViewIdResourceName", "()Ljava/lang/String;", &[])
-                    .unwrap()
-                    .l()
-                    .unwrap()
-                    .into();
+                let class: &JClass = NODE_CLASS.get().unwrap().as_obj().into();
+                let res: JString = unsafe {
+                    env
+                        // .call_method(node, "getViewIdResourceName", "()Ljava/lang/String;", &[])
+                        .call_method_unchecked(
+                            node,
+                            (class, "getViewIdResourceName", "()Ljava/lang/String;"),
+                            ReturnType::Object,
+                            &[],
+                        )
+                }
+                .unwrap()
+                .l()
+                .unwrap()
+                .into();
                 if res.is_null() {
                     return Ok(String::from(""));
                 }
-                Ok(env.get_string(&res).unwrap().into())
+                Ok(unsafe { env.get_string_unchecked(&res) }.unwrap().into())
             })
             .unwrap()
     }
@@ -961,7 +1012,7 @@ extern "C" fn start(mut env: JNIEnv, host: JObject) {
         // let n1 = proxy.root_node().unwrap();
         // n1.find_by_id("a");
 
-        Store::init(&env, &host).unwrap();
+        Store::init(&mut env, &host).unwrap();
 
         set_status(Status::Running);
 

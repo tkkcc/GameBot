@@ -12,6 +12,7 @@ use std::cell::Cell;
 use std::i32;
 use std::sync::atomic::AtomicU32;
 use std::sync::{Arc, RwLock};
+use std::time::Instant;
 use std::{
     sync::{
         atomic::AtomicBool,
@@ -32,17 +33,19 @@ use jni::{
     JNIEnv, JavaVM,
 };
 use linux_futex::{Futex, Private};
-use mail::{
+pub use mail::{
     ColorPoint, ColorPointGroup, ColorPointGroupIn, ColorPointIn, ImageIn, IntoMilliseconds,
-    IntoSeconds, Point, Tolerance,
+    IntoSeconds, Point, Rect, Tolerance,
 };
+pub use node::NodeSelector;
 use node::{Node, Node2};
 use serde::{Deserialize, Serialize};
 use ui::CallbackValue;
 use ui::Element;
 
+pub use find_trait::Find;
+
 pub use log::error;
-pub use node::NodeSelector;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
@@ -99,17 +102,17 @@ struct ScreenNode {
 }
 
 #[derive(Default, Debug)]
-pub struct Screenshot<'a> {
+pub struct Screenshot {
     pub width: u32,
     pub height: u32,
     // pub pixel_stride: i32,
     // pub row_stride: i32,
-    pub data: &'a [u8],
+    pub data: &'static [u8],
     // pub data: Vec<u8>,
 }
 
-impl<'a> Screenshot<'a> {
-    fn find_color_point(
+impl Screenshot {
+    pub fn find_color_point(
         &self,
         &ColorPoint {
             x,
@@ -132,7 +135,7 @@ impl<'a> Screenshot<'a> {
         Some(Point { x, y })
     }
 
-    fn find_color_point_group(&self, cpg: &ColorPointGroup) -> Option<Point> {
+    pub fn find_color_point_group(&self, cpg: &ColorPointGroup) -> Option<Point> {
         if cpg.group.is_empty() {
             return None;
         }
@@ -152,11 +155,15 @@ impl<'a> Screenshot<'a> {
         Some((&cpg.group[0]).into())
     }
 
-    fn find_color_point_group_in(&self, cpg: &ColorPointGroupIn) -> Option<Point> {
+    pub fn find_color_point_group_in(&self, cpg: &ColorPointGroupIn) -> Option<Point> {
         self.find_all_color_point_group_in(cpg, 1).first().cloned()
     }
 
-    fn find_all_color_point_group_in(&self, cpg: &ColorPointGroupIn, max_num: usize) -> Vec<Point> {
+    pub fn find_all_color_point_group_in(
+        &self,
+        cpg: &ColorPointGroupIn,
+        max_num: usize,
+    ) -> Vec<Point> {
         // we visit all valid localtion: iter on delta x and y, move via color point x + delta x
         let mut ans = vec![];
         if cpg.group.is_empty() {
@@ -219,11 +226,11 @@ impl<'a> Screenshot<'a> {
         ans
     }
 
-    fn find_image_in(&self, img: &ImageIn) -> Option<Point> {
+    pub fn find_image_in(&self, img: &ImageIn) -> Option<Point> {
         self.find_all_image_in(img, 1).first().cloned()
     }
 
-    fn find_all_image_in(
+    pub fn find_all_image_in(
         &self,
         ImageIn {
             img,
@@ -302,7 +309,7 @@ impl<'a> Screenshot<'a> {
 static STATUS_TOKEN: LazyLock<Futex<Private>> =
     LazyLock::new(|| Futex::new(Status::Stopped as u32));
 
-struct Store {
+pub struct Store {
     vm: JavaVM,
     host_ref: GlobalRef,
     screen_node: ScreenNode,
@@ -312,7 +319,7 @@ impl Store {
     pub fn store() -> &'static Store {
         STORE.get().unwrap()
     }
-    fn init(env: &JNIEnv, obj: &JObject) -> Result<()> {
+    pub fn init(env: &JNIEnv, obj: &JObject) -> Result<()> {
         if STORE.get().is_some() {
             return Ok(());
         }
@@ -328,7 +335,7 @@ impl Store {
         Ok(())
     }
 
-    fn proxy() -> Proxy {
+    pub fn proxy() -> Proxy {
         let store = STORE.get().ok_or(Error::msg("Store get fail")).unwrap();
         let env = store.vm.attach_current_thread_permanently().unwrap();
         let host = store.host_ref.as_obj();
@@ -337,7 +344,7 @@ impl Store {
     }
 }
 
-struct Proxy {
+pub struct Proxy {
     env: JNIEnv<'static>,
     host: &'static JObject<'static>,
 }
@@ -464,7 +471,7 @@ impl Proxy {
             )
             .unwrap();
     }
-    fn toast2(&mut self, msg: &str) {
+    pub fn toast2(&mut self, msg: &str) {
         let msg: JObject = self.env.new_string(&msg).unwrap().into();
         let msg = self.env.auto_local(msg);
         self.env
@@ -476,60 +483,63 @@ impl Proxy {
             )
             .unwrap();
     }
-    fn take_screenshot(&mut self) -> Screenshot<'static> {
-        let screenshot: Result<Screenshot, Box<dyn std::error::Error>> =
-            self.env.with_local_frame(32, |mut env| {
-                let screenshot = env
-                    .call_method(self.host, "takeScreenshot", "()LScreenshot;", &[])
-                    .unwrap()
-                    .l()
-                    .unwrap();
-                let width = env
-                    .get_field(&screenshot, "width", "I")
-                    .unwrap()
-                    .i()
-                    .unwrap()
-                    .try_into()
-                    .unwrap();
-                let height = env
-                    .get_field(&screenshot, "height", "I")
-                    .unwrap()
-                    .i()
-                    .unwrap()
-                    .try_into()
-                    .unwrap();
-                let pixel_stride = env
-                    .get_field(&screenshot, "pixelStride", "I")
-                    .unwrap()
-                    .i()
-                    .unwrap();
-                let row_stride = env
-                    .get_field(&screenshot, "rowStride", "I")
-                    .unwrap()
-                    .i()
-                    .unwrap();
+    fn take_screenshot(&mut self) -> Screenshot {
+        self.env
+            .with_local_frame(
+                32,
+                |mut env| -> Result<Screenshot, Box<dyn std::error::Error>> {
+                    let screenshot = env
+                        .call_method(self.host, "takeScreenshot", "()LScreenshot;", &[])
+                        .unwrap()
+                        .l()
+                        .unwrap();
+                    let width = env
+                        .get_field(&screenshot, "width", "I")
+                        .unwrap()
+                        .i()
+                        .unwrap()
+                        .try_into()
+                        .unwrap();
+                    let height = env
+                        .get_field(&screenshot, "height", "I")
+                        .unwrap()
+                        .i()
+                        .unwrap()
+                        .try_into()
+                        .unwrap();
+                    // let pixel_stride = env
+                    //     .get_field(&screenshot, "pixelStride", "I")
+                    //     .unwrap()
+                    //     .i()
+                    //     .unwrap();
+                    // let row_stride = env
+                    //     .get_field(&screenshot, "rowStride", "I")
+                    //     .unwrap()
+                    //     .i()
+                    //     .unwrap();
 
-                let data: JByteBuffer = env
-                    .get_field(&screenshot, "data", "Ljava/nio/ByteBuffer;")
-                    .unwrap()
-                    .l()
-                    .unwrap()
-                    .into();
+                    let data: JByteBuffer = env
+                        .get_field(&screenshot, "data", "Ljava/nio/ByteBuffer;")
+                        .unwrap()
+                        .l()
+                        .unwrap()
+                        .into();
 
-                let addr = env.get_direct_buffer_address(&data).unwrap();
-                let capacity = env.get_direct_buffer_capacity(&data).unwrap();
-                let data = unsafe { std::slice::from_raw_parts(addr, capacity) };
-                Ok(Screenshot {
-                    width,
-                    height,
-                    // pixel_stride,
-                    // row_stride,
-                    data,
-                })
-            });
-        screenshot.unwrap()
-        // TODO memory leak ?
+                    let addr = env.get_direct_buffer_address(&data).unwrap();
+                    let capacity = env.get_direct_buffer_capacity(&data).unwrap();
+                    let data = unsafe { std::slice::from_raw_parts(addr, capacity) };
+                    Ok(Screenshot {
+                        width,
+                        height,
+                        // pixel_stride,
+                        // row_stride,
+                        data,
+                    })
+                },
+            )
+            .unwrap()
     }
+
     fn click(&mut self, x: f32, y: f32) {
         self.env
             .call_method(&self.host, "click", "(FF)V", &[x.into(), y.into()])
@@ -591,73 +601,108 @@ impl Proxy {
         }
     }
 
-    fn get_node_id(&mut self, arg: &JObject) -> String {
-        let res = self
-            .env
-            .call_method(
-                self.host,
-                "getNodeId",
-                "(Landroid/view/accessibility/AccessibilityNodeInfo;Ljava/lang/String;)V",
-                &[arg.into()], // &[arg.inner.as_ref().into()],
-            )
+    fn get_node_view_id(&mut self, node: &JObject) -> String {
+        self.env
+            .with_local_frame(32, |env| -> std::result::Result<String, Error> {
+                let res: JString = env
+                    .call_method(node, "getViewIdResourceName", "()Ljava/lang/String;", &[])
+                    .unwrap()
+                    .l()
+                    .unwrap()
+                    .into();
+                let res = env.auto_local(res);
+                if res.is_null() {
+                    return Ok(String::from(""));
+                }
+                Ok(env.get_string(&res).unwrap().into())
+            })
             .unwrap()
-            .l()
-            .unwrap();
-        "".into()
     }
 
     fn get_node_text(&mut self, node: &JObject) -> String {
-        let char_seq = self
-            .env
-            .call_method(node, "getText", "()Ljava/lang/CharSequence;", &[])
-            .unwrap()
-            .l()
-            .unwrap();
-        if char_seq.is_null() {
-            return String::new();
-        }
+        self.env
+            .with_local_frame(32, |env| -> Result<String, Box<dyn std::error::Error>> {
+                let char_seq = env
+                    .call_method(node, "getText", "()Ljava/lang/CharSequence;", &[])
+                    .unwrap()
+                    .l()
+                    .unwrap();
+                // let char_seq = self.env.auto_local(char_seq);
 
-        let s: JString = self
-            .env
-            .call_method(char_seq, "toString", "()Ljava/lang/String;", &[])
-            .unwrap()
-            .l()
-            .unwrap()
-            .into();
+                if char_seq.is_null() {
+                    return Ok(String::new());
+                }
 
-        let s = self.env.get_string(&s).unwrap().into();
+                let s: JString = env
+                    .call_method(char_seq, "toString", "()Ljava/lang/String;", &[])
+                    .unwrap()
+                    .l()
+                    .unwrap()
+                    .into();
+                // let s = self.env.auto_local(s);
 
-        s
+                Ok(env.get_string(&s).unwrap().into())
+            })
+            .unwrap()
     }
 
-    fn get_node_children(&mut self, node: &JObject) -> Vec<AutoLocal<'static, JObject<'static>>> {
+    fn get_node_children(&mut self, node: &JObject) -> Vec<Node2> {
         let child_count = self
             .env
-            .call_method(node, "getChildCount", "()I", &[])
-            .unwrap()
-            .i()
-            .unwrap() as usize;
-        let mut ans = Vec::with_capacity(child_count);
-        for i in 0..child_count {
-            let child = self
-                .env
-                .call_method(
-                    node,
-                    "getChild",
-                    "(I)Landroid/view/accessibility/AccessibilityNodeInfo;",
-                    &[(i as i32).into()],
-                )
-                .unwrap()
-                .l()
-                .unwrap();
-            ans.push(self.env.auto_local(child));
-        }
+            .with_local_frame(32, |env| -> Result<_, Error> {
+                Ok(env
+                    .call_method(node, "getChildCount", "()I", &[])
+                    .unwrap()
+                    .i()
+                    .unwrap())
+            })
+            .unwrap();
+        let ans = (0..child_count)
+            .map(|i| {
+                let child = self
+                    .env
+                    .call_method(
+                        node,
+                        "getChild",
+                        "(I)Landroid/view/accessibility/AccessibilityNodeInfo;",
+                        &[i.into()],
+                    )
+                    .unwrap()
+                    .l()
+                    .unwrap();
+                Node2(Arc::new(self.env.auto_local(child)))
+            })
+            .collect();
         ans
     }
 
     fn take_nodeshot_in_kotlin(&mut self) {
         self.env
             .call_method(&self.host, "findNodeInKotlin", "()V", &[]);
+    }
+
+    pub fn take_nodeshot_in_kotlin2(&mut self) -> Vec<Node2> {
+        let x: JObjectArray = self
+            .env
+            .call_method(
+                &self.host,
+                "takeNodeshot",
+                "()[Landroid/view/accessibility/AccessibilityNodeInfo;",
+                &[],
+            )
+            .unwrap()
+            .l()
+            .unwrap()
+            .into();
+        let len = self.env.get_array_length(&x).unwrap();
+        let ans = (0..len)
+            .map(|i| {
+                let o = self.env.get_object_array_element(&x, i).unwrap();
+                Node2(Arc::new(self.env.auto_local(o)))
+            })
+            .collect();
+        self.env.delete_local_ref(x);
+        ans
     }
 }
 
@@ -673,7 +718,7 @@ pub fn toast2(msg: &str) {
     Store::proxy().toast2(msg);
 }
 
-pub fn take_screenshot() -> Screenshot<'static> {
+pub fn take_screenshot() -> Screenshot {
     Store::proxy().take_screenshot()
 }
 pub fn click(x: f32, y: f32) {

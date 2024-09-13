@@ -1,9 +1,9 @@
-use std::{thread, time::Instant};
+use std::{any::Any, thread, time::Instant};
 
 use gamebot::{
-    self, click, click_recent, log, root_node, take_nodeshot, take_nodeshot_in_kotlin,
-    take_screenshot, toast, toast2, touch_down, touch_move, touch_up, wait_millis, wait_secs,
-    NodeSelector,
+    self, click_recent, take_nodeshot, take_screenshot, touch_down, touch_move, touch_up,
+    wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn, Find, NodeSelector,
+    Rect, Store,
 };
 use log::error;
 
@@ -60,12 +60,11 @@ fn start() {
     error!("what");
 
     click_recent();
-    wait_millis(500);
+    wait_millis(100);
     click_recent();
     wait_secs(1);
 
     // take_nodeshot();
-    let start = Instant::now();
 
     // for n in take_nodeshot() {
     //     error!("68 {:?}", start.elapsed());
@@ -76,13 +75,58 @@ fn start() {
     //     error!("69 {:?}", start.elapsed());
     // }
 
-    for i in 0..10 {
-        take_nodeshot_in_kotlin();
+    let nodeshot = take_nodeshot();
+    let screenshot = take_screenshot();
+    let nodeshot = Store::proxy().take_nodeshot_in_kotlin2();
+    let start = Instant::now();
+    // for n in &nodeshot {
+    //     if n.view_id().is_empty() {
+    //         continue;
+    //     }
+    //     error!("node view id {}", n.view_id());
+    // }
+
+    for i in (0..10000).cycle() {
         // take_nodeshot();
+        // let mut proxy = Store::proxy();
+        // proxy.toast2("msg");
+        // take_screenshot();
+        // screenshot.
+
+        // let x = ColorPointGroupIn {
+        //     group: vec![ColorPoint::default(), ColorPoint::default()],
+        //     region: Rect {
+        //         left: 0,
+        //         right: 720,
+        //         top: 0,
+        //         bottom: 1080,
+        //     },
+        //     tolerance: 0.05,
+        // };
+        // screenshot.find_all_color_point_group_in(&x, usize::MAX);
+
+        // take_screenshot();
+        // take_nodeshot_in_kotlin();
+        let nodeshot = Store::proxy().take_nodeshot_in_kotlin2();
+
+        let mail: Vec<_> = nodeshot
+            .iter()
+            .filter(|n| {
+                n.text().to_ascii_lowercase().contains("mail")
+                // n.text().to_ascii_lowercase().contains("mail")
+                //     || n.view_id().contains("aa")
+                //     || n.children().len() == 3
+            })
+            .collect();
+        if !mail.is_empty() {
+            error!("found mail");
+        }
+        wait_millis(33);
+
         // let node =
         //     NodeSelector::new(|node| node.text().to_ascii_lowercase().contains("dev")).find();
         // if let Some(node) = node {
-        error!("78,  {:?}", start.elapsed());
+        // error!("78, size:{} {:?}", nodeshot.len(), start.elapsed());
         // }
     }
     error!("{:?}", start.elapsed());

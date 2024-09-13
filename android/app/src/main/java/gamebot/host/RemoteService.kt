@@ -56,7 +56,6 @@ import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
 
-
 class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     //    val native = Native()
@@ -167,7 +166,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         val action = if (id == 0) {
             MotionEvent.ACTION_DOWN
         } else {
-            MotionEvent.ACTION_POINTER_DOWN or ((id+1) shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
+            MotionEvent.ACTION_POINTER_DOWN or ((id + 1) shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
         }
 
         val event = MotionEvent.obtain(
@@ -217,7 +216,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         val action = if (id == 0) {
             MotionEvent.ACTION_UP
         } else {
-            MotionEvent.ACTION_POINTER_UP or ((id+1) shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
+            MotionEvent.ACTION_POINTER_UP or ((id + 1) shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
         }
 
         val event = MotionEvent.obtain(
@@ -232,7 +231,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         mIm.injectInputEvent(event, 0)
         event.recycle()
     }
-
 
 
     fun keyDown(keyCode: Int) {
@@ -288,8 +286,25 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         // cached
         return screenshot
     }
+
+    fun takeNodeshot(): Array<AccessibilityNodeInfo> {
+        // sync update
+        if (isNodeshotInvalid()) {
+//            Log.e("", "sync update nodeshot")
+//            updateNodeshot()
+        } else {
+//            Log.e("","async update screenshot")
+        }
+
+        // async update
+        requestUpdateNodeshot.trySend(Unit)
+
+        // cached
+        return nodeshot
+    }
+
     fun rootNode(): AccessibilityNodeInfo? {
-       return uiAutomation.rootInActiveWindow
+        return uiAutomation.rootInActiveWindow
     }
 
     fun connectUiAutomation() {
@@ -630,8 +645,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     )
 
     val requestUpdateScreenshot = Channel<Unit>(Channel.CONFLATED)
-
-
     val screenshotTimestamp = AtomicLong(0)
     fun updateScreenshotTimestamp() {
         screenshotTimestamp.set(System.currentTimeMillis())
@@ -639,6 +652,17 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     fun isScreenshotInvalid(): Boolean {
         return (System.currentTimeMillis() - screenshotTimestamp.get()) > 100 // 15fps => 66.6ms
+    }
+
+    val requestUpdateNodeshot = Channel<Unit>(Channel.CONFLATED)
+    val nodeshotTimestamp = AtomicLong(0)
+    fun updateNodeshotTimestamp() {
+//        Log.e("","updateNodeshotTimestamp")
+        nodeshotTimestamp.set(System.currentTimeMillis())
+    }
+
+    fun isNodeshotInvalid(): Boolean {
+        return (System.currentTimeMillis() - nodeshotTimestamp.get()) > 100 // 15fps => 66.6ms
     }
 
     fun saveScreenshot(img: Image) {
@@ -667,6 +691,15 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             Log.d(TAG, "save to file $dst")
             bitmap.recycle()
         }
+    }
+
+    var nodeshot: Array<AccessibilityNodeInfo> = emptyArray()
+
+
+    @Synchronized
+    fun updateNodeshot() {
+        nodeshot = refreshScreenNode().toTypedArray()
+        updateNodeshotTimestamp()
     }
 
     @Synchronized
@@ -705,7 +738,16 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     lateinit var imageReader: ImageReader
     lateinit var display: IBinder
     lateinit var virtualDisplay: VirtualDisplay
+
     fun initDisplayProjection() {
+        uiAutomation.setOnAccessibilityEventListener {
+//            Log.e("", "741, new accessibility event")
+            runBlocking(Dispatchers.Default) {
+                requestUpdateNodeshot.receive()
+            }
+            updateNodeshot()
+        }
+
 
         val screenSize = getPhysicalDisplaySize()
         imageReaderThread.start()
@@ -779,6 +821,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
         connectUiAutomation()
 
+
         // TODO some device don't have grant binary, can we use UiAutomation's api?
 //        grantOverlayPermission()
 //        Binder.restoreCallingIdentity(token)
@@ -792,6 +835,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         refreshScreenNode()
 //        return uiAutomation.rootInActiveWindow
     }
+
 
     override fun setLocalRunBinder(binder: IBinder?) {
         localService = ILocalService.Stub.asInterface(binder)

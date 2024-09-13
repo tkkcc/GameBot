@@ -154,7 +154,7 @@ impl Find for DiskImageIn {
 }
 
 impl ColorPointGroupIn {
-    fn find_all(&self) -> Vec<Point> {
+    pub fn find_all(&self) -> Vec<Point> {
         take_screenshot().find_all_color_point_group_in(self, usize::MAX)
     }
 }

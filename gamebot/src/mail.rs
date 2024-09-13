@@ -136,6 +136,7 @@ pub struct ColorPointGroup {
     pub tolerance: f32,
 }
 
+#[derive(Default)]
 pub struct ColorPointGroupIn {
     pub group: Vec<ColorPoint>,
     pub tolerance: f32,

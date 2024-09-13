@@ -48,6 +48,8 @@ pub struct Selected(bool);
 
 #[derive(Clone, Debug)]
 pub struct Node2(pub Arc<AutoLocal<'static, JObject<'static>>>);
+#[derive(Clone, Debug)]
+pub struct Node3(pub Arc<JObject<'static>>);
 
 impl Node2 {
     pub fn find(&self, filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
@@ -56,8 +58,8 @@ impl Node2 {
     pub fn find_all(&self, filter: impl Fn(&Node2) -> bool) -> Vec<Node2> {
         find_all_node_at(self, filter)
     }
-    pub fn id(&self) -> String {
-        Store::proxy().get_node_id(self.0.as_ref())
+    pub fn view_id(&self) -> String {
+        Store::proxy().get_node_view_id(self.0.as_ref())
     }
     pub fn text(&self) -> String {
         Store::proxy().get_node_text(self.0.as_ref())
@@ -69,11 +71,7 @@ impl Node2 {
         todo!()
     }
     pub fn children(&self) -> Vec<Node2> {
-        Store::proxy()
-            .get_node_children(self.0.as_ref())
-            .into_iter()
-            .map(|x| Node2(Arc::new(x)))
-            .collect()
+        Store::proxy().get_node_children(self.0.as_ref())
     }
     pub fn is_focused(&self) -> bool {
         todo!()

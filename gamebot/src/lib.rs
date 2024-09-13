@@ -486,7 +486,7 @@ impl Proxy {
     fn take_screenshot(&mut self) -> Screenshot {
         self.env
             .with_local_frame(
-                32,
+                4,
                 |mut env| -> Result<Screenshot, Box<dyn std::error::Error>> {
                     let screenshot = env
                         .call_method(self.host, "takeScreenshot", "()LScreenshot;", &[])
@@ -603,14 +603,13 @@ impl Proxy {
 
     fn get_node_view_id(&mut self, node: &JObject) -> String {
         self.env
-            .with_local_frame(32, |env| -> std::result::Result<String, Error> {
+            .with_local_frame(4, |env| -> std::result::Result<String, Error> {
                 let res: JString = env
                     .call_method(node, "getViewIdResourceName", "()Ljava/lang/String;", &[])
                     .unwrap()
                     .l()
                     .unwrap()
                     .into();
-                let res = env.auto_local(res);
                 if res.is_null() {
                     return Ok(String::from(""));
                 }
@@ -619,9 +618,24 @@ impl Proxy {
             .unwrap()
     }
 
+    fn get_string_test(&mut self) -> String {
+        self.env
+            .with_local_frame(4, |env| -> std::result::Result<String, Error> {
+                let res = env
+                    .call_method(&self.host, "getStringTest", "()V", &[])
+                    .unwrap();
+                return Ok(String::from(""));
+                // if res.is_null() {
+                //     return Ok(String::from(""));
+                // }
+                // Ok(env.get_string(&res).unwrap().into())
+            })
+            .unwrap()
+    }
+
     fn get_node_text(&mut self, node: &JObject) -> String {
         self.env
-            .with_local_frame(32, |env| -> Result<String, Box<dyn std::error::Error>> {
+            .with_local_frame(4, |env| -> Result<String, Box<dyn std::error::Error>> {
                 let char_seq = env
                     .call_method(node, "getText", "()Ljava/lang/CharSequence;", &[])
                     .unwrap()
@@ -649,7 +663,7 @@ impl Proxy {
     fn get_node_children(&mut self, node: &JObject) -> Vec<Node2> {
         let child_count = self
             .env
-            .with_local_frame(32, |env| -> Result<_, Error> {
+            .with_local_frame(4, |env| -> Result<_, Error> {
                 Ok(env
                     .call_method(node, "getChildCount", "()I", &[])
                     .unwrap()
@@ -676,12 +690,12 @@ impl Proxy {
         ans
     }
 
-    fn take_nodeshot_in_kotlin(&mut self) {
-        self.env
-            .call_method(&self.host, "findNodeInKotlin", "()V", &[]);
-    }
+    // fn take_nodeshot_in_kotlin(&mut self) {
+    //     self.env
+    //         .call_method(&self.host, "findNodeInKotlin", "()V", &[]);
+    // }
 
-    pub fn take_nodeshot_in_kotlin2(&mut self) -> Vec<Node2> {
+    fn take_nodeshot(&mut self) -> Vec<Node2> {
         let x: JObjectArray = self
             .env
             .call_method(
@@ -701,7 +715,7 @@ impl Proxy {
                 Node2(Arc::new(self.env.auto_local(o)))
             })
             .collect();
-        self.env.delete_local_ref(x);
+        self.env.delete_local_ref(x).unwrap();
         ans
     }
 }
@@ -743,6 +757,16 @@ pub fn root_node() -> Option<Node2> {
 }
 
 pub fn take_nodeshot() -> Vec<Node2> {
+    Store::proxy().take_nodeshot()
+    // root_node().map_or(vec![], |n| n.find_all(|_| true))
+}
+
+pub fn get_string_test() -> String {
+    Store::proxy().get_string_test()
+    // root_node().map_or(vec![], |n| n.find_all(|_| true))
+}
+
+pub fn take_nodeshot_locally() -> Vec<Node2> {
     root_node().map_or(vec![], |n| n.find_all(|_| true))
 }
 
@@ -771,10 +795,6 @@ pub fn find_all_node_at(root: &Node2, filter: impl Fn(&Node2) -> bool) -> Vec<No
         }
     }
     ans
-}
-
-pub fn take_nodeshot_in_kotlin() {
-    Store::proxy().take_nodeshot_in_kotlin()
 }
 
 pub fn wait_secs(s: impl IntoSeconds) {

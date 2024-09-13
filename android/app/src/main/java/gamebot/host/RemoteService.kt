@@ -290,8 +290,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     fun takeNodeshot(): Array<AccessibilityNodeInfo> {
         // sync update
         if (isNodeshotInvalid()) {
-//            Log.e("", "sync update nodeshot")
-//            updateNodeshot()
+            Log.e("", "sync update nodeshot")
+            updateNodeshot()
         } else {
 //            Log.e("","async update screenshot")
         }
@@ -325,7 +325,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     var cacheDir: String = CACHE_DIR
 
-    fun refreshScreenNode(): List<AccessibilityNodeInfo> {
+    fun fetchScreenNode(): List<AccessibilityNodeInfo> {
         val root = uiAutomation.rootInActiveWindow
         val ans = mutableListOf<AccessibilityNodeInfo>()
         val queue = ArrayDeque<AccessibilityNodeInfo>()
@@ -344,10 +344,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         return ans
     }
 
-//    fun takeSceenNode() {
-//        val x = refreshScreenNode()
-//        val ans = uiAutomation.rootInActiveWindow.findAccessibilityNodeInfosByText("1")
-//    }
+
 
     @Serializable
     data class Rect(
@@ -540,7 +537,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     var byteBuffer = ByteBuffer.allocateDirect(0)
 
-    fun refreshScreenshot() {
+    @Deprecated("slower than display projection way")
+    fun updateScreenshotByUiAutomation() {
 
         val startTime = System.currentTimeMillis()
         //        Log.d(
@@ -698,7 +696,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     @Synchronized
     fun updateNodeshot() {
-        nodeshot = refreshScreenNode().toTypedArray()
+        nodeshot = fetchScreenNode().toTypedArray()
         updateNodeshotTimestamp()
     }
 
@@ -832,8 +830,13 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 
     fun findNodeInKotlin() {
-        refreshScreenNode()
+        fetchScreenNode()
 //        return uiAutomation.rootInActiveWindow
+    }
+
+    fun getStringTest(){
+//        return null
+//        return "83332334214"
     }
 
 
@@ -852,6 +855,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         this.javaClass.declaredMethods.forEach {
             Log.e("", "790 ${it}")
         }
+
 
 //        thread {
 ////            sleep(1000)

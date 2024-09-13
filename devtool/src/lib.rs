@@ -1,9 +1,9 @@
-use std::{any::Any, thread, time::Instant};
+use std::time::Instant;
 
 use gamebot::{
-    self, click_recent, take_nodeshot, take_screenshot, touch_down, touch_move, touch_up,
-    wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn, Find, NodeSelector,
-    Rect, Store,
+    self, click_recent, find_all_node_at, get_string_test, root_node, take_nodeshot,
+    take_screenshot, touch_down, touch_move, touch_up, wait_millis, wait_secs, ColorPoint,
+    ColorPointGroup, ColorPointGroupIn, Find, NodeSelector, Rect, Store,
 };
 use log::error;
 
@@ -77,7 +77,8 @@ fn start() {
 
     let nodeshot = take_nodeshot();
     let screenshot = take_screenshot();
-    let nodeshot = Store::proxy().take_nodeshot_in_kotlin2();
+    // let nodeshot = Store::proxy().take_nodeshot();
+    error!("start");
     let start = Instant::now();
     // for n in &nodeshot {
     //     if n.view_id().is_empty() {
@@ -86,7 +87,7 @@ fn start() {
     //     error!("node view id {}", n.view_id());
     // }
 
-    for i in (0..10000).cycle() {
+    for i in (0..10) {
         // take_nodeshot();
         // let mut proxy = Store::proxy();
         // proxy.toast2("msg");
@@ -103,28 +104,47 @@ fn start() {
         //     },
         //     tolerance: 0.05,
         // };
+        // x.find_all();
         // screenshot.find_all_color_point_group_in(&x, usize::MAX);
 
         // take_screenshot();
         // take_nodeshot_in_kotlin();
-        let nodeshot = Store::proxy().take_nodeshot_in_kotlin2();
+        // let nodeshot = Store::proxy().take_nodeshot();
 
-        let mail: Vec<_> = nodeshot
-            .iter()
-            .filter(|n| {
-                n.text().to_ascii_lowercase().contains("mail")
-                // n.text().to_ascii_lowercase().contains("mail")
-                //     || n.view_id().contains("aa")
-                //     || n.children().len() == 3
-            })
-            .collect();
-        if !mail.is_empty() {
-            error!("found mail");
-        }
-        wait_millis(33);
+        // let mail: Vec<_> = nodeshot
+        //     .iter()
+        //     .filter(|n| {
+        //         n.text().to_ascii_lowercase().contains("mail")
+        //         // n.text().to_ascii_lowercase().contains("mail")
+        //         //     || n.view_id().contains("aa")
+        //         //     || n.children().len() == 3
+        //     })
+        //     .collect();
 
-        // let node =
-        //     NodeSelector::new(|node| node.text().to_ascii_lowercase().contains("dev")).find();
+        // let mail = take_nodeshot();
+        // let mail = take_screenshot();
+        
+        find_all_node_at(&root_node().unwrap(), |node| {
+            node.view_id()
+                .to_ascii_lowercase()
+                .contains("mail111111111")
+        });
+
+        // let mail = NodeSelector::new(|node| {
+        //     node.view_id()
+        //         .to_ascii_lowercase()
+        //         .contains("mail111111111")
+        // })
+        // .find();
+
+        // let mail = NodeSelector::new(|node| get_string_test().is_empty()).find_all();
+
+        // let mail = NodeSelector::new(|node| true).find_all();
+
+        // if mail.is_some() {
+        //     error!("found mail");
+        // }
+        // wait_millis(33);
         // if let Some(node) = node {
         // error!("78, size:{} {:?}", nodeshot.len(), start.elapsed());
         // }

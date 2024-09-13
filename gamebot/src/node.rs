@@ -3,7 +3,7 @@ use std::sync::Arc;
 use jni::objects::{AutoLocal, JObject};
 use serde::Deserialize;
 
-use crate::{find_all_node_at, find_node_at, mail::Rect, root_node, Store};
+use crate::{find_all_node_at, find_node_at, mail::Rect, root_node, take_nodeshot, Store};
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
@@ -92,9 +92,11 @@ impl NodeSelector {
         }
     }
     pub fn find(&self) -> Option<Node2> {
-        root_node().and_then(|n| find_node_at(&n, &self.filter))
+        take_nodeshot().into_iter().find(&self.filter)
+        // root_node().and_then(|n| find_node_at(&n, &self.filter))
     }
     pub fn find_all(&self) -> Vec<Node2> {
-        root_node().map_or(vec![], |n| find_all_node_at(&n, &self.filter))
+        take_nodeshot().into_iter().filter(&self.filter).collect()
+        // root_node().map_or(vec![], |n| find_all_node_at(&n, &self.filter))
     }
 }

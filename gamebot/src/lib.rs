@@ -404,38 +404,32 @@ impl Proxy {
                 // most time consuming part
                 // let data: Vec<Node> = serde_json::from_slice(&data).unwrap();
 
-                // how about do without Deserialize?
+                // how about do without Deserialize: slightly slower
                 let count = env.get_array_length(&data_raw).unwrap();
-
-                // let obj = obj.as_ref();
-                let class = env.find_class("NodeInfo").unwrap();
-                //
-                // let field_id: JFieldID =
-                //     Desc::<JFieldID>::lookup((&class, "visible", "Z"), env).unwrap();
-
-                // let class2 = env.find_class("java/lang/String").unwrap();
-                let field_id2: JFieldID =
-                    Desc::<JFieldID>::lookup((&class, "id", "Ljava/lang/String;"), env).unwrap();
-
+                static FIELD_ID2: OnceLock<JFieldID> = OnceLock::new();
+                let field_id2 = FIELD_ID2.get_or_init(|| {
+                    error!("init field2");
+                    let class = env.find_class("NodeInfo").unwrap();
+                    let field_id2: JFieldID =
+                        Desc::<JFieldID>::lookup((&class, "id", "Ljava/lang/String;"), env)
+                            .unwrap();
+                    field_id2
+                });
+                static FIELD_ID3: OnceLock<JFieldID> = OnceLock::new();
+                let field_id3 = FIELD_ID2.get_or_init(|| {
+                    error!("init field3");
+                    let class = env.find_class("NodeInfo").unwrap();
+                    let field_id2: JFieldID =
+                        Desc::<JFieldID>::lookup((&class, "focusable", "Z"), env).unwrap();
+                    field_id2
+                });
                 let data: Vec<Node> = (0..count)
                     .map(|i| {
                         let x = env.get_object_array_element(&data_raw, i).unwrap();
-                        for j in 0..5 {
-                            // let parsed = ReturnType::Primitive(jni::signature::Primitive::Boolean);
-                            // env.get_field_unchecked(&data_raw, &field_id, parsed)
-                            //     .unwrap()
-                            //     .z()
-                            //     .unwrap();
-                            // let id: JString = env
-                            //     .get_field(&x, "id", "Ljava/lang/String;")
-                            //     .unwrap()
-                            //     .l()
-                            //     .unwrap()
-                            //     .into();
-                            // let id: String = env.get_string(&id).unwrap().into();
+                        for j in 0..4 {
                             let id: JString = env
                                 // .get_field(&x, "id", "Ljava/lang/String;")
-                                .get_field_unchecked(&x, &field_id2, ReturnType::Object)
+                                .get_field_unchecked(&x, field_id2, ReturnType::Object)
                                 .unwrap()
                                 .l()
                                 .unwrap()
@@ -443,9 +437,20 @@ impl Proxy {
                             let id: String =
                                 unsafe { env.get_string_unchecked(&id) }.unwrap().into();
                         }
+                        for j in 0..4 {
+                            let id = env
+                                .get_field_unchecked(
+                                    &x,
+                                    field_id3,
+                                    ReturnType::Primitive(jni::signature::Primitive::Boolean),
+                                )
+                                .unwrap()
+                                .z()
+                                .unwrap();
+                        }
                         let id: JString = env
                             // .get_field(&x, "id", "Ljava/lang/String;")
-                            .get_field_unchecked(&x, &field_id2, ReturnType::Object)
+                            .get_field_unchecked(&x, field_id2, ReturnType::Object)
                             .unwrap()
                             .l()
                             .unwrap()

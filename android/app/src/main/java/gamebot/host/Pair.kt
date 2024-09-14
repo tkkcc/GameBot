@@ -3,6 +3,7 @@ import android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.nio.ByteBuffer
+
 @Serializable
 data class Rect(
     val left: UInt,
@@ -38,9 +39,11 @@ data class NodeInfo(
         fun from(node: AccessibilityNodeInfo): NodeInfo {
             val nodeInfo = NodeInfo(
                 id = node.viewIdResourceName ?: "",
-                className = (node.className ?: "").toString(),
-                packageName = (node.packageName ?: "").toString(),
-                text = (node.text ?: "").toString()
+                className = (node.viewIdResourceName ?: "").toString(),
+                packageName = (node.viewIdResourceName ?: "").toString(),
+                description = (node.viewIdResourceName ?: "").toString(),
+                text = (node.viewIdResourceName ?: "").toString(),
+//                text = (node.text ?: "").toString()
             )
             if (false && nodeInfo.text.contains("Gallery")) {
                 node.performAction(ACTION_CLICK)

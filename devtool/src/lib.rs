@@ -117,21 +117,23 @@ fn start() {
 
         // take_screenshot();
         // take_nodeshot_in_kotlin();
-        let nodeshot = take_nodeshot();
-        let mail: Vec<_> = nodeshot
-            .iter()
-            .filter(|n| {
-                n.view_id().contains("热点") || n.view_id().contains("热点")
-                // n.text().to_ascii_lowercase().contains("mail")
-                //     || n.view_id().contains("aa")
-                //     || n.children().len() == 3
-            })
-            .collect();
+        // let nodeshot = take_nodeshot();
+        // let mail: Vec<_> = nodeshot
+        //     .iter()
+        //     .filter(|n| {
+        //         get_string_test().is_empty()
+        //         // n.view_id().contains("热点") || n.view_id().contains("热点")
+        //         // n.text().to_ascii_lowercase().contains("mail")
+        //         //     || n.view_id().contains("aa")
+        //         //     || n.children().len() == 3
+        //     })
+        //     .collect();
 
         // let mail = take_nodeshot();
         // let mail = take_screenshot();
 
-        // let nodeshot = take_nodeshot_serde();
+        let nodeshot = take_nodeshot_serde();
+
         // let b: Vec<_> = nodeshot
         //     .into_iter()
         //     .filter(|node| {

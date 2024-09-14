@@ -166,6 +166,7 @@ dependencies {
     implementation(libs.rootService)
     implementation("com.jakewharton.threetenabp:threetenabp:1.4.6")
     implementation(libs.serialization.json)
+    implementation(libs.serialization.cbor)
     implementation(libs.compose.navigation)
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.extended)

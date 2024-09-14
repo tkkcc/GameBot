@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use gamebot::{
-    self, click_recent, find_all_node_at, get_string_test, root_node, take_nodeshot,
+    self, click_recent, d, find_all_node_at, get_string_test, root_node, take_nodeshot,
     take_nodeshot_serde, take_screenshot, touch_down, touch_move, touch_up, wait_millis, wait_secs,
     ColorPoint, ColorPointGroup, ColorPointGroupIn, Find, NodeSelector, Rect, Store,
 };
@@ -78,8 +78,10 @@ fn start() {
     let nodeshot = take_nodeshot();
     let screenshot = take_screenshot();
     let nodeshot = take_nodeshot_serde();
+
+    d!(nodeshot.len());
+
     // let nodeshot = Store::proxy().take_nodeshot();
-    error!("start");
     let start = Instant::now();
     // for n in &nodeshot {
     //     if n.view_id().is_empty() {

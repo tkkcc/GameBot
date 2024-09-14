@@ -54,13 +54,13 @@ pub fn add(left: usize, right: usize) -> usize {
 }
 
 #[macro_export]
-macro_rules! log {
+macro_rules! d {
     // NOTE: We cannot use `concat!` to make a static string as a format argument
     // of `eprintln!` because `file!` could contain a `{` or
     // `$val` expression could be a block (`{ .. }`), in which case the `eprintln!`
     // will be malformed.
     () => {
-        $crate::error!("[{}:{}:{}]", $crate::file!(), $crate::line!(), $crate::column!())
+        $crate::error!("[{}:{}:{}]", file!(), line!(), column!())
     };
     ($val:expr $(,)?) => {
         // Use of `match` here is intentional because it affects the lifetimes
@@ -74,7 +74,7 @@ macro_rules! log {
         }
     };
     ($($val:expr),+ $(,)?) => {
-        ($($crate::log!($val)),+,)
+        ($($crate::d!($val)),+,)
     };
 }
 
@@ -380,12 +380,12 @@ impl Proxy {
                     .l()
                     .unwrap()
                     .into();
-                let data_raw: JObjectArray = env
-                    .get_field(&obj, "data_raw", "[LNodeInfo;")
-                    .unwrap()
-                    .l()
-                    .unwrap()
-                    .into();
+                // let data_raw: JObjectArray = env
+                //     .get_field(&obj, "data_raw", "[LNodeInfo;")
+                //     .unwrap()
+                //     .l()
+                //     .unwrap()
+                //     .into();
                 let reference: JObjectArray = env
                     .get_field(
                         &obj,
@@ -402,70 +402,71 @@ impl Proxy {
                 let data = unsafe { std::slice::from_raw_parts(addr, capacity) };
 
                 // most time consuming part
-                // let data: Vec<Node> = serde_json::from_slice(&data).unwrap();
+                let data: Vec<Node> = serde_json::from_slice(&data).unwrap();
+                // let data: Vec<Node> = serde_cbor::from_slice(&data).unwrap();
 
                 // how about do without Deserialize: slightly slower
-                let count = env.get_array_length(&data_raw).unwrap();
-                static FIELD_ID2: OnceLock<JFieldID> = OnceLock::new();
-                let field_id2 = FIELD_ID2.get_or_init(|| {
-                    error!("init field2");
-                    let class = env.find_class("NodeInfo").unwrap();
-                    let field_id2: JFieldID =
-                        Desc::<JFieldID>::lookup((&class, "id", "Ljava/lang/String;"), env)
-                            .unwrap();
-                    field_id2
-                });
-                static FIELD_ID3: OnceLock<JFieldID> = OnceLock::new();
-                let field_id3 = FIELD_ID2.get_or_init(|| {
-                    error!("init field3");
-                    let class = env.find_class("NodeInfo").unwrap();
-                    let field_id2: JFieldID =
-                        Desc::<JFieldID>::lookup((&class, "focusable", "Z"), env).unwrap();
-                    field_id2
-                });
-                let data: Vec<Node> = (0..count)
-                    .map(|i| {
-                        let x = env.get_object_array_element(&data_raw, i).unwrap();
-                        for j in 0..4 {
-                            let id: JString = env
-                                // .get_field(&x, "id", "Ljava/lang/String;")
-                                .get_field_unchecked(&x, field_id2, ReturnType::Object)
-                                .unwrap()
-                                .l()
-                                .unwrap()
-                                .into();
-                            let id: String =
-                                unsafe { env.get_string_unchecked(&id) }.unwrap().into();
-                        }
-                        for j in 0..4 {
-                            let id = env
-                                .get_field_unchecked(
-                                    &x,
-                                    field_id3,
-                                    ReturnType::Primitive(jni::signature::Primitive::Boolean),
-                                )
-                                .unwrap()
-                                .z()
-                                .unwrap();
-                        }
-                        let id: JString = env
-                            // .get_field(&x, "id", "Ljava/lang/String;")
-                            .get_field_unchecked(&x, field_id2, ReturnType::Object)
-                            .unwrap()
-                            .l()
-                            .unwrap()
-                            .into();
-                        let id: String = unsafe { env.get_string_unchecked(&id) }.unwrap().into();
-
-                        // let parent =
-                        //     env.get_field(&x, "parent", "I").unwrap().i().unwrap() as usize;
-
-                        Node {
-                            id,
-                            ..Default::default()
-                        }
-                    })
-                    .collect();
+                // let count = env.get_array_length(&data_raw).unwrap();
+                // static FIELD_ID2: OnceLock<JFieldID> = OnceLock::new();
+                // let field_id2 = FIELD_ID2.get_or_init(|| {
+                //     error!("init field2");
+                //     let class = env.find_class("NodeInfo").unwrap();
+                //     let field_id2: JFieldID =
+                //         Desc::<JFieldID>::lookup((&class, "id", "Ljava/lang/String;"), env)
+                //             .unwrap();
+                //     field_id2
+                // });
+                // static FIELD_ID3: OnceLock<JFieldID> = OnceLock::new();
+                // let field_id3 = FIELD_ID2.get_or_init(|| {
+                //     error!("init field3");
+                //     let class = env.find_class("NodeInfo").unwrap();
+                //     let field_id2: JFieldID =
+                //         Desc::<JFieldID>::lookup((&class, "focusable", "Z"), env).unwrap();
+                //     field_id2
+                // });
+                // let data: Vec<Node> = (0..count)
+                //     .map(|i| {
+                //         let x = env.get_object_array_element(&data_raw, i).unwrap();
+                //         for j in 0..4 {
+                //             let id: JString = env
+                //                 // .get_field(&x, "id", "Ljava/lang/String;")
+                //                 .get_field_unchecked(&x, field_id2, ReturnType::Object)
+                //                 .unwrap()
+                //                 .l()
+                //                 .unwrap()
+                //                 .into();
+                //             let id: String =
+                //                 unsafe { env.get_string_unchecked(&id) }.unwrap().into();
+                //         }
+                //         for j in 0..4 {
+                //             let id = env
+                //                 .get_field_unchecked(
+                //                     &x,
+                //                     field_id3,
+                //                     ReturnType::Primitive(jni::signature::Primitive::Boolean),
+                //                 )
+                //                 .unwrap()
+                //                 .z()
+                //                 .unwrap();
+                //         }
+                //         let id: JString = env
+                //             // .get_field(&x, "id", "Ljava/lang/String;")
+                //             .get_field_unchecked(&x, field_id2, ReturnType::Object)
+                //             .unwrap()
+                //             .l()
+                //             .unwrap()
+                //             .into();
+                //         let id: String = unsafe { env.get_string_unchecked(&id) }.unwrap().into();
+                //
+                //         // let parent =
+                //         //     env.get_field(&x, "parent", "I").unwrap().i().unwrap() as usize;
+                //
+                //         Node {
+                //             id,
+                //             ..Default::default()
+                //         }
+                //     })
+                //     .collect();
 
                 let data: Vec<Arc<RefCell<Node4>>> = data
                     .into_iter()

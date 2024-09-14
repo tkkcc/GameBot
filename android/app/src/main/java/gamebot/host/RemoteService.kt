@@ -41,6 +41,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.cbor.Cbor
+import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
@@ -138,6 +140,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             Json.encodeToStream(info, stream)
             val buf = ByteBuffer.allocateDirect(stream.size())
             buf.put(stream.toByteArray())
+
+
+//            val byteArray = Cbor.encodeToByteArray(info)
+//            val buf = ByteBuffer.allocateDirect(byteArray.size)
+//            buf.put(byteArray)
+
             screenNodeCache = ScreenNode(buf, info.toTypedArray(), infoRef.toTypedArray())
         }
 //        ByteBuffer.allocateDirect()

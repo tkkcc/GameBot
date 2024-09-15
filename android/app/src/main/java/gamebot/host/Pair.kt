@@ -60,9 +60,9 @@ data class NodeInfo(
     }
 }
 
-data class ScreenNode(
+data class Nodeshot(
     val data: ByteBuffer,
-    val data_raw: Array<NodeInfo>,
+//    val data_raw: Array<NodeInfo>,
     val reference: Array<AccessibilityNodeInfo>
 )
 

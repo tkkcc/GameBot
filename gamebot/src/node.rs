@@ -8,7 +8,7 @@ use std::{
 use jni::objects::{AutoLocal, GlobalRef, JObject};
 use serde::{Deserialize, Serialize};
 
-use crate::{find_all_node_at, find_node_at, mail::Rect, take_nodeshot, Store, NODE_ACTION_CLICK};
+use crate::{mail::Rect, take_nodeshot, Store, NODE_ACTION_CLICK};
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
@@ -56,10 +56,29 @@ impl Deref for ANode {
 
 impl ANode {
     pub fn find(&self, filter: impl Fn(&Node) -> bool) -> Option<ANode> {
-        find_node_at(self.clone(), filter)
+        let mut stack = vec![self.clone()];
+        while !stack.is_empty() {
+            for node in std::mem::take(&mut stack) {
+                if filter(&node) {
+                    return Some(node);
+                }
+                stack.extend(node.children());
+            }
+        }
+        None
     }
     pub fn find_all(&self, filter: impl Fn(&Node) -> bool) -> Vec<ANode> {
-        find_all_node_at(self.clone(), filter)
+        let mut ans = vec![];
+        let mut stack = vec![self.clone()];
+        while !stack.is_empty() {
+            for node in std::mem::take(&mut stack) {
+                if filter(&node) {
+                    ans.push(node.clone());
+                }
+                stack.extend(node.children());
+            }
+        }
+        ans
     }
     pub fn parent(&self) -> Option<ANode> {
         self.parent.borrow().upgrade().map(|x| ANode(x))

@@ -371,7 +371,7 @@ impl Proxy {
         self.env
             .with_local_frame(32, |env| -> std::result::Result<_, Error> {
                 let ans = env
-                    .call_method(&self.host, "takeNodeshotSerde", "()LScreenNode;", &[])
+                    .call_method(&self.host, "takeNodeshotSerde", "()LNodeshot;", &[])
                     .unwrap();
                 let obj = ans.l().unwrap();
                 let data: JByteBuffer = env
@@ -642,11 +642,6 @@ pub fn click_recent() {
     Store::proxy().click_recent();
 }
 
-// find node from root
-// pub fn root_node() -> Option<Node2> {
-//     Store::proxy().root_node().map(|n| Node2(Arc::new(n)))
-// }
-
 pub fn take_nodeshot() -> Vec<ANode> {
     // Store::proxy().take_nodeshot()
     Store::proxy().take_nodeshot_serde()
@@ -658,42 +653,6 @@ pub fn get_string_test() -> String {
     // Store::proxy().fetch_screen_node();
     String::from("")
     // root_node().map_or(vec![], |n| n.find_all(|_| true))
-}
-
-pub fn take_nodeshot_serde() -> Vec<ANode> {
-    Store::proxy().take_nodeshot_serde()
-}
-
-// pub fn take_nodeshot_locally() -> Vec<Node2> {
-//     root_node().map_or(vec![], |n| n.find_all(|_| true))
-// }
-
-// pub type ANode = Arc<Node>;
-pub fn find_node_at(root: ANode, filter: impl Fn(&Node) -> bool) -> Option<ANode> {
-    let mut stack = vec![root.clone()];
-    while !stack.is_empty() {
-        for root in std::mem::take(&mut stack) {
-            if filter(&root) {
-                return Some(root);
-            }
-            stack.extend(root.children());
-        }
-    }
-    None
-}
-
-pub fn find_all_node_at(root: ANode, filter: impl Fn(&Node) -> bool) -> Vec<ANode> {
-    let mut ans = vec![];
-    let mut stack = vec![root.clone()];
-    while !stack.is_empty() {
-        for root in std::mem::take(&mut stack) {
-            if filter(&root) {
-                ans.push(root.clone());
-            }
-            stack.extend(root.children());
-        }
-    }
-    ans
 }
 
 pub fn wait_secs(s: impl IntoSeconds) {

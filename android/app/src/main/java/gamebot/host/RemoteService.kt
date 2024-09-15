@@ -124,29 +124,40 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //                return Pair(pair.first, ArrayList(pair.second))
 //            }
 
-    var screenNodeCache: ScreenNode? = null
+    var nodeshotSerdeCache: Nodeshot = Nodeshot(ByteBuffer.allocateDirect(0), emptyArray())
+
+    @Synchronized
     @OptIn(ExperimentalSerializationApi::class)
-    fun takeNodeshotSerde(): ScreenNode {
-        if (screenNodeCache == null) {
-            val (info, infoRef) = takeNodeshotRaw()
+    fun updateNodeshotSerde() {
+        val (info, infoRef) = takeNodeshotRaw()
+//            Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
 
-            Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
+        val stream = ByteArrayOutputStream()
+        Json.encodeToStream(info, stream)
+        val buf = ByteBuffer.allocateDirect(stream.size())
+        buf.put(stream.toByteArray())
 
-            val stream = ByteArrayOutputStream()
-            Json.encodeToStream(info, stream)
-            val buf = ByteBuffer.allocateDirect(stream.size())
-            buf.put(stream.toByteArray())
-
-
-//            val byteArray = Cbor.encodeToByteArray(info)
-//            val buf = ByteBuffer.allocateDirect(byteArray.size)
-//            buf.put(byteArray)
-
-            screenNodeCache = ScreenNode(buf, info.toTypedArray(), infoRef.toTypedArray())
-        }
-//        ByteBuffer.allocateDirect()
-        return screenNodeCache!!
+        nodeshotSerdeCache = Nodeshot(buf, infoRef.toTypedArray())
+        updateNodeshotTimestamp()
     }
+
+    fun takeNodeshotSerde(): Nodeshot {
+        // sync update
+        if (isNodeshotInvalid()) {
+            Log.e("", "sync update nodeshot serde")
+            updateNodeshotSerde()
+        } else {
+//            Log.e("","async update screenshot")
+        }
+
+        // async update
+        requestUpdateNodeshot.trySend(Unit)
+
+        // cached
+        return nodeshotSerdeCache
+    }
+
+
 //    val screenNodeCache2 : ByteBuffer? = null
 //    fun takeScreenNode2(): ByteBuffer {
 //        if (screenNode2Cache2==null) {
@@ -329,7 +340,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         requestUpdateNodeshot.trySend(Unit)
 
         // cached
-        return nodeshot
+        return nodeshotCache
     }
 
     fun rootNode(): AccessibilityNodeInfo? {
@@ -374,10 +385,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
 
-
-
-
-
     @OptIn(ExperimentalSerializationApi::class)
     fun takeNodeshotRaw(): Pair<List<NodeInfo>, List<AccessibilityNodeInfo>> {
         val root = uiAutomation.rootInActiveWindow
@@ -420,10 +427,11 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             Log.e("findRoot", "findRoot ${System.currentTimeMillis() - start}ms")
             start = System.currentTimeMillis()
 //            val out = window.findAccessibilityNodeInfosByText("1")
-            val out = takeNodeshotSerde()
+            val out = updateNodeshotSerde()
             val jsonans = Json.encodeToString(out)
             Log.e(
-                "findText", "findText ${System.currentTimeMillis() - start}ms, ${out.data.capacity()} ${
+                "findText",
+                "findText ${System.currentTimeMillis() - start}ms,  ${
                     jsonans
                 }"
             )
@@ -670,12 +678,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
-    var nodeshot: Array<AccessibilityNodeInfo> = emptyArray()
+    var nodeshotCache: Array<AccessibilityNodeInfo> = emptyArray()
 
 
     @Synchronized
     fun updateNodeshot() {
-        nodeshot = fetchScreenNode().toTypedArray()
+        nodeshotCache = fetchScreenNode().toTypedArray()
         updateNodeshotTimestamp()
     }
 
@@ -722,7 +730,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             runBlocking(Dispatchers.Default) {
                 requestUpdateNodeshot.receive()
             }
-            updateNodeshot()
+            updateNodeshotSerde()
         }
 
 
@@ -835,7 +843,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             Log.e("", "790 ${it}")
         }
 
-        ScreenNode::class.declaredMembers.forEach {
+        Nodeshot::class.declaredMembers.forEach {
             Log.e("", "791 ${it}")
 
         }

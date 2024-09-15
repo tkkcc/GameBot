@@ -1,9 +1,9 @@
 use std::time::Instant;
 
 use gamebot::{
-    self, click_recent, d, find_all_node_at, get_string_test, root_node, take_nodeshot,
-    take_nodeshot_serde, take_screenshot, touch_down, touch_move, touch_up, wait_millis, wait_secs,
-    ColorPoint, ColorPointGroup, ColorPointGroupIn, Find, NodeSelector, Rect, Store,
+    self, click_recent, d, take_nodeshot, take_nodeshot_serde, take_screenshot, touch_down,
+    touch_move, touch_up, wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn,
+    NodeSelector, Rect,
 };
 use log::error;
 
@@ -134,7 +134,7 @@ fn start() {
         // let mail = take_nodeshot();
         // let mail = take_screenshot();
 
-        let nodeshot = take_nodeshot_serde();
+        // let nodeshot = take_nodeshot_serde();
 
         // let b: Vec<_> = nodeshot
         //     .into_iter()
@@ -174,16 +174,17 @@ fn start() {
         //         .contains("mail111111111")
         // });
 
-        // let mail = NodeSelector::new(|node| {
-        //     node.view_id().contains("免费")
-        //     //     || node.text().to_ascii_lowercase().contains("mail111111111")
-        //     //     || node
-        //     //         .view_id()
-        //     //         .to_ascii_lowercase()
-        //     //         .contains("mail111111111")
-        //     //     || node.text().to_ascii_lowercase().contains("mail111111111")
-        // })
-        // .find_all();
+        let mail = NodeSelector::new(|n| n.clickable && !n.id.is_empty()).find_all();
+        // if let Some(n) = mail.find() {
+        for n in mail {
+            d!(&n.text, &n.id, &n.clickable, &n.class);
+            if n.id.eq("com.android.settings:id/search") {
+                n.click();
+            }
+            // n.click();
+            // break;
+        }
+        // }
 
         // let mail = NodeSelector::new(|node| get_string_test().is_empty()).find_all();
 

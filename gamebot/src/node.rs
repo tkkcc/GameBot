@@ -1,9 +1,14 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{
+    borrow::Borrow,
+    cell::RefCell,
+    ops::Deref,
+    sync::{Arc, Weak},
+};
 
-use jni::objects::{AutoLocal, JObject};
+use jni::objects::{AutoLocal, GlobalRef, JObject};
 use serde::{Deserialize, Serialize};
 
-use crate::{find_all_node_at, find_node_at, mail::Rect, root_node, take_nodeshot, Store};
+use crate::{find_all_node_at, find_node_at, mail::Rect, take_nodeshot, Store, NODE_ACTION_CLICK};
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
@@ -28,84 +33,66 @@ pub struct Node {
     pub enabled: bool,
     pub focused: bool,
     pub selected: bool,
-    pub parent: usize,
-    pub children: Vec<usize>,
+    pub parent_idx: usize,
+    pub children_idx: Vec<usize>,
+    #[serde(skip)]
+    pub(crate) parent: RefCell<Weak<Node>>,
+    #[serde(skip)]
+    pub(crate) children: RefCell<Vec<ANode>>,
+    #[serde(skip)]
+    pub(crate) obj: RefCell<Option<GlobalRef>>,
 }
 
-#[derive(Default)]
-pub struct Node4 {
-    pub info: Node,
-    pub parent: Option<Arc<RefCell<Node4>>>,
-    pub children: Vec<Arc<RefCell<Node4>>>,
+#[derive(Clone)]
+pub struct ANode(pub Arc<Node>);
+
+impl Deref for ANode {
+    type Target = Arc<Node>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-// pub struct Id(String);
-// pub struct Region(Rect);
-// pub struct Text(Rect);
-// pub struct Class(Rect);
-// pub struct Package(Rect);
-// pub struct Description(Rect);
-// pub struct Checkable(bool);
-// pub struct Clickable(bool);
-// pub struct LongClickable(bool);
-// pub struct Focusable(bool);
-// pub struct Visible(bool);
-// pub struct Checked(bool);
-// pub struct Enabled(bool);
-// pub struct Focused(bool);
-// pub struct Selected(bool);
-
-#[derive(Clone, Debug)]
-pub struct Node2(pub Arc<AutoLocal<'static, JObject<'static>>>);
-// #[derive(Clone, Debug)]
-// pub struct Node3(pub Arc<JObject<'static>>);
-
-impl Node2 {
-    pub fn find(&self, filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
-        find_node_at(self, filter)
+impl ANode {
+    pub fn find(&self, filter: impl Fn(&Node) -> bool) -> Option<ANode> {
+        find_node_at(self.clone(), filter)
     }
-    pub fn find_all(&self, filter: impl Fn(&Node2) -> bool) -> Vec<Node2> {
-        find_all_node_at(self, filter)
+    pub fn find_all(&self, filter: impl Fn(&Node) -> bool) -> Vec<ANode> {
+        find_all_node_at(self.clone(), filter)
     }
-    pub fn view_id(&self) -> String {
-        Store::proxy().get_node_view_id(self.0.as_ref())
+    pub fn parent(&self) -> Option<ANode> {
+        self.parent.borrow().upgrade().map(|x| ANode(x))
     }
-    pub fn text(&self) -> String {
-        Store::proxy().get_node_text(self.0.as_ref())
+    pub fn children(&self) -> Vec<ANode> {
+        self.children.borrow().iter().map(|x| x.clone()).collect()
     }
-    pub fn region(&self) -> Rect {
-        todo!()
-    }
-    pub fn parent(&self) -> Option<Node2> {
-        todo!()
-    }
-    pub fn children(&self) -> Vec<Node2> {
-        Store::proxy().get_node_children(self.0.as_ref())
-    }
-    pub fn is_focused(&self) -> bool {
-        todo!()
-    }
-    pub fn is_focusable(&self) -> bool {
-        todo!()
+    pub fn click(&self) {
+        let obj = self.obj.borrow();
+        let obj: &JObject = obj.as_ref().unwrap();
+        Store::proxy().node_action(obj, NODE_ACTION_CLICK);
     }
 }
 
 pub struct NodeSelector {
-    pub filter: Box<dyn Fn(&Node2) -> bool>,
+    pub filter: Box<dyn Fn(&Node) -> bool>,
 }
 
 impl NodeSelector {
-    pub fn new(filter: impl Fn(&Node2) -> bool + 'static) -> Self {
+    pub fn new(filter: impl Fn(&Node) -> bool + 'static) -> Self {
         NodeSelector {
             filter: Box::new(filter),
         }
     }
-    pub fn find(&self) -> Option<Node2> {
-        take_nodeshot().into_iter().find(&self.filter)
+    pub fn find(&self) -> Option<ANode> {
+        take_nodeshot().into_iter().find(|x| (self.filter)(&x))
         // root_node().and_then(|n| find_node_at(&n, &self.filter))
     }
-    pub fn find_all(&self) -> Vec<Node2> {
-        take_nodeshot().into_iter().filter(&self.filter).collect()
+    pub fn find_all(&self) -> Vec<ANode> {
+        take_nodeshot()
+            .into_iter()
+            .filter(|x| (self.filter)(&x))
+            .collect()
         // root_node().map_or(vec![], |n| find_all_node_at(&n, &self.filter))
     }
 }

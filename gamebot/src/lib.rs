@@ -8,6 +8,7 @@ mod ui;
 
 use core::{error, f64, panic};
 use std::backtrace::Backtrace;
+use std::borrow::BorrowMut;
 use std::cell::{Cell, RefCell};
 use std::i32;
 use std::sync::atomic::AtomicU32;
@@ -39,8 +40,9 @@ pub use mail::{
     ColorPoint, ColorPointGroup, ColorPointGroupIn, ColorPointIn, ImageIn, IntoMilliseconds,
     IntoSeconds, Point, Rect, Tolerance,
 };
+use node::ANode;
+pub use node::Node;
 pub use node::NodeSelector;
-pub use node::{Node, Node2, Node4};
 use serde::{Deserialize, Serialize};
 use ui::CallbackValue;
 use ui::Element;
@@ -314,7 +316,6 @@ static STATUS_TOKEN: LazyLock<Futex<Private>> =
 pub struct Store {
     vm: JavaVM,
     host_ref: GlobalRef,
-    screen_node: ScreenNode,
 }
 pub static STORE: OnceLock<Store> = OnceLock::new();
 impl Store {
@@ -343,7 +344,6 @@ impl Store {
             .set(Store {
                 vm,
                 host_ref: obj_ref,
-                screen_node: ScreenNode::default(),
             })
             .map_err(|_| Error::msg("Store set fail"))?;
         Ok(())
@@ -367,11 +367,11 @@ static STRING_CLASS: OnceLock<GlobalRef> = OnceLock::new();
 static NODE_CLASS: OnceLock<GlobalRef> = OnceLock::new();
 
 impl Proxy {
-    fn take_screen_node(&mut self) -> Vec<Arc<RefCell<Node4>>> {
+    fn take_nodeshot_serde(&mut self) -> Vec<ANode> {
         self.env
             .with_local_frame(32, |env| -> std::result::Result<_, Error> {
                 let ans = env
-                    .call_method(&self.host, "takeScreenNode", "()LScreenNode;", &[])
+                    .call_method(&self.host, "takeNodeshotSerde", "()LScreenNode;", &[])
                     .unwrap();
                 let obj = ans.l().unwrap();
                 let data: JByteBuffer = env
@@ -401,134 +401,27 @@ impl Proxy {
                 let capacity = env.get_direct_buffer_capacity(&data).unwrap();
                 let data = unsafe { std::slice::from_raw_parts(addr, capacity) };
 
-                // most time consuming part
-                let data: Vec<Node> = serde_json::from_slice(&data).unwrap();
-                // let data: Vec<Node> = serde_cbor::from_slice(&data).unwrap();
+                // most time consuming part, but cbor or get_field(unchecked) not help
+                let data: Vec<Arc<Node>> = serde_json::from_slice(&data).unwrap();
+                let data: Vec<ANode> = data.into_iter().map(ANode).collect();
+                for (i, x) in data.iter().enumerate() {
+                    if i != 0 {
+                        *x.parent.borrow_mut() = Arc::downgrade(&data[x.parent_idx]);
+                    }
 
-                // how about do without Deserialize: slightly slower
-                // let count = env.get_array_length(&data_raw).unwrap();
-                // static FIELD_ID2: OnceLock<JFieldID> = OnceLock::new();
-                // let field_id2 = FIELD_ID2.get_or_init(|| {
-                //     error!("init field2");
-                //     let class = env.find_class("NodeInfo").unwrap();
-                //     let field_id2: JFieldID =
-                //         Desc::<JFieldID>::lookup((&class, "id", "Ljava/lang/String;"), env)
-                //             .unwrap();
-                //     field_id2
-                // });
-                // static FIELD_ID3: OnceLock<JFieldID> = OnceLock::new();
-                // let field_id3 = FIELD_ID2.get_or_init(|| {
-                //     error!("init field3");
-                //     let class = env.find_class("NodeInfo").unwrap();
-                //     let field_id2: JFieldID =
-                //         Desc::<JFieldID>::lookup((&class, "focusable", "Z"), env).unwrap();
-                //     field_id2
-                // });
-                // let data: Vec<Node> = (0..count)
-                //     .map(|i| {
-                //         let x = env.get_object_array_element(&data_raw, i).unwrap();
-                //         for j in 0..4 {
-                //             let id: JString = env
-                //                 // .get_field(&x, "id", "Ljava/lang/String;")
-                //                 .get_field_unchecked(&x, field_id2, ReturnType::Object)
-                //                 .unwrap()
-                //                 .l()
-                //                 .unwrap()
-                //                 .into();
-                //             let id: String =
-                //                 unsafe { env.get_string_unchecked(&id) }.unwrap().into();
-                //         }
-                //         for j in 0..4 {
-                //             let id = env
-                //                 .get_field_unchecked(
-                //                     &x,
-                //                     field_id3,
-                //                     ReturnType::Primitive(jni::signature::Primitive::Boolean),
-                //                 )
-                //                 .unwrap()
-                //                 .z()
-                //                 .unwrap();
-                //         }
-                //         let id: JString = env
-                //             // .get_field(&x, "id", "Ljava/lang/String;")
-                //             .get_field_unchecked(&x, field_id2, ReturnType::Object)
-                //             .unwrap()
-                //             .l()
-                //             .unwrap()
-                //             .into();
-                //         let id: String = unsafe { env.get_string_unchecked(&id) }.unwrap().into();
-                //
-                //         // let parent =
-                //         //     env.get_field(&x, "parent", "I").unwrap().i().unwrap() as usize;
-                //
-                //         Node {
-                //             id,
-                //             ..Default::default()
-                //         }
-                //     })
-                //     .collect();
+                    *x.children.borrow_mut() =
+                        x.children_idx.iter().map(|&i| data[i].clone()).collect();
 
-                let data: Vec<Arc<RefCell<Node4>>> = data
-                    .into_iter()
-                    .map(|x| {
-                        Arc::new(RefCell::new(Node4 {
-                            info: x,
-                            ..Default::default()
-                        }))
-                    })
-                    .collect();
-
-                for x in data.iter() {
-                    let t = Some(data[x.borrow().info.parent].clone());
-                    x.borrow_mut().parent = t;
-                    let t = x
-                        .borrow()
-                        .info
-                        .children
-                        .iter()
-                        .map(|&i| data[i].clone())
-                        .collect();
-
-                    x.borrow_mut().children = t;
+                    x.obj.borrow_mut().replace({
+                        let o = env.get_object_array_element(&reference, i as _).unwrap();
+                        let o = env.new_global_ref(o).unwrap();
+                        o
+                    });
                 }
 
                 Ok(data)
-                // for i in &data {
-                //     new_data.
-                // }
-
-                // let second = self.env.new_global_ref(second.l().unwrap()).unwrap();
-                // let second: &JObjectArray = second.as_obj().into();
-                // let second: JObjectArray = second.l().unwrap().into();
-                // Ok(first)
             })
             .unwrap()
-
-        // for node in first {
-        //     if node.text.contains("mail") {
-        //         let i = node.index.try_into().unwrap();
-        //         let s = self.env.get_array_length(&second).unwrap();
-        //
-        //         error!("get array element {} / {}", 1, s);
-        //         let e0 = self.env.get_object_array_element(&second, i).unwrap();
-        //
-        //         const ACTION_CLICK: i32 = 0x00000010;
-        //         self.env
-        //             .call_method(&e0, "performAction", "(I)Z", &[ACTION_CLICK.into()])
-        //             .unwrap();
-        //         // self.env
-        //         //     .call_method(
-        //         //         &self.host,
-        //         //         "clickNode",
-        //         //         "(Landroid/view/accessibility/AccessibilityNodeInfo;)Z",
-        //         //         &[(&e0).into()],
-        //         //     )
-        //         //     .unwrap();
-        //
-        //         error!("141");
-        //     }
-        //     error!("142");
-        // }
     }
 
     fn update_config_ui<State: Serialize + 'static>(
@@ -709,160 +602,14 @@ impl Proxy {
             .unwrap();
     }
 
-    fn root_node(&mut self) -> Option<AutoLocal<'static, JObject<'static>>> {
-        let obj = self
-            .env
-            .call_method(
-                &self.host,
-                "rootNode",
-                "()Landroid/view/accessibility/AccessibilityNodeInfo;",
-                &[],
-            )
-            .unwrap()
-            .l()
+    fn node_action(&mut self, obj: &JObject, i: i32) {
+        self.env
+            .call_method(obj, "performAction", "(I)Z", &[i.into()])
             .unwrap();
-        if obj.is_null() {
-            None
-        } else {
-            Some(self.env.auto_local(obj))
-        }
-    }
-
-    fn get_node_view_id(&mut self, node: &JObject) -> String {
-        self.env
-            .with_local_frame(4, |env| -> std::result::Result<String, Error> {
-                let class: &JClass = NODE_CLASS.get().unwrap().as_obj().into();
-                let res: JString = unsafe {
-                    env
-                        // .call_method(node, "getViewIdResourceName", "()Ljava/lang/String;", &[])
-                        .call_method_unchecked(
-                            node,
-                            (class, "getViewIdResourceName", "()Ljava/lang/String;"),
-                            ReturnType::Object,
-                            &[],
-                        )
-                }
-                .unwrap()
-                .l()
-                .unwrap()
-                .into();
-                if res.is_null() {
-                    return Ok(String::from(""));
-                }
-                Ok(unsafe { env.get_string_unchecked(&res) }.unwrap().into())
-            })
-            .unwrap()
-    }
-
-    fn get_string_test(&mut self) -> String {
-        self.env
-            .with_local_frame(4, |env| -> std::result::Result<String, Error> {
-                // let res = env
-                //     .call_method(&self.host, "getStringTest", "()V", &[])
-                //     .unwrap();
-                let res: JString = env
-                    .get_field(&self.host, "what2", "Ljava/lang/String;")
-                    .unwrap()
-                    .l()
-                    .unwrap()
-                    .into();
-                let res = env.get_string(&res).unwrap();
-
-                return Ok(String::from(""));
-                // if res.is_null() {
-                //     return Ok(String::from(""));
-                // }
-                // Ok(env.get_string(&res).unwrap().into())
-            })
-            .unwrap()
-    }
-
-    fn get_node_text(&mut self, node: &JObject) -> String {
-        self.env
-            .with_local_frame(4, |env| -> Result<String, Box<dyn std::error::Error>> {
-                let char_seq = env
-                    .call_method(node, "getText", "()Ljava/lang/CharSequence;", &[])
-                    .unwrap()
-                    .l()
-                    .unwrap();
-                // let char_seq = self.env.auto_local(char_seq);
-
-                if char_seq.is_null() {
-                    return Ok(String::new());
-                }
-
-                let s: JString = env
-                    .call_method(char_seq, "toString", "()Ljava/lang/String;", &[])
-                    .unwrap()
-                    .l()
-                    .unwrap()
-                    .into();
-                // let s = self.env.auto_local(s);
-
-                Ok(env.get_string(&s).unwrap().into())
-            })
-            .unwrap()
-    }
-
-    fn get_node_children(&mut self, node: &JObject) -> Vec<Node2> {
-        let child_count = self
-            .env
-            .with_local_frame(4, |env| -> Result<_, Error> {
-                Ok(env
-                    .call_method(node, "getChildCount", "()I", &[])
-                    .unwrap()
-                    .i()
-                    .unwrap())
-            })
-            .unwrap();
-        let ans = (0..child_count)
-            .map(|i| {
-                let child = self
-                    .env
-                    .call_method(
-                        node,
-                        "getChild",
-                        "(I)Landroid/view/accessibility/AccessibilityNodeInfo;",
-                        &[i.into()],
-                    )
-                    .unwrap()
-                    .l()
-                    .unwrap();
-                Node2(Arc::new(self.env.auto_local(child)))
-            })
-            .collect();
-        ans
-    }
-
-    // fn take_nodeshot_in_kotlin(&mut self) {
-    //     self.env
-    //         .call_method(&self.host, "findNodeInKotlin", "()V", &[]);
-    // }
-
-    fn take_nodeshot(&mut self) -> Vec<Node2> {
-        let x: JObjectArray = self
-            .env
-            .call_method(
-                &self.host,
-                "takeNodeshot",
-                "()[Landroid/view/accessibility/AccessibilityNodeInfo;",
-                &[],
-            )
-            .unwrap()
-            .l()
-            .unwrap()
-            .into();
-        let len = self.env.get_array_length(&x).unwrap();
-        let ans = (0..len)
-            .map(|i| {
-                let o = self.env.get_object_array_element(&x, i).unwrap();
-                Node2(Arc::new(self.env.auto_local(o)))
-            })
-            .collect();
-        self.env.delete_local_ref(x).unwrap();
-        ans
     }
 }
+
+static NODE_ACTION_CLICK: i32 = 0x00000010;
 
 // static CELL3: OnceLock<JObject> = OnceLock::new();
 // fn get_object() -> &'static JObject<'static> {
@@ -896,31 +643,33 @@ pub fn click_recent() {
 }
 
 // find node from root
-pub fn root_node() -> Option<Node2> {
-    Store::proxy().root_node().map(|n| Node2(Arc::new(n)))
-}
+// pub fn root_node() -> Option<Node2> {
+//     Store::proxy().root_node().map(|n| Node2(Arc::new(n)))
+// }
 
-pub fn take_nodeshot() -> Vec<Node2> {
-    Store::proxy().take_nodeshot()
+pub fn take_nodeshot() -> Vec<ANode> {
+    // Store::proxy().take_nodeshot()
+    Store::proxy().take_nodeshot_serde()
     // root_node().map_or(vec![], |n| n.find_all(|_| true))
 }
 
 pub fn get_string_test() -> String {
-    Store::proxy().get_string_test();
+    // Store::proxy().get_string_test();
     // Store::proxy().fetch_screen_node();
     String::from("")
     // root_node().map_or(vec![], |n| n.find_all(|_| true))
 }
 
-pub fn take_nodeshot_serde() -> Vec<Arc<RefCell<Node4>>> {
-    Store::proxy().take_screen_node()
+pub fn take_nodeshot_serde() -> Vec<ANode> {
+    Store::proxy().take_nodeshot_serde()
 }
 
-pub fn take_nodeshot_locally() -> Vec<Node2> {
-    root_node().map_or(vec![], |n| n.find_all(|_| true))
-}
+// pub fn take_nodeshot_locally() -> Vec<Node2> {
+//     root_node().map_or(vec![], |n| n.find_all(|_| true))
+// }
 
-pub fn find_node_at(root: &Node2, filter: impl Fn(&Node2) -> bool) -> Option<Node2> {
+// pub type ANode = Arc<Node>;
+pub fn find_node_at(root: ANode, filter: impl Fn(&Node) -> bool) -> Option<ANode> {
     let mut stack = vec![root.clone()];
     while !stack.is_empty() {
         for root in std::mem::take(&mut stack) {
@@ -933,7 +682,7 @@ pub fn find_node_at(root: &Node2, filter: impl Fn(&Node2) -> bool) -> Option<Nod
     None
 }
 
-pub fn find_all_node_at(root: &Node2, filter: impl Fn(&Node2) -> bool) -> Vec<Node2> {
+pub fn find_all_node_at(root: ANode, filter: impl Fn(&Node) -> bool) -> Vec<ANode> {
     let mut ans = vec![];
     let mut stack = vec![root.clone()];
     while !stack.is_empty() {

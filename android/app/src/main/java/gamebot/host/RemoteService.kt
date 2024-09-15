@@ -39,10 +39,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.cbor.Cbor
-import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
@@ -130,9 +126,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     var screenNodeCache: ScreenNode? = null
     @OptIn(ExperimentalSerializationApi::class)
-    fun takeScreenNode(): ScreenNode {
+    fun takeNodeshotSerde(): ScreenNode {
         if (screenNodeCache == null) {
-            val (info, infoRef) = takeScreenNodeRaw()
+            val (info, infoRef) = takeNodeshotRaw()
 
             Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
 
@@ -383,7 +379,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 
     @OptIn(ExperimentalSerializationApi::class)
-    fun takeScreenNodeRaw(): Pair<List<NodeInfo>, List<AccessibilityNodeInfo>> {
+    fun takeNodeshotRaw(): Pair<List<NodeInfo>, List<AccessibilityNodeInfo>> {
         val root = uiAutomation.rootInActiveWindow
         val info = mutableListOf<NodeInfo>()
         val infoRef = mutableListOf<AccessibilityNodeInfo>()
@@ -424,7 +420,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             Log.e("findRoot", "findRoot ${System.currentTimeMillis() - start}ms")
             start = System.currentTimeMillis()
 //            val out = window.findAccessibilityNodeInfosByText("1")
-            val out = takeScreenNode()
+            val out = takeNodeshotSerde()
             val jsonans = Json.encodeToString(out)
             Log.e(
                 "findText", "findText ${System.currentTimeMillis() - start}ms, ${out.data.capacity()} ${

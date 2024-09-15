@@ -39,11 +39,12 @@ data class NodeInfo(
         fun from(node: AccessibilityNodeInfo): NodeInfo {
             val nodeInfo = NodeInfo(
                 id = node.viewIdResourceName ?: "",
-                className = (node.viewIdResourceName ?: "").toString(),
+                className = (node.className ?: "").toString(),
                 packageName = (node.viewIdResourceName ?: "").toString(),
                 description = (node.viewIdResourceName ?: "").toString(),
-                text = (node.viewIdResourceName ?: "").toString(),
-//                text = (node.text ?: "").toString()
+                clickable = node.isClickable,
+//                text = (node.viewIdResourceName ?: "").toString(),
+                text = (node.text ?: "").toString()
             )
             if (false && nodeInfo.text.contains("Gallery")) {
                 node.performAction(ACTION_CLICK)

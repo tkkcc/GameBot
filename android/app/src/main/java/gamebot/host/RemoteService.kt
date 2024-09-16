@@ -29,6 +29,7 @@ import android.view.MotionEvent
 import android.view.MotionEvent.PointerCoords
 import android.view.MotionEvent.PointerProperties
 import android.view.SurfaceControlHidden
+import android.view.accessibility.AccessibilityInteractionClient
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK
 import dev.rikka.tools.refine.Refine
@@ -51,6 +52,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.lang.Thread.sleep
+import java.lang.reflect.Field
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
@@ -121,10 +123,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
-    //            fun takeScreenNode(): Pair<ByteArray, ArrayList<AccessibilityNodeInfo>> {
-//                val pair = this@RemoteService.takeScreenNode()
-//                return Pair(pair.first, ArrayList(pair.second))
-//            }
 
     var nodeshotSerdeCache: Nodeshot = Nodeshot(ByteBuffer.allocateDirect(0), emptyArray())
 
@@ -161,45 +159,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
 
-//    val screenNodeCache2 : ByteBuffer? = null
-//    fun takeScreenNode2(): ByteBuffer {
-//        if (screenNode2Cache2==null) {
-//            val (info, infoRef) = takeScreenNodeRaw()
-//
-//            Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
-//
-//            val stream = ByteBuffer();
-//            Json.encodeToStream(info, stream)
-//            ScreenNode(stream, infoRef.toTypedArray())
-//        }
-//        return screenNodeCache!!
-//    }
-
-
     fun click(x: Float, y: Float) {
-        Binder.clearCallingIdentity()
-
-//        Log.e("","click $x $y")
-        val t = SystemClock.uptimeMillis()
-        val event = MotionEvent.obtain(
-            t,
-            t,
-            MotionEvent.ACTION_DOWN,
-            x,
-            y,
-            0
-        )
-        event.source = InputDevice.SOURCE_TOUCHSCREEN
-        mIm.injectInputEvent(event, 0)
-//        InputManagerGlobal.getInstance().injectInputEvent(event, INJECT_INPUT_EVENT_MODE_ASYNC)
-//        uiAutomation.injectInputEvent(event, false)
-        event.action = MotionEvent.ACTION_UP
-        mIm.injectInputEvent(event, 0)
-
-//        InputManagerGlobal.getInstance().injectInputEvent(event, INJECT_INPUT_EVENT_MODE_ASYNC)
-
-//        uiAutomation.injectInputEvent(event, false)
-        event.recycle()
+        touchDown(x, y, 0)
+        touchUp(x, y, 0)
     }
 
     //    var pointerPropertiesList: MutableList<PointerProperties> = mutableListOf()
@@ -214,11 +176,42 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         MOVE(MotionEvent.ACTION_MOVE, MotionEvent.ACTION_MOVE);
     }
 
+    fun gesture() {
 
-    @Synchronized
-    fun injectTouchEvent(x: Float, y: Float, id: Int, touchAction: TouchAction) {
         Binder.clearCallingIdentity()
         val now = SystemClock.uptimeMillis()
+        val privateField
+                : Field = uiAutomation::class.java.getDeclaredField("mConnectionId")
+        privateField.setAccessible(true);
+        val mConnectionId = privateField.get(uiAutomation) as Int
+        AccessibilityInteractionClient.getInstance()
+
+//        Log.e("gamebot", uiAutomationHidden.mConnectionId.toString())
+        Log.e("gamebot", "connectionid " + mConnectionId.toString())
+
+
+//        val x = mutableListOf(Point(100, 100))
+//        val y = mutableListOf(Point(200, 200))
+        Log.e("gamebot", "start inject touch event")
+
+        injectTouchEvent(500.0f,500.0f,0,TouchAction.DOWN, now)
+        injectTouchEvent(500.0f,600.0f,0,TouchAction.MOVE,now + 1000)
+        injectTouchEvent(500.0f,700.0f,0,TouchAction.MOVE,now + 2000)
+        injectTouchEvent(500.0f,700.0f,0,TouchAction.UP,now + 3000)
+        Log.e("gamebot", "after inject touch event")
+    }
+
+
+    @Synchronized
+    fun injectTouchEvent(
+        x: Float,
+        y: Float,
+        id: Int,
+        touchAction: TouchAction,
+        eventTime: Long = 0
+    ) {
+        Binder.clearCallingIdentity()
+        val now = if (eventTime == 0L) SystemClock.uptimeMillis() else eventTime
 
         pointerState.getOrPut(id, { PointerCoords() }).apply {
             this.x = x
@@ -262,7 +255,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         )
         mIm.injectInputEvent(event, 0)
         event.recycle()
-
     }
 
     fun touchDown(x: Float, y: Float, id: Int) {
@@ -833,6 +825,10 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     fun getStringTest() {
 //        return null
 //        return "83332334214"
+    }
+
+    fun dispatchGesture() {
+
     }
 
 

@@ -607,6 +607,11 @@ impl Proxy {
             .call_method(obj, "performAction", "(I)Z", &[i.into()])
             .unwrap();
     }
+    fn gesture(&mut self) {
+        self.env
+            .call_method(self.host, "gesture", "()V", &[])
+            .unwrap();
+    }
 }
 
 static NODE_ACTION_CLICK: i32 = 0x00000010;
@@ -694,6 +699,18 @@ pub fn is_running_status() {
         panic!();
     }
 }
+
+pub struct GestureStorke {
+    point: Vec<Point>,
+    start: u64,
+    duration: u64,
+}
+
+struct Gesture {
+    stroke: Vec<GestureStorke>,
+}
+
+pub fn gesture() {}
 
 pub static USER_START: OnceLock<fn()> = OnceLock::new();
 

@@ -1,11 +1,6 @@
 package android.app;
 
-import android.graphics.Bitmap;
-import android.graphics.Rect;
 import android.os.Looper;
-
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import dev.rikka.tools.refine.RefineAs;
 
@@ -27,6 +22,10 @@ public class UiAutomationHidden {
         throw new RuntimeException("Stub!");
     }
 
+    public int getConnectionId() {
+        return 0;
+    }
+
     public void connect(int flag) {
         throw new RuntimeException("Stub!");
     }
@@ -34,5 +33,9 @@ public class UiAutomationHidden {
     public void disconnect() {
         throw new RuntimeException("Stub!");
     }
+
+
+    //    private IAccessibilityServiceClient mClient;
+    public int mConnectionId = 0;
 
 }

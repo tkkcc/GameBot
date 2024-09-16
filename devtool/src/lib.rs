@@ -1,8 +1,9 @@
 use std::time::Instant;
 
 use gamebot::{
-    self, click_recent, d, take_nodeshot, take_screenshot, touch_down, touch_move, touch_up,
-    wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn, NodeSelector, Rect,
+    self, click_recent, d, gesture, take_nodeshot, take_screenshot, touch_down, touch_move,
+    touch_up, wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn, NodeSelector,
+    Rect,
 };
 use log::error;
 
@@ -55,19 +56,19 @@ fn fight_swipe() {
 }
 fn zoom() {
     touch_down(500.0, 500.0, 0);
-    touch_down(500.0, 500.0, 1);
+    touch_down(600.0, 500.0, 1);
 
     wait_millis(33);
-    touch_move(500.0 - 10000.0, 500.0, 0);
-    touch_move(500.0 + 10000.0, 500.0, 1);
+    touch_move(500.0 - 100.0, 500.0, 0);
+    touch_move(600.0 + 100.0, 500.0, 1);
 
-    wait_millis(1000);
+    wait_millis(100);
     touch_move(500.0, 500.0, 0);
     touch_move(500.0, 500.0, 1);
 
-    wait_millis(33);
+    wait_millis(100);
     touch_up(500.0, 500.0, 0);
-    touch_up(500.0, 500.0, 1);
+    touch_up(599.0, 500.0, 1);
     // wait_millis(100);
     // touch_move(400.0, 500.0, 0);
     // touch_move(600.0, 500.0, 1);
@@ -77,15 +78,24 @@ fn zoom() {
     // touch_up(600.0, 500.0, 1);
 }
 
+fn float_move() {
+    touch_down(500., 500., 0);
+    for i in 0..10000 {
+        wait_millis(500);
+        touch_move(500.0 + 0.25 * ((i % 2) == 0) as i32 as f32, 500., 0);
+    }
+}
+
 gamebot::entry!(start);
 fn start() {
     error!("what");
 
     click_recent();
     wait_millis(100);
-    click_recent();
+    // click_recent();
     wait_secs(1);
-    zoom();
+    // float_move();
+    gesture();
     return;
 
     // take_nodeshot();

@@ -53,6 +53,29 @@ fn fight_swipe() {
     wait_millis(66);
     touch_up(-4000.0, 301.0, 0);
 }
+fn zoom() {
+    touch_down(500.0, 500.0, 0);
+    touch_down(500.0, 500.0, 1);
+
+    wait_millis(33);
+    touch_move(500.0 - 10000.0, 500.0, 0);
+    touch_move(500.0 + 10000.0, 500.0, 1);
+
+    wait_millis(1000);
+    touch_move(500.0, 500.0, 0);
+    touch_move(500.0, 500.0, 1);
+
+    wait_millis(33);
+    touch_up(500.0, 500.0, 0);
+    touch_up(500.0, 500.0, 1);
+    // wait_millis(100);
+    // touch_move(400.0, 500.0, 0);
+    // touch_move(600.0, 500.0, 1);
+    //
+    // wait_millis(1000); // must
+    // touch_up(400.0, 500.0, 0);
+    // touch_up(600.0, 500.0, 1);
+}
 
 gamebot::entry!(start);
 fn start() {
@@ -62,6 +85,8 @@ fn start() {
     wait_millis(100);
     click_recent();
     wait_secs(1);
+    zoom();
+    return;
 
     // take_nodeshot();
 

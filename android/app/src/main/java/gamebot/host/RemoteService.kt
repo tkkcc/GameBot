@@ -26,6 +26,8 @@ import android.view.IWindowManager
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.MotionEvent.PointerCoords
+import android.view.MotionEvent.PointerProperties
 import android.view.SurfaceControlHidden
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK
@@ -36,6 +38,7 @@ import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
 import gamebot.host.sendLargeData
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -53,7 +56,6 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
 import kotlin.reflect.full.declaredMembers
 import kotlin.system.exitProcess
-
 
 class RemoteService(val context: Context) : IRemoteService.Stub() {
 
@@ -141,9 +143,10 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         updateNodeshotTimestamp()
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun takeNodeshotSerde(): Nodeshot {
         // sync update
-        if (isNodeshotInvalid()) {
+        if (isNodeshotInvalid() && requestUpdateNodeshot.isEmpty) {
             Log.e("", "sync update nodeshot serde")
             updateNodeshotSerde()
         } else {
@@ -199,77 +202,79 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         event.recycle()
     }
 
-    fun touchDown(x: Float, y: Float, id: Int) {
+    //    var pointerPropertiesList: MutableList<PointerProperties> = mutableListOf()
+    var lastTouchDownTime = SystemClock.uptimeMillis()
+
+    //    var pointerCoordsList: MutableList<PointerCoords> = mutableListOf()
+    var pointerState = mutableMapOf<Int, PointerCoords>()
+
+    enum class TouchAction(val single: Int, val multi: Int) {
+        DOWN(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN),
+        UP(MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP),
+        MOVE(MotionEvent.ACTION_MOVE, MotionEvent.ACTION_MOVE);
+    }
+
+
+    @Synchronized
+    fun injectTouchEvent(x: Float, y: Float, id: Int, touchAction: TouchAction) {
         Binder.clearCallingIdentity()
-//        Log.e("","click $x $y")
-        val t = SystemClock.uptimeMillis()
-        val action = if (id == 0) {
-            MotionEvent.ACTION_DOWN
+        val now = SystemClock.uptimeMillis()
+
+        pointerState.getOrPut(id, { PointerCoords() }).apply {
+            this.x = x
+            this.y = y
+            this.size = 1.0f
+            this.pressure = 1.0f
+        }
+
+        val pointerPropertiesList = pointerState.keys.map {
+            PointerProperties().apply {
+                this.id = it
+                this.toolType = MotionEvent.TOOL_TYPE_FINGER
+            }
+        }.toTypedArray()
+
+        val pointerCoordsList = pointerState.values.toTypedArray()
+        if (pointerState.size == 1 && touchAction == TouchAction.DOWN) {
+            lastTouchDownTime = now
+        }
+        val action = if (pointerState.size == 1) {
+            touchAction.single
         } else {
-            MotionEvent.ACTION_POINTER_DOWN or ((id + 1) shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
+            touchAction.multi or (id shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
         }
 
         val event = MotionEvent.obtain(
-            t,
-            t,
+            lastTouchDownTime,
+            now,
             action,
-            x,
-            y,
+            pointerPropertiesList.size,
+            pointerPropertiesList,
+            pointerCoordsList,
+            0,
+            0,
+            1.0f,
+            1.0f,
+            0,
+            0,
+            InputDevice.SOURCE_TOUCHSCREEN,
             0
         )
-        event.source = InputDevice.SOURCE_TOUCHSCREEN
         mIm.injectInputEvent(event, 0)
         event.recycle()
+
+    }
+
+    fun touchDown(x: Float, y: Float, id: Int) {
+        injectTouchEvent(x, y, id, TouchAction.DOWN)
     }
 
     fun touchMove(x: Float, y: Float, id: Int) {
-        Binder.clearCallingIdentity()
-
-//        Log.e("","click $x $y")
-        val t = SystemClock.uptimeMillis()
-        val action = if (id == 0) {
-            MotionEvent.ACTION_MOVE
-        } else {
-            MotionEvent.ACTION_MOVE or (id shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
-        }
-
-        val event = MotionEvent.obtain(
-            t,
-            t,
-            action,
-            x,
-            y,
-            0
-        )
-
-
-        event.source = InputDevice.SOURCE_TOUCHSCREEN
-        mIm.injectInputEvent(event, 0)
-        event.recycle()
+        injectTouchEvent(x, y, id, TouchAction.MOVE)
     }
 
     fun touchUp(x: Float, y: Float, id: Int) {
-        Binder.clearCallingIdentity()
-
-//        Log.e("","click $x $y")
-        val t = SystemClock.uptimeMillis()
-        val action = if (id == 0) {
-            MotionEvent.ACTION_UP
-        } else {
-            MotionEvent.ACTION_POINTER_UP or ((id + 1) shl MotionEvent.ACTION_POINTER_INDEX_SHIFT)
-        }
-
-        val event = MotionEvent.obtain(
-            t,
-            t,
-            action,
-            x,
-            y,
-            0
-        )
-        event.source = InputDevice.SOURCE_TOUCHSCREEN
-        mIm.injectInputEvent(event, 0)
-        event.recycle()
+        injectTouchEvent(x, y, id, TouchAction.UP)
     }
 
 
@@ -310,9 +315,10 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         return node.performAction(ACTION_CLICK)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun takeScreenshot(): Screenshot {
         // sync update
-        if (isScreenshotInvalid()) {
+        if (isScreenshotInvalid() && requestUpdateScreenshot.isEmpty) {
             Log.e("", "sync update screenshot")
             updateScreenshot()
         } else {
@@ -763,6 +769,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //            throw NotImplementedError()
             val secure =
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && "S" != Build.VERSION.CODENAME)
+//            if (!secure) {
+//                throw NotImplementedError()
+//            }
             display = SurfaceControlHidden.createDisplay("GameBotDisplay", secure)
 //            display = SurfaceControlHidden.getBuiltInDisplay(0)
             SurfaceControlHidden.openTransaction()
@@ -778,7 +787,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             } catch (e: Exception) {
                 Log.e("", "497", e)
             } finally {
-                SurfaceControlHidden.closeTransactionSync()
+                SurfaceControlHidden.closeTransaction()
             }
         }
     }
@@ -863,3 +872,5 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         Log.e("", "rust call finish")
     }
 }
+
+

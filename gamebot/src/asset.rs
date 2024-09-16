@@ -15,7 +15,7 @@ struct Resource {
     func: Box<dyn FnMut() -> bool + Send + Sync>,
 }
 
-fn point(x: u32, y: u32) -> Point {
+fn point(x: i32, y: i32) -> Point {
     Point { x, y }
 }
 fn cpg(s: &str) -> ColorPointGroup {

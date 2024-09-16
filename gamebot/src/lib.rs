@@ -36,6 +36,7 @@ use jni::{
     JNIEnv, JavaVM,
 };
 use linux_futex::{Futex, Private};
+pub use mail::Region;
 pub use mail::{
     ColorPoint, ColorPointGroup, ColorPointGroupIn, ColorPointIn, ImageIn, IntoMilliseconds,
     IntoSeconds, Point, Rect, Tolerance,
@@ -136,7 +137,7 @@ impl Screenshot {
         {
             return None;
         }
-        Some(Point { x, y })
+        Some((x, y).into())
     }
 
     pub fn find_color_point_group(&self, cpg: &ColorPointGroup) -> Option<Point> {
@@ -163,6 +164,15 @@ impl Screenshot {
         self.find_all_color_point_group_in(cpg, 1).first().cloned()
     }
 
+    pub fn region(&self) -> Region {
+        Region {
+            left: 0,
+            width: self.width,
+            top: 0,
+            height: self.height,
+        }
+    }
+
     pub fn find_all_color_point_group_in(
         &self,
         cpg: &ColorPointGroupIn,
@@ -175,13 +185,7 @@ impl Screenshot {
         }
         let region = &cpg.region;
 
-        // region is not in screenshot
-        // or region's area is zero
-        if region.right >= self.width
-            || region.bottom >= self.height
-            || region.left >= region.right
-            || region.top >= region.bottom
-        {
+        if !self.region().contains(region) {
             return ans;
         }
 
@@ -197,14 +201,14 @@ impl Screenshot {
         }
 
         // cpg cant be in region
-        if region.width() < r - l || region.height() < b - t {
+        if region.width < r - l || region.height < b - t {
             return ans;
         }
 
         let tolerance = (cpg.tolerance * 255.0) as u8;
 
-        for dy in (region.top as i32 - t as i32)..(region.bottom as i32 - b as i32) {
-            'outer: for dx in (region.left as i32 - l as i32)..(region.right as i32 - r as i32) {
+        for dy in (region.top as i32 - t as i32)..(region.bottom() as i32 - b as i32) {
+            'outer: for dx in (region.left as i32 - l as i32)..(region.right() as i32 - r as i32) {
                 for cp in &cpg.group {
                     let x = (cp.x as i32 + dx) as u32;
                     let y = (cp.y as i32 + dy) as u32;
@@ -218,8 +222,8 @@ impl Screenshot {
                 }
 
                 ans.push(Point {
-                    x: (cpg.group[0].x as i32 + dx) as u32,
-                    y: (cpg.group[0].y as i32 + dy) as u32,
+                    x: (cpg.group[0].x as i32 + dx),
+                    y: (cpg.group[0].y as i32 + dy),
                 });
 
                 if ans.len() >= max_num {
@@ -245,27 +249,20 @@ impl Screenshot {
     ) -> Vec<Point> {
         let mut ans = vec![];
 
-        // img cant be in region
-        if img.width() < region.width() || img.height() < region.height() {
-            return ans;
-        }
-
-        // region is not in screenshot
-        // or region's area is zero
-        if region.right >= self.width
-            || region.bottom >= self.height
-            || region.left >= region.right
-            || region.top >= region.bottom
+        if !self.region().contains(region)
+            || img.width() > region.width
+            || img.height() > region.height
         {
             return ans;
         }
+
         let ih = img.height();
         let iw = img.width();
         let img = img.as_raw().as_slice();
         let base = (ih * iw) as f64 * 3.0;
 
-        for y in region.top..region.bottom - ih {
-            'outer: for x in region.left..region.right - iw {
+        for y in region.top..region.bottom() - ih {
+            'outer: for x in region.left..region.right() - iw {
                 let mut loss = 0f64;
                 for iy in 0..ih {
                     for ix in 0..iw {
@@ -299,7 +296,7 @@ impl Screenshot {
                         }
                     }
                 }
-                ans.push(Point { x, y });
+                ans.push((x, y).into());
                 if ans.len() >= max_num {
                     return ans;
                 }

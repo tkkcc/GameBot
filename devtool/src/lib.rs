@@ -3,7 +3,7 @@ use std::time::Instant;
 use gamebot::{
     self, click_recent, d, gesture, take_nodeshot, take_screenshot, touch_down, touch_move,
     touch_up, wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn, NodeSelector,
-    Rect,
+    Region,
 };
 use log::error;
 
@@ -126,11 +126,11 @@ fn start() {
     for i in (0..100) {
         let x = ColorPointGroupIn {
             group: vec![ColorPoint::default(), ColorPoint::default()],
-            region: Rect {
+            region: Region {
                 left: 0,
-                right: 720,
                 top: 0,
-                bottom: 1080,
+                width: 720,
+                height: 1080,
             },
             tolerance: 0.05,
         };

@@ -854,6 +854,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
 
 
+
 //        thread {
 ////            sleep(1000)
 ////            Log.e("", "root node: ${takeNode()}")

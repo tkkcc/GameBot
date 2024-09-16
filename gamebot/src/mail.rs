@@ -17,8 +17,8 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
-    pub x: u32,
-    pub y: u32,
+    pub x: i32,
+    pub y: i32,
 }
 
 impl Point {
@@ -45,7 +45,7 @@ pub struct ColorPointIn {
     pub tolerance: u8,
     pub x: u32,
     pub y: u32,
-    pub region: Rect,
+    pub region: Region,
 }
 
 #[derive(Debug)]
@@ -75,20 +75,59 @@ impl TryFrom<&str> for ColorPointGroup {
 
 #[derive(Deserialize, Default, Debug, Clone)]
 pub struct Rect {
-    pub left: u32,
-    pub top: u32,
-    pub right: u32,
-    pub bottom: u32,
+    pub left: i32,
+    pub top: i32,
+    pub width: u32,
+    pub height: u32,
 }
 impl Rect {
-    pub fn width(&self) -> u32 {
-        self.right - self.left
+    pub fn right(&self) -> i32 {
+        self.left + self.width as i32
     }
 
-    pub fn height(&self) -> u32 {
-        self.bottom - self.top
+    pub fn bottom(&self) -> i32 {
+        self.top + self.height as i32
+    }
+
+    pub fn contains(&self, x: &Rect) -> bool {
+        x.left >= self.left
+            && x.right() <= self.right()
+            && x.top >= self.top
+            && x.bottom() <= self.bottom()
     }
 }
+
+#[derive(Deserialize, Default, Debug, Clone)]
+pub struct Region {
+    pub left: u32,
+    pub top: u32,
+    pub width: u32,
+    pub height: u32,
+}
+impl Region {
+    pub fn right(&self) -> u32 {
+        self.left + self.width
+    }
+
+    pub fn bottom(&self) -> u32 {
+        self.top + self.height
+    }
+
+    pub fn contains(&self, x: &Region) -> bool {
+        x.left >= self.left
+            && x.right() <= self.right()
+            && x.top >= self.top
+            && x.bottom() <= self.bottom()
+    }
+}
+
+// #[derive(Deserialize, Default, Debug, Clone)]
+// pub struct Rect {
+//     pub left: i32,
+//     pub top: i32,
+//     pub right: i32,
+//     pub bottom: i32,
+// }
 
 #[derive(Clone)]
 pub enum Tolerance {
@@ -100,12 +139,12 @@ pub enum Tolerance {
 #[derive(Clone)]
 pub struct DiskImageIn {
     pub img: PathBuf,
-    pub region: Rect,
+    pub region: Region,
     pub tolerance: Tolerance,
 }
 pub struct ImageIn {
     pub img: RgbaImage,
-    pub region: Rect,
+    pub region: Region,
     pub tolerance: Tolerance,
 }
 
@@ -140,7 +179,7 @@ pub struct ColorPointGroup {
 pub struct ColorPointGroupIn {
     pub group: Vec<ColorPoint>,
     pub tolerance: f32,
-    pub region: Rect,
+    pub region: Region,
 }
 
 pub trait IntoSeconds {
@@ -177,6 +216,22 @@ impl IntoMilliseconds for Duration {
 
 impl From<&ColorPoint> for Point {
     fn from(&ColorPoint { x, y, .. }: &ColorPoint) -> Self {
+        Point {
+            x: x as _,
+            y: y as _,
+        }
+    }
+}
+impl From<(u32, u32)> for Point {
+    fn from((x, y): (u32, u32)) -> Self {
+        Point {
+            x: x as _,
+            y: y as _,
+        }
+    }
+}
+impl From<(i32, i32)> for Point {
+    fn from((x, y): (i32, i32)) -> Self {
         Point { x, y }
     }
 }

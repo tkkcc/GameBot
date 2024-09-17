@@ -805,7 +805,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
                 Context.INPUT_SERVICE
             )
         )
-        
+
 
 
         connectUiAutomation()

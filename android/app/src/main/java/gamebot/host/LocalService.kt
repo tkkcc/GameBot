@@ -2,6 +2,7 @@ package gamebot.host
 
 import CallbackMsg
 import Component
+import LocalCallback
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Context.ACTIVITY_SERVICE
@@ -21,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -137,6 +139,15 @@ class LocalService(
                     }
                 }) {
                     Text("stop devtool")
+                }
+
+                val coroutine = rememberCoroutineScope()
+                CompositionLocalProvider(LocalCallback provides { id, value ->
+                    coroutine.launch {
+                        configUIEvent.value.send(CallbackMsg(id, value))
+                    }
+                }) {
+                    configUI.value.Render()
                 }
             }
         }

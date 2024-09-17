@@ -5,9 +5,7 @@ public final class AccessibilityInteractionClient {
         return null;
     }
 
-    public static IAccessibilityServiceConnection getConnection(int connectionId) {
-        return null;
-    }
+
 
         public AccessibilityNodeInfo getRootInActiveWindow(int connectionId) {
         return null;

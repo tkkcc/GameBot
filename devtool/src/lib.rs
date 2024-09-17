@@ -1,9 +1,9 @@
 use std::time::{Duration, Instant};
 
 use gamebot::{
-    self, click_recent, d, gesture, gesture_smooth, take_nodeshot, take_screenshot, touch_down,
-    touch_move, touch_up, wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn,
-    NodeSelector, Region,
+    self, click_recent, d, gesture, gesture_smooth, simple_config, simple_view, take_nodeshot,
+    take_screenshot, touch_down, touch_move, touch_up, update_config_ui, wait_millis, wait_secs,
+    ColorPoint, ColorPointGroup, ColorPointGroupIn, NodeSelector, Region,
 };
 use log::error;
 
@@ -118,45 +118,10 @@ fn float_move() {
     }
 }
 
-gamebot::entry!(start);
-fn start() {
-    error!("what");
-
-    click_recent();
-    wait_millis(100);
-    click_recent();
-    wait_secs(1);
-    // zoom();
-    // float_move();
-    // zoom_by_gesture();
-    zoom_by_gesture_smooth();
-    return;
-
-    // take_nodeshot();
-
-    // for n in take_nodeshot() {
-    //     error!("68 {:?}", start.elapsed());
-    //     if n.text().is_empty() {
-    //         continue;
-    //     }
-    //     error!("{}", n.text());
-    //     error!("69 {:?}", start.elapsed());
-    // }
-
+fn test_find() {
     let nodeshot = take_nodeshot();
     let screenshot = take_screenshot();
-
-    d!(nodeshot.len());
-
-    // let nodeshot = Store::proxy().take_nodeshot();
     let start = Instant::now();
-    // for n in &nodeshot {
-    //     if n.view_id().is_empty() {
-    //         continue;
-    //     }
-    //     error!("node view id {}", n.view_id());
-    // }
-
     for i in (0..100) {
         let x = ColorPointGroupIn {
             group: vec![ColorPoint::default(), ColorPoint::default()],
@@ -174,17 +139,25 @@ fn start() {
         };
 
         let mail = NodeSelector::new(|n| n.clickable && !n.id.is_empty()).find_all();
-        // if let Some(n) = mail.find() {
         for n in mail {
-            // d!(&n.text, &n.id, &n.clickable, &n.class);
             if n.id.eq("com.android.settings:id/search") {
                 n.click();
             }
-            // n.click();
         }
         break;
     }
     error!("{:?}", start.elapsed());
+}
 
-    // find_node(root_node().uwwrap(), |x| x.text() == "abc");
+gamebot::entry!(start);
+fn start() {
+    // click_recent();
+    // wait_millis(100);
+    // click_recent();
+    // wait_secs(1);
+
+    let mut state = simple_config();
+    loop {
+        update_config_ui(&mut state, simple_view);
+    }
 }

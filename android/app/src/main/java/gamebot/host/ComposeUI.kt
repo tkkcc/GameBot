@@ -1,6 +1,5 @@
 //package gamebot.host
 
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
@@ -23,8 +22,6 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 
 @Serializable
@@ -130,53 +127,14 @@ fun initConfigUI(
     layout: MutableState<Component>,
     callbackChannel: MutableState<Channel<CallbackMsg>>
 ) {
-
-    val test: Component = Component.Column(
-        listOf(Component.Button(Component.Text(content = "abc"), 0))
-    )
-    val a = Json.encodeToString(test)
-    Log.d("", "initConfigUI: ${a}")
     context.setContent {
-
         val coroutine = rememberCoroutineScope()
-//        var xx: Component by remember {
-//            mutableStateOf(Component.TextField("abc"))
-//        }
-//        val a = ByteArray(10)
-//        val b: Component = Json.decodeFromStream(a.inputStream())
-//        LaunchedEffect(true) {
-////                delay(3000)
-//            val x = Component.Column(
-//                listOf(Component.TextField("aaa"))
-//            )
-//
-//            xx = decodeFromString(encodeToString(Component.serializer(), x))
-//        }
         CompositionLocalProvider(LocalCallback provides { id, value ->
             coroutine.launch {
                 callbackChannel.value.send(CallbackMsg(id, value))
-//                        val x = Component.Column(
-//                            (0..1000).map {
-//                                if (it == 0) {
-//                                    Component.TextField(data as String)
-//                                } else {
-//                                    Component.TextField(it.toString())
-//                                }
-////                                Component.TextField(it as String)
-//                            }.toList()
-//                        )
-//                        val y = encodeToString(Component.serializer(), x)
-//                        delay(3)
-//                        val z: Component = decodeFromString(y)
-//
-//                        xx = z
             }
-        }
-
-        ) {
-//            Text("abc")
+        }) {
             layout.value.Render()
-//            test.Render()
         }
     }
 }

@@ -35,8 +35,8 @@ use node::ANode;
 pub use node::Node;
 pub use node::NodeSelector;
 use serde::{Deserialize, Serialize};
-use ui::CallbackValue;
-use ui::Element;
+pub use ui::CallbackValue;
+pub use ui::Element;
 
 pub use find_trait::Find;
 
@@ -45,6 +45,7 @@ pub use log::error;
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
+pub use ui::*;
 
 #[macro_export]
 macro_rules! d {
@@ -430,18 +431,24 @@ impl Proxy {
         // TODO may be leak
         let value = self.env.byte_array_from_slice(&byte).unwrap();
 
-        let _ = self
-            .env
-            .call_method(&self.host, "updateConfigUI", "([B)V", &[(&value).into()]);
+        d!(&value);
+
+        self.env
+            .call_method(&self.host, "updateConfigUI", "([B)V", &[(&value).into()])
+            .unwrap();
+
+        d!(440);
 
         let event = self
             .env
             .call_method(&self.host, "waitConfigUIEvent", "()[B", &[])
             .unwrap();
-        // error!("64");
+
+        d!(&event);
 
         // TODO may be leak
         let event: JByteArray = event.l().unwrap().into();
+
         // error!("65, {:?}", serde_json::to_string(&CallbackMsg {
         //     id:0,
         //     value: Box::new("abc".to_string())
@@ -643,6 +650,13 @@ pub fn take_nodeshot() -> Vec<ANode> {
     // root_node().map_or(vec![], |n| n.find_all(|_| true))
 }
 
+pub fn update_config_ui<State: Serialize + 'static>(
+    state: &mut State,
+    view: impl Fn(&State) -> Element<State>,
+) {
+    Store::proxy().update_config_ui(state, view)
+}
+
 pub fn get_string_test() -> String {
     // Store::proxy().get_string_test();
     // Store::proxy().fetch_screen_node();
@@ -658,8 +672,6 @@ pub fn wait_millis(s: impl IntoMilliseconds) {
     let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_milliseconds());
     is_running_status();
 }
-
-pub fn update_screen_shot() {}
 
 pub enum Status {
     Stopped = 0,

@@ -19,7 +19,7 @@ struct AccountConfig {
     id: usize,
 }
 #[derive(Default, Serialize)]
-pub(crate) struct Config {
+pub struct Config {
     name: String,
     account: Vec<AccountConfig>,
     enable_abc: bool,
@@ -56,7 +56,7 @@ trait View<State> {
 }
 
 #[typetag::serde(tag = "type")]
-pub(crate) trait CallbackValue: Any + std::fmt::Debug {}
+pub trait CallbackValue: Any + std::fmt::Debug {}
 
 #[typetag::serde()]
 impl CallbackValue for usize {}
@@ -77,7 +77,7 @@ impl CallbackValue for bool {}
 impl CallbackValue for String {}
 
 #[derive(Serialize)]
-pub(crate) struct Element<State> {
+pub struct Element<State> {
     #[serde(flatten)]
     item: Box<dyn View<State>>,
     // #[serde(skip)]
@@ -85,9 +85,7 @@ pub(crate) struct Element<State> {
 }
 
 impl<State: 'static> Element<State> {
-    pub(crate) fn collect_callback(
-        &mut self,
-    ) -> Vec<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
+    pub fn collect_callback(&mut self) -> Vec<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
         let mut ans: Vec<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> = vec![];
         let mut stack = vec![self];
         while !stack.is_empty() {
@@ -117,14 +115,14 @@ impl<State: 'static> Element<State> {
 // }
 
 #[derive(Serialize)]
-struct Text {
+pub struct Text {
     content: String,
 }
 
 #[typetag::serialize]
 impl<State> View<State> for Text {}
 
-fn text<State>(content: impl ToString) -> Element<State> {
+pub fn text<State>(content: impl ToString) -> Element<State> {
     Text {
         content: content.to_string(),
     }
@@ -150,7 +148,7 @@ impl<State> From<String> for Element<State> {
 }
 
 #[derive(Serialize)]
-struct Column<State> {
+pub struct Column<State> {
     content: Vec<Element<State>>,
 }
 
@@ -161,7 +159,7 @@ impl<State: Serialize> View<State> for Column<State> {
     }
 }
 
-fn column<State>(x: impl IntoIterator<Item = Element<State>>) -> Element<State>
+pub fn column<State>(x: impl IntoIterator<Item = Element<State>>) -> Element<State>
 where
     State: 'static + Serialize,
 {
@@ -172,7 +170,7 @@ where
 }
 
 #[derive(Serialize)]
-struct TextField<State: Serialize> {
+pub struct TextField<State: Serialize> {
     content: String,
     #[serde(skip)]
     callback: Box<dyn Fn(&mut State, String) -> ()>,
@@ -198,7 +196,7 @@ impl<State: Serialize + 'static> View<State> for TextField<State> {
     }
 }
 
-fn text_field<State, Callback, Content>(content: Content, callback: Callback) -> Element<State>
+pub fn text_field<State, Callback, Content>(content: Content, callback: Callback) -> Element<State>
 where
     State: 'static + Serialize,
     Callback: Fn(&mut State, String) -> () + 'static,
@@ -213,7 +211,7 @@ where
 }
 
 #[derive(Serialize)]
-struct Button<State: Serialize> {
+pub struct Button<State: Serialize> {
     content: Element<State>,
     #[serde(skip)]
     callback: Box<dyn Fn(&mut State) -> ()>,
@@ -235,7 +233,10 @@ impl<State: Serialize + 'static> View<State> for Button<State> {
     }
 }
 
-fn button<State, Callback>(content: impl Into<Element<State>>, callback: Callback) -> Element<State>
+pub fn button<State, Callback>(
+    content: impl Into<Element<State>>,
+    callback: Callback,
+) -> Element<State>
 where
     State: 'static + Serialize,
     Callback: Fn(&mut State) -> () + 'static,
@@ -248,7 +249,7 @@ where
     .into_element()
 }
 
-pub(crate) fn simple_view(state: &Config) -> Element<Config> {
+pub fn simple_view(state: &Config) -> Element<Config> {
     let layout = column([
         text(format!("state.enable_abc {}", state.enable_abc.to_string())),
         button(&state.name, |state: &mut Config| state.enable_abc = true),
@@ -265,7 +266,7 @@ pub(crate) fn simple_view(state: &Config) -> Element<Config> {
     layout
 }
 
-pub(crate) fn simple_config() -> Config {
+pub fn simple_config() -> Config {
     Config {
         account: vec![
             AccountConfig {

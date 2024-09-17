@@ -697,17 +697,122 @@ pub fn is_running_status() {
     }
 }
 
-pub struct GestureStorke {
-    point: Vec<Point>,
-    start: u64,
-    duration: u64,
+// enum InterpolationMode {
+//     Linner,
+//     Spring,
+//     Tween,
+// }
+//
+// pub struct GestureStorke {
+//     key_point: Vec<(Point, Duration)>,
+// }
+
+// impl GestureStorke {
+//     fn interp(
+//         &mut self,
+//         interval: Duration,
+//         mode: InterpolationMode,
+//     ) -> impl Iterator<Item = (Point, Duration)> + '_ {
+//         self.key_point.iter().flat_map(|p| [(p.0, p.1)])
+//     }
+// }
+
+// struct Gesture {
+//     stroke: Vec<GestureStorke>,
+// }
+//
+// impl Gesture {
+//     pub fn run(&self) {
+//         // for storke in self.stroke {
+//         //     if storke.key_point[0] {}
+//         // }
+//     }
+// }
+
+pub fn test_gesture() {
+    // // single finger
+    // gesture(&[vec![((0, 0), 0), ((1000, 0), 500), ((1000, 0), 600)]]);
+
+    // multi finger
+    gesture(&[
+        vec![(0, (600, 500)), (500, (1000, 0)), (100, (1000, 0))],
+        vec![(100, (600, 500)), (500, (1000, 0)), (100, (1000, 0))],
+    ]);
 }
 
-struct Gesture {
-    stroke: Vec<GestureStorke>,
+#[derive(Debug)]
+enum Action {
+    Down,
+    Up,
+    Move,
 }
 
-pub fn gesture() {}
+#[derive(Debug)]
+struct PointEvent {
+    x: f32,
+    y: f32,
+    id: i32,
+    action: Action,
+    time: Duration,
+}
+
+pub fn gesture(path: &[Vec<(u64, (i32, i32))>]) {
+    if path.is_empty() || path.iter().any(Vec::is_empty) {
+        return;
+    }
+
+    let mut point_list: Vec<_> = path
+        .iter()
+        .enumerate()
+        .flat_map(|(i, path)| {
+            let mut ans = vec![];
+            let mut time = Duration::ZERO;
+            for (j, &(delay, (x, y))) in path.iter().enumerate() {
+                time += Duration::from_millis(delay);
+                let point = move |action: Action| PointEvent {
+                    x: x as _,
+                    y: y as _,
+                    id: i as i32,
+                    action,
+                    time,
+                };
+                if j > 0 && j + 1 < path.len() {
+                    ans.push(point(Action::Move));
+                } else {
+                    if j == 0 {
+                        ans.push(point(Action::Down));
+                    }
+                    if j + 1 == path.len() {
+                        ans.push(point(Action::Up));
+                    }
+                }
+            }
+            ans
+        })
+        .collect();
+
+    point_list.sort_by_key(|e| e.time);
+
+    let start = Instant::now();
+    for PointEvent {
+        x,
+        y,
+        id,
+        action,
+        time,
+    } in point_list
+    {
+        wait_millis(time.saturating_sub(start.elapsed()));
+
+        d!(start.elapsed(), x, y, id, &action);
+
+        match action {
+            Action::Down => touch_down(x, y, id),
+            Action::Up => touch_up(x, y, id),
+            Action::Move => touch_move(x, y, id),
+        }
+    }
+}
 
 pub static USER_START: OnceLock<fn()> = OnceLock::new();
 
@@ -745,7 +850,9 @@ extern "C" fn start(mut env: JNIEnv, host: JObject) {
         set_status(Status::Running);
 
         android_logger::init_once(
-            android_logger::Config::default().with_max_level(log::LevelFilter::Info),
+            android_logger::Config::default()
+                .with_max_level(log::LevelFilter::Info)
+                .with_tag("gamebot"),
         );
 
         // trace!("trace log after init");

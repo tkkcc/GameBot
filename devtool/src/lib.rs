@@ -77,6 +77,22 @@ fn zoom() {
     // touch_up(400.0, 500.0, 0);
     // touch_up(600.0, 500.0, 1);
 }
+fn zoom_by_gesture() {
+    gesture(&[
+        vec![
+            (0, (500, 500)),
+            (33, (500 - 100, 500)),
+            (100, (500, 500)),
+            (100, (500, 500)),
+        ],
+        vec![
+            (0, (600, 500)),
+            (33, (600 + 100, 500)),
+            (100, (500, 500)),
+            (100, (500, 500)),
+        ],
+    ]);
+}
 
 fn float_move() {
     touch_down(500., 500., 0);
@@ -92,10 +108,11 @@ fn start() {
 
     click_recent();
     wait_millis(100);
-    // click_recent();
+    click_recent();
     wait_secs(1);
+    // zoom();
     // float_move();
-    gesture();
+    zoom_by_gesture();
     return;
 
     // take_nodeshot();

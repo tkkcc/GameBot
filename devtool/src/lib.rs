@@ -1,9 +1,9 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use gamebot::{
-    self, click_recent, d, gesture, take_nodeshot, take_screenshot, touch_down, touch_move,
-    touch_up, wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn, NodeSelector,
-    Region,
+    self, click_recent, d, gesture, gesture_smooth, take_nodeshot, take_screenshot, touch_down,
+    touch_move, touch_up, wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn,
+    NodeSelector, Region,
 };
 use log::error;
 
@@ -93,6 +93,22 @@ fn zoom_by_gesture() {
         ],
     ]);
 }
+fn zoom_by_gesture_smooth() {
+    gesture_smooth(&[
+        vec![
+            (0, (500, 500)),
+            (1000, (500 - 100, 500)),
+            (1000, (500, 500)),
+            (100, (500, 500)),
+        ],
+        vec![
+            (0, (600, 500)),
+            (1000, (600 + 100, 500)),
+            (1000, (600, 500)),
+            (100, (600, 500)),
+        ],
+    ]);
+}
 
 fn float_move() {
     touch_down(500., 500., 0);
@@ -112,7 +128,8 @@ fn start() {
     wait_secs(1);
     // zoom();
     // float_move();
-    zoom_by_gesture();
+    // zoom_by_gesture();
+    zoom_by_gesture_smooth();
     return;
 
     // take_nodeshot();

@@ -9,6 +9,7 @@ import android.graphics.PixelFormat
 import android.graphics.Point
 import android.graphics.Rect
 import android.hardware.display.DisplayManagerHidden
+import android.hardware.display.IDisplayManager
 import android.hardware.display.VirtualDisplay
 import android.hardware.input.IInputManager
 import android.media.Image
@@ -756,6 +757,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             virtualDisplay = DisplayManagerHidden.createVirtualDisplay(
                 "GameBotDisplay", screenSize.x, screenSize.y, 0, imageReader.surface
             )
+//            virtualDisplay.resize()
         }.onFailure {
             Log.e("", "496", it)
 //            throw NotImplementedError()
@@ -803,6 +805,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
                 Context.INPUT_SERVICE
             )
         )
+        
 
 
         connectUiAutomation()

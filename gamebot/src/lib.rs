@@ -6,33 +6,23 @@ mod node;
 mod t1;
 mod ui;
 
-use core::{error, f64, panic};
-use std::backtrace::Backtrace;
-use std::borrow::BorrowMut;
-use std::cell::{Cell, RefCell};
 use std::i32;
-use std::sync::atomic::AtomicU32;
-use std::sync::{Arc, RwLock};
+use std::ops::Range;
+use std::sync::Arc;
 use std::time::Instant;
 use std::{
-    sync::{
-        atomic::AtomicBool,
-        mpsc::{channel, Receiver, Sender, SyncSender},
-        LazyLock, OnceLock,
-    },
+    sync::{LazyLock, OnceLock},
     time::Duration,
 };
 
 use anyhow::{Error, Result};
 
-use image::{GenericImageView, ImageReader};
-use jni::descriptors::Desc;
-use jni::objects::{AutoLocal, JByteBuffer, JFieldID, JString};
-use jni::signature::ReturnType;
+use ease::cubic_in_out;
+use jni::objects::JByteBuffer;
 // use erased_serde::Serialize;
 // use git2::{CertificateCheckStatus, RemoteCallbacks};
 use jni::{
-    objects::{GlobalRef, JByteArray, JClass, JObject, JObjectArray},
+    objects::{GlobalRef, JByteArray, JObject, JObjectArray},
     JNIEnv, JavaVM,
 };
 use linux_futex::{Futex, Private};
@@ -632,12 +622,15 @@ pub fn click(x: f32, y: f32) {
     Store::proxy().click(x, y);
 }
 pub fn touch_down(x: f32, y: f32, id: i32) {
+    d!("touch down ", x, y, id);
     Store::proxy().touch_down(x, y, id);
 }
 pub fn touch_up(x: f32, y: f32, id: i32) {
+    d!("touch up ", x, y, id);
     Store::proxy().touch_up(x, y, id);
 }
 pub fn touch_move(x: f32, y: f32, id: i32) {
+    d!("touch move ", x, y, id);
     Store::proxy().touch_move(x, y, id);
 }
 pub fn click_recent() {
@@ -697,70 +690,51 @@ pub fn is_running_status() {
     }
 }
 
-// enum InterpolationMode {
-//     Linner,
-//     Spring,
-//     Tween,
-// }
-//
-// pub struct GestureStorke {
-//     key_point: Vec<(Point, Duration)>,
-// }
+pub mod ease {
+    pub type EaseFunc = fn(f32) -> f32;
 
-// impl GestureStorke {
-//     fn interp(
-//         &mut self,
-//         interval: Duration,
-//         mode: InterpolationMode,
-//     ) -> impl Iterator<Item = (Point, Duration)> + '_ {
-//         self.key_point.iter().flat_map(|p| [(p.0, p.1)])
-//     }
-// }
+    pub fn linear(t: f32) -> f32 {
+        t
+    }
 
-// struct Gesture {
-//     stroke: Vec<GestureStorke>,
-// }
-//
-// impl Gesture {
-//     pub fn run(&self) {
-//         // for storke in self.stroke {
-//         //     if storke.key_point[0] {}
-//         // }
-//     }
-// }
+    // https://docs.rs/simple-easing/latest/src/simple_easing/cubic.rs.html#12-18
+    pub fn cubic_in_out(t: f32) -> f32 {
+        if t < 0.5 {
+            4.0 * t * t * t
+        } else {
+            1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
+        }
+    }
+}
 
 pub fn test_gesture() {
-    // // single finger
-    // gesture(&[vec![((0, 0), 0), ((1000, 0), 500), ((1000, 0), 600)]]);
-
     // multi finger
     gesture(&[
+        vec![],
         vec![(0, (600, 500)), (500, (1000, 0)), (100, (1000, 0))],
+        vec![],
         vec![(100, (600, 500)), (500, (1000, 0)), (100, (1000, 0))],
+        vec![],
+        vec![],
     ]);
 }
 
-#[derive(Debug)]
-enum Action {
-    Down,
-    Up,
-    Move,
-}
-
-#[derive(Debug)]
-struct PointEvent {
-    x: f32,
-    y: f32,
-    id: i32,
-    action: Action,
-    time: Duration,
-}
-
 pub fn gesture(path: &[Vec<(u64, (i32, i32))>]) {
-    if path.is_empty() || path.iter().any(Vec::is_empty) {
-        return;
+    #[derive(Debug)]
+    enum Action {
+        Down,
+        Up,
+        Move,
     }
 
+    #[derive(Debug)]
+    struct PointEvent {
+        x: f32,
+        y: f32,
+        id: i32,
+        action: Action,
+        time: Duration,
+    }
     let mut point_list: Vec<_> = path
         .iter()
         .enumerate()
@@ -776,15 +750,15 @@ pub fn gesture(path: &[Vec<(u64, (i32, i32))>]) {
                     action,
                     time,
                 };
-                if j > 0 && j + 1 < path.len() {
+                if j == 0 {
+                    ans.push(point(Action::Down));
+                }
+                if j > 0 {
                     ans.push(point(Action::Move));
-                } else {
-                    if j == 0 {
-                        ans.push(point(Action::Down));
-                    }
-                    if j + 1 == path.len() {
-                        ans.push(point(Action::Up));
-                    }
+                }
+
+                if j + 1 == path.len() {
+                    ans.push(point(Action::Up));
                 }
             }
             ans
@@ -804,12 +778,164 @@ pub fn gesture(path: &[Vec<(u64, (i32, i32))>]) {
     {
         wait_millis(time.saturating_sub(start.elapsed()));
 
-        d!(start.elapsed(), x, y, id, &action);
+        // d!(start.elapsed(), x, y, id, &action);
 
         match action {
             Action::Down => touch_down(x, y, id),
             Action::Up => touch_up(x, y, id),
             Action::Move => touch_move(x, y, id),
+        }
+    }
+}
+
+pub fn gesture_smooth(path: &[Vec<(u64, (i32, i32))>]) {
+    gesture_interpolated(path, cubic_in_out, Duration::from_millis(33))
+}
+
+pub fn gesture_interpolated(
+    path: &[Vec<(u64, (i32, i32))>],
+    ease_func: ease::EaseFunc,
+    sample_interval: Duration,
+) {
+    #[derive(Debug)]
+    struct MoveEvent {
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        id: i32,
+        time: Range<Duration>,
+    }
+
+    #[derive(Debug)]
+    enum Action {
+        Down,
+        Up,
+    }
+
+    #[derive(Debug)]
+    struct UpDownEvent {
+        x: f32,
+        y: f32,
+        id: i32,
+        action: Action,
+        time: Duration,
+    }
+
+    let mut updown_event = vec![];
+    let mut move_event = vec![];
+
+    for (i, path) in path.iter().enumerate() {
+        let mut time = Duration::ZERO;
+        for (j, &(delay, (x, y))) in path.iter().enumerate() {
+            time += Duration::from_millis(delay);
+
+            if j > 0 {
+                move_event.push(MoveEvent {
+                    x1: path[j - 1].1 .0 as f32,
+                    y1: path[j - 1].1 .1 as f32,
+                    x2: x as f32,
+                    y2: y as f32,
+                    id: i as _,
+                    time: time - Duration::from_millis(delay)..time,
+                });
+            }
+
+            let updown = move |action: Action| UpDownEvent {
+                x: x as _,
+                y: y as _,
+                id: i as i32,
+                action,
+                time,
+            };
+            if j == 0 {
+                updown_event.push(updown(Action::Down));
+            }
+            if j + 1 == path.len() {
+                updown_event.push(updown(Action::Up));
+            }
+        }
+    }
+
+    updown_event.sort_by_key(|e| e.time);
+    move_event.sort_by_key(|e| e.time.end);
+    let mut updown_event = updown_event.as_slice();
+    let mut move_event = move_event.as_slice();
+    let Some(mut next_wake_time) = updown_event.first().map(|x| x.time) else {
+        return;
+    };
+    let start = Instant::now();
+
+    loop {
+        // d!(move_event.len(), move_event);
+        // break;
+        // d!(next_wake_time, start.elapsed());
+        wait_millis(next_wake_time.saturating_sub(start.elapsed()));
+        let i = updown_event
+            .iter()
+            .position(|e| e.time > start.elapsed())
+            .unwrap_or(updown_event.len());
+
+        for &UpDownEvent {
+            x,
+            y,
+            id,
+            ref action,
+            ..
+        } in &updown_event[..i]
+        {
+            // d!("updown", x, y, id, action);
+            match action {
+                Action::Down => touch_down(x, y, id),
+                Action::Up => {
+                    // touch_move(x, y, id);
+                    touch_up(x, y, id)
+                }
+            }
+        }
+        updown_event = &updown_event[i..];
+
+        let mut i = 0;
+        for (
+            j,
+            &MoveEvent {
+                x1,
+                y1,
+                x2,
+                y2,
+                id,
+                ref time,
+            },
+        ) in move_event.iter().enumerate()
+        {
+            let now = start.elapsed();
+            if time.end <= now {
+                i = j;
+            }
+            if time.contains(&now) {
+                let t = (now - time.start).as_secs_f32()
+                    / ((time.end - time.start).as_secs_f32() + 1e-6);
+                let t = ease_func(t);
+                let x = x1 + (x2 - x1) * t;
+                let y = y1 + (y2 - y1) * t;
+                // d!("move", x, y, id);
+                touch_move(x, y, id);
+            }
+        }
+        move_event = &move_event[i..];
+
+        if move_event.is_empty() && updown_event.is_empty() {
+            break;
+        } else if move_event.is_empty() {
+            next_wake_time = updown_event.first().unwrap().time;
+        } else if updown_event.is_empty() {
+            next_wake_time += sample_interval;
+        } else {
+            next_wake_time = updown_event
+                .first()
+                .unwrap()
+                .time
+                .min(next_wake_time + sample_interval);
         }
     }
 }

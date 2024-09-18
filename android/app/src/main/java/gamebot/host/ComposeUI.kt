@@ -45,6 +45,15 @@ sealed interface Component {
     }
 
     @Serializable
+    @SerialName("Empty")
+    data class Empty(val content: List<Component> = emptyList()) : Component {
+        @Composable
+        override fun Render() {
+
+        }
+    }
+
+    @Serializable
     @SerialName("Row")
     data class Row(val content: List<Component> = emptyList()) : Component {
         @Composable

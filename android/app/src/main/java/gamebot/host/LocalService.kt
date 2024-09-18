@@ -48,6 +48,7 @@ import initConfigUI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -167,9 +168,13 @@ class LocalService(
         val event =
             runBlocking {
                 buildList<CallbackMsg> {
-                    add(channel.receive())
-                    while (!channel.isEmpty) {
+                    try {
                         add(channel.receive())
+                        while (!channel.isEmpty) {
+                            add(channel.receive())
+                        }
+                    } catch (e: ClosedReceiveChannelException) {
+                        clear()
                     }
                 }
             }
@@ -180,6 +185,11 @@ class LocalService(
         val stream = ByteArrayOutputStream()
         Json.encodeToStream(ListSerializer(CallbackMsg.serializer()), event, stream)
         return sendLargeData(stream.toByteArray())
+    }
+
+    override fun stopConfigUIEvent() {
+        configUI.value = Component.Empty()
+        configUIEvent.value.close()
     }
 
     val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager

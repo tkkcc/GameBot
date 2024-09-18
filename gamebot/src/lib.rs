@@ -417,6 +417,8 @@ impl Proxy {
         state: &mut State,
         view: impl Fn(&State) -> Element<State>,
     ) {
+        check_running_status();
+
         // generate element tree
         let mut element = view(state);
 
@@ -459,8 +461,6 @@ impl Proxy {
 
         // error!("67 {:?}", event);
         let event: Vec<CallbackMsg> = serde_json::from_slice(&event).unwrap();
-
-        error!("{:?}", event);
 
         for event in event {
             callback[event.id](state, event.value)
@@ -666,11 +666,11 @@ pub fn get_string_test() -> String {
 
 pub fn wait_secs(s: impl IntoSeconds) {
     let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_seconds());
-    is_running_status();
+    check_running_status();
 }
 pub fn wait_millis(s: impl IntoMilliseconds) {
     let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_milliseconds());
-    is_running_status();
+    check_running_status();
 }
 
 pub enum Status {
@@ -696,7 +696,7 @@ pub fn set_status(status: Status) {
         .store(status as u32, std::sync::atomic::Ordering::Relaxed);
 }
 
-pub fn is_running_status() {
+pub fn check_running_status() {
     if !matches!(status(), Status::Running) {
         panic!();
     }
@@ -970,55 +970,36 @@ macro_rules! entry {
 extern "C" fn start(mut env: JNIEnv, host: JObject) {
     log_panics::init();
 
-    let _ = std::panic::catch_unwind(move || {
-        // running before previous stopped? unexpected!
-        if matches!(status(), Status::Running) {
-            panic!();
-        }
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_max_level(log::LevelFilter::Info)
+            .with_tag("gamebot"),
+    );
 
-        // let mut proxy = Proxy {
-        //     env: env,
-        //     host: &host,
-        // };
-        // let n1 = proxy.root_node().unwrap();
-        // n1.find_by_id("a");
+    // running before previous stopped? unexpected!
+    if matches!(status(), Status::Running) {
+        stop(env, host);
+        return;
+    }
 
-        Store::init(&mut env, &host).unwrap();
+    set_status(Status::Running);
 
-        set_status(Status::Running);
+    Store::init(&mut env, &host).unwrap();
 
-        android_logger::init_once(
-            android_logger::Config::default()
-                .with_max_level(log::LevelFilter::Info)
-                .with_tag("gamebot"),
-        );
-
-        // trace!("trace log after init");
-
-        // change log level at anytime
-        // log::set_max_level(log::LevelFilter::Warn);
-
-        // trace!("trace log after init?");
-
-        if let Some(f) = USER_START.get() {
+    if let Some(f) = USER_START.get() {
+        let _ = std::panic::catch_unwind(|| {
             f();
-        }
+        });
+    }
 
-        // let msg: JObject = env.new_string("1from").unwrap().into();
-        // thread::spawn(|| {
-        //     sleep(1);
-        //     error!("259");
-        // });
-        //
-        // sleep(3);
-        //
-        // let _ = env.call_method(&host, "toast", "(Ljava/lang/String;)V", &[(&msg).into()]);
-    });
-    stop();
+    stop(env, host);
 }
 
 #[no_mangle]
-extern "C" fn stop() {
+extern "C" fn stop(mut env: JNIEnv, host: JObject) {
     set_status(Status::Stopped);
     STATUS_TOKEN.wake(i32::MAX);
+
+    // stop callback / channel
+    let _ = env.call_method(&host, "stopConfigUIEvent", "()V", &[]);
 }

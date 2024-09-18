@@ -97,7 +97,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         startGuest(name, this)
     }
 
-    external override fun stopGuest(name: String)
+    external fun stopGuest(name: String, host: RemoteService)
+
+    override fun stopGuest(name: String){
+        Binder.clearCallingIdentity()
+        stopGuest(name, this)
+    }
 
 
     fun toast(msg: String) {
@@ -122,6 +127,10 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         return localService.waitConfigUIEvent().use { pfd ->
             ParcelFileDescriptor.AutoCloseInputStream(pfd).readBytes()
         }
+    }
+
+    fun stopConfigUIEvent() {
+        localService.stopConfigUIEvent()
     }
 
 

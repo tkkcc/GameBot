@@ -133,6 +133,11 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         localService.stopConfigUIEvent()
     }
 
+    fun sendReRenderConfigUIEvent() {
+        localService.sendReRenderConfigUIEvent()
+    }
+
+
 
     var nodeshotSerdeCache: Nodeshot = Nodeshot(ByteBuffer.allocateDirect(0), emptyArray())
 
@@ -864,6 +869,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             Log.e("", "791 ${it}")
 
         }
+
+
 
 
 

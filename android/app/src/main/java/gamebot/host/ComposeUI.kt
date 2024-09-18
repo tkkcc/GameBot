@@ -13,12 +13,10 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -77,7 +75,7 @@ sealed interface Component {
             // as it async updating value cause racing
             // related: https://medium.com/androiddevelopers/effective-state-management-for-textfield-in-compose-d6e5b070fbe5
 
-            val callback = LocalCallback.current
+            val callback = LocalUIEvent.current
 
             var remoteText by remember(content) { mutableStateOf(content) }
             var localText by remember { mutableStateOf(content) }
@@ -99,7 +97,7 @@ sealed interface Component {
     data class Button(val content: Component, val callbackId: Int = 0) : Component {
         @Composable
         override fun Render() {
-            val callback = LocalCallback.current
+            val callback = LocalUIEvent.current
             Button(onClick = {
                 callback(callbackId, CallbackValue.Unit)
             }) {
@@ -124,7 +122,7 @@ sealed interface Component {
 //    fun onEvent(eventId: Int, data: Any)
 //}
 
-val LocalCallback = compositionLocalOf<(Int, CallbackValue) -> Unit> {
+val LocalUIEvent = compositionLocalOf<(Int, CallbackValue) -> Unit> {
     { id, value ->
     }
 }
@@ -134,14 +132,14 @@ val LocalCallback = compositionLocalOf<(Int, CallbackValue) -> Unit> {
 fun initConfigUI(
     context: ComponentActivity,
     layout: MutableState<Component>,
-    callbackChannel: MutableState<Channel<CallbackMsg>>
+    uiEventChannel: MutableState<Channel<UIEvent>>
 ) {
     context.setContent {
-        val coroutine = rememberCoroutineScope()
-        CompositionLocalProvider(LocalCallback provides { id, value ->
-            coroutine.launch {
-                callbackChannel.value.send(CallbackMsg(id, value))
-            }
+//        val coroutine = rememberCoroutineScope()
+        CompositionLocalProvider(LocalUIEvent provides { id, value ->
+//            coroutine.launch {
+            uiEventChannel.value.trySend(UIEvent.Callback(id, value))
+//            }
         }) {
             layout.value.Render()
         }
@@ -149,7 +147,23 @@ fun initConfigUI(
 }
 
 @Serializable
-data class CallbackMsg(val id: Int, val value: CallbackValue)
+sealed class UIEvent{
+
+    @Serializable
+    @SerialName("ReRender")
+    data object ReRender: UIEvent()
+
+    @Serializable
+    @SerialName("Exit")
+    data object Exit: UIEvent()
+
+    @Serializable
+    @SerialName("Callback")
+    data class Callback(val id: Int, val value: CallbackValue): UIEvent()
+}
+
+//@Serializable
+//data class CallbackMsg(val id: Int, val value: CallbackValue)
 
 @Serializable
 sealed interface CallbackValue {

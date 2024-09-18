@@ -412,6 +412,29 @@ impl Proxy {
             .unwrap()
     }
 
+    fn set_config_ui<State: Serialize>(&mut self, mut ui: Element<State>) {
+        let byte = serde_json::to_vec(&ui).unwrap();
+        let value = self.env.byte_array_from_slice(&byte).unwrap();
+        self.env
+            .call_method(&self.host, "updateConfigUI", "([B)V", &[(&value).into()])
+            .unwrap();
+        self.env.delete_local_ref(value);
+    }
+
+    fn wait_config_ui_event(&mut self) -> UIEvent {
+        let event = self
+            .env
+            .call_method(&self.host, "waitConfigUIEvent", "()[B", &[])
+            .unwrap();
+
+        let event: JByteArray = event.l().unwrap().into();
+        let event = self.env.convert_byte_array(event).unwrap();
+        d!(String::from_utf8(event.clone()).unwrap());
+        let event: UIEvent = serde_json::from_slice(&event).unwrap();
+        d!(&event);
+        event
+    }
+
     fn update_config_ui<State: Serialize + 'static>(
         &mut self,
         state: &mut State,
@@ -986,11 +1009,13 @@ extern "C" fn start(mut env: JNIEnv, host: JObject) {
 
     Store::init(&mut env, &host).unwrap();
 
-    if let Some(f) = USER_START.get() {
-        let _ = std::panic::catch_unwind(|| {
-            f();
-        });
-    }
+    Store::proxy().wait_config_ui_event();
+
+    // if let Some(f) = USER_START.get() {
+    //     let _ = std::panic::catch_unwind(|| {
+    //         f();
+    //     });
+    // }
 
     stop(env, host);
 }
@@ -1001,5 +1026,7 @@ extern "C" fn stop(mut env: JNIEnv, host: JObject) {
     STATUS_TOKEN.wake(i32::MAX);
 
     // stop callback / channel
-    let _ = env.call_method(&host, "stopConfigUIEvent", "()V", &[]);
+    // let _ = env.call_method(&host, "stopConfigUIEvent", "()V", &[]);
 }
+
+pub use ui::UIEvent;

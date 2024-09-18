@@ -1,7 +1,9 @@
 use std::any::Any;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use strum::VariantArray;
+
+use crate::CallbackMsg;
 
 #[derive(VariantArray, Clone, Copy, Default, Serialize)]
 enum Server {
@@ -82,6 +84,17 @@ pub struct Element<State> {
     item: Box<dyn View<State>>,
     // #[serde(skip)]
     // ty: PhantomData<State>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum UIEvent {
+    ReRender,
+    Exit,
+    Callback {
+        id: usize,
+        value: Box<dyn CallbackValue>,
+    },
 }
 
 impl<State: 'static> Element<State> {
@@ -286,3 +299,6 @@ pub fn simple_config() -> Config {
         enable_abc: true,
     }
 }
+
+
+

@@ -1,8 +1,9 @@
 package gamebot.host
 
-import CallbackMsg
+//import CallbackMsg
 import Component
-import LocalCallback
+import LocalUIEvent
+import UIEvent
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Context.ACTIVITY_SERVICE
@@ -47,12 +48,11 @@ import gamebot.host.presentation.CenterView
 import initConfigUI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
@@ -83,7 +83,8 @@ class LocalService(
     val context: ComponentActivity,
 ) : ILocalService.Stub() {
     val configUI: MutableState<Component> = mutableStateOf(Component.Column())
-    var configUIEvent = mutableStateOf(Channel<CallbackMsg>())
+    var configUIEvent = mutableStateOf(Channel<UIEvent>(1, BufferOverflow.DROP_LATEST))
+//    var configUIEvent = mutableStateOf(Channel<UIEvent>())
     var byteBuffer = ByteBuffer.allocateDirect(0)
 
     init {
@@ -143,9 +144,9 @@ class LocalService(
                 }
 
                 val coroutine = rememberCoroutineScope()
-                CompositionLocalProvider(LocalCallback provides { id, value ->
+                CompositionLocalProvider(LocalUIEvent provides { id, value ->
                     coroutine.launch {
-                        configUIEvent.value.send(CallbackMsg(id, value))
+                        configUIEvent.value.send(UIEvent.Callback(id, value))
                     }
                 }) {
                     configUI.value.Render()
@@ -154,36 +155,40 @@ class LocalService(
         }
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     override fun updateConfigUI(pfd: ParcelFileDescriptor) {
         val stream = ParcelFileDescriptor.AutoCloseInputStream(pfd)
         val component: Component = Json.decodeFromStream(stream)
         configUI.value = component
-        configUIEvent.value = Channel<CallbackMsg>()
+        configUIEvent.value = Channel(1, BufferOverflow.DROP_LATEST)
     }
+
+    override fun sendReRenderConfigUIEvent() {
+        configUIEvent.value.trySend(UIEvent.ReRender)
+    }
+
 
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalSerializationApi::class)
     override fun waitConfigUIEvent(): ParcelFileDescriptor {
-//        Log.e("", "waitConfigUIEvent in localservice")
-        val channel = configUIEvent.value
-        val event =
-            runBlocking {
-                buildList<CallbackMsg> {
-                    try {
-                        add(channel.receive())
-                        while (!channel.isEmpty) {
-                            add(channel.receive())
-                        }
-                    } catch (e: ClosedReceiveChannelException) {
-                        clear()
-                    }
-                }
-            }
+        Log.e("gamebot", "local servie wait config ui evnett")
+//        val channel = configUIEvent.value
 
-        val y = Json.encodeToString(event)
-//        Log.e("", "waitConfigUIEvent in3 localservice， ${y}")
+//        Log.e("gamebot", "180 ${channel.isClosedForSend} ${channel.isClosedForReceive}")
+
+        val event = runBlocking {
+            Log.e("gamebot", "local servie wait config ui evnett11111111")
+            runCatching {
+                configUIEvent.value.send(UIEvent.Callback(1,CallbackValue.String("a")))
+                configUIEvent.value.receive()
+            }.onFailure {
+                Log.e("gamebot","what's the fuck", it)
+            }.getOrThrow()
+        }
+//        Log.e("gamebot", "186 " + Json.encodeToString(event))
+//        Log.e("gamebot", "187 ${channel.isClosedForSend} ${channel.isClosedForReceive}")
 
         val stream = ByteArrayOutputStream()
-        Json.encodeToStream(ListSerializer(CallbackMsg.serializer()), event, stream)
+        Json.encodeToStream(event, stream)
         return sendLargeData(stream.toByteArray())
     }
 

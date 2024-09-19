@@ -3,7 +3,6 @@ mod asset;
 mod find_trait;
 mod mail;
 mod node;
-mod t1;
 mod ui;
 
 use std::i32;
@@ -429,66 +428,66 @@ impl Proxy {
 
         let event: JByteArray = event.l().unwrap().into();
         let event = self.env.convert_byte_array(event).unwrap();
-        d!(String::from_utf8(event.clone()).unwrap());
+        // d!(String::from_utf8(event.clone()).unwrap());
         let event: UIEvent = serde_json::from_slice(&event).unwrap();
-        d!(&event);
+        // d!(&event);
         event
     }
 
-    fn update_config_ui<State: Serialize + 'static>(
-        &mut self,
-        state: &mut State,
-        view: impl Fn(&State) -> Element<State>,
-    ) {
-        check_running_status();
-
-        // generate element tree
-        let mut element = view(state);
-
-        // take out callback and assign callback_id
-        let callback = element.collect_callback();
-
-        // serialize element
-        let byte = serde_json::to_vec(&element).unwrap();
-
-        // debug!("{:?}", serde_json::to_string(&element));
-
-        // TODO may be leak
-        let value = self.env.byte_array_from_slice(&byte).unwrap();
-
-        d!(&value);
-
-        self.env
-            .call_method(&self.host, "updateConfigUI", "([B)V", &[(&value).into()])
-            .unwrap();
-
-        d!(440);
-
-        let event = self
-            .env
-            .call_method(&self.host, "waitConfigUIEvent", "()[B", &[])
-            .unwrap();
-
-        d!(&event);
-
-        // TODO may be leak
-        let event: JByteArray = event.l().unwrap().into();
-
-        // error!("65, {:?}", serde_json::to_string(&CallbackMsg {
-        //     id:0,
-        //     value: Box::new("abc".to_string())
-        // }));
-        // let x : CallbackMsg = serde_json::from_slice(&serde_json::to_vec(value))
-
-        let event = self.env.convert_byte_array(event).unwrap();
-
-        // error!("67 {:?}", event);
-        let event: Vec<CallbackMsg> = serde_json::from_slice(&event).unwrap();
-
-        for event in event {
-            callback[event.id](state, event.value)
-        }
-    }
+    // fn update_config_ui<State: Serialize + 'static>(
+    //     &mut self,
+    //     state: &mut State,
+    //     view: impl Fn(&State) -> Element<State>,
+    // ) {
+    //     check_running_status();
+    //
+    //     // generate element tree
+    //     let mut element = view(state);
+    //
+    //     // take out callback and assign callback_id
+    //     let callback = element.collect_callback();
+    //
+    //     // serialize element
+    //     let byte = serde_json::to_vec(&element).unwrap();
+    //
+    //     // debug!("{:?}", serde_json::to_string(&element));
+    //
+    //     // TODO may be leak
+    //     let value = self.env.byte_array_from_slice(&byte).unwrap();
+    //
+    //     d!(&value);
+    //
+    //     self.env
+    //         .call_method(&self.host, "updateConfigUI", "([B)V", &[(&value).into()])
+    //         .unwrap();
+    //
+    //     d!(440);
+    //
+    //     let event = self
+    //         .env
+    //         .call_method(&self.host, "waitConfigUIEvent", "()[B", &[])
+    //         .unwrap();
+    //
+    //     d!(&event);
+    //
+    //     // TODO may be leak
+    //     let event: JByteArray = event.l().unwrap().into();
+    //
+    //     // error!("65, {:?}", serde_json::to_string(&CallbackMsg {
+    //     //     id:0,
+    //     //     value: Box::new("abc".to_string())
+    //     // }));
+    //     // let x : CallbackMsg = serde_json::from_slice(&serde_json::to_vec(value))
+    //
+    //     let event = self.env.convert_byte_array(event).unwrap();
+    //
+    //     // error!("67 {:?}", event);
+    //     let event: Vec<CallbackMsg> = serde_json::from_slice(&event).unwrap();
+    //
+    //     for event in event {
+    //         callback[event.id](state, event.value)
+    //     }
+    // }
 
     fn start_http_server() {}
 
@@ -629,6 +628,18 @@ impl Proxy {
             .call_method(self.host, "gesture", "()V", &[])
             .unwrap();
     }
+
+    fn send_re_render_config_ui_event(&mut self) {
+        self.env
+            .call_method(self.host, "sendReRenderConfigUIEvent", "()V", &[])
+            .unwrap();
+    }
+
+    fn send_exit_config_ui_event(&mut self) {
+        self.env
+            .call_method(self.host, "sendExitConfigUIEvent", "()V", &[])
+            .unwrap();
+    }
 }
 
 static NODE_ACTION_CLICK: i32 = 0x00000010;
@@ -673,12 +684,12 @@ pub fn take_nodeshot() -> Vec<ANode> {
     // root_node().map_or(vec![], |n| n.find_all(|_| true))
 }
 
-pub fn update_config_ui<State: Serialize + 'static>(
-    state: &mut State,
-    view: impl Fn(&State) -> Element<State>,
-) {
-    Store::proxy().update_config_ui(state, view)
-}
+// pub fn update_config_ui<State: Serialize + 'static>(
+//     state: &mut State,
+//     view: impl Fn(&State) -> Element<State>,
+// ) {
+//     // Store::proxy().update_config_ui(state, view)
+// }
 
 pub fn get_string_test() -> String {
     // Store::proxy().get_string_test();
@@ -1009,13 +1020,13 @@ extern "C" fn start(mut env: JNIEnv, host: JObject) {
 
     Store::init(&mut env, &host).unwrap();
 
-    Store::proxy().wait_config_ui_event();
+    // Store::proxy().wait_config_ui_event();
 
-    // if let Some(f) = USER_START.get() {
-    //     let _ = std::panic::catch_unwind(|| {
-    //         f();
-    //     });
-    // }
+    if let Some(f) = USER_START.get() {
+        let _ = std::panic::catch_unwind(|| {
+            f();
+        });
+    }
 
     stop(env, host);
 }
@@ -1026,7 +1037,11 @@ extern "C" fn stop(mut env: JNIEnv, host: JObject) {
     STATUS_TOKEN.wake(i32::MAX);
 
     // stop callback / channel
-    // let _ = env.call_method(&host, "stopConfigUIEvent", "()V", &[]);
+    let _ = env.call_method(&host, "stopConfigUIEvent", "()V", &[]);
 }
 
+pub use ui::button;
+pub use ui::column;
+pub use ui::text;
+pub use ui::text_field;
 pub use ui::UIEvent;

@@ -9,3 +9,4 @@ crate-type = ["cdylib"]
 [dependencies]
 gamebot = { path = "../gamebot" }
 log = "0.4.22"
+serde = { version = "1.0.210", features = ["derive"] }

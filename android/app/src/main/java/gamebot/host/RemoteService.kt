@@ -136,6 +136,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     fun sendReRenderConfigUIEvent() {
         localService.sendReRenderConfigUIEvent()
     }
+    fun sendExitConfigUIEvent() {
+        localService.sendExitConfigUIEvent()
+    }
 
 
 

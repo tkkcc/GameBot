@@ -1,9 +1,14 @@
-use std::any::Any;
+use std::{
+    any::Any,
+    error::Error,
+    sync::{Arc, Mutex, MutexGuard, TryLockError},
+    thread::JoinHandle,
+};
 
 use serde::{Deserialize, Serialize};
 use strum::VariantArray;
 
-use crate::CallbackMsg;
+use crate::{d, CallbackMsg, Store};
 
 #[derive(VariantArray, Clone, Copy, Default, Serialize)]
 enum Server {
@@ -38,7 +43,7 @@ impl Config {
 
 #[typetag::serialize(tag = "type")]
 trait View<State> {
-    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
+    fn take_callback(&mut self) -> Option<CallbackFunc<State>> {
         None
     }
     fn set_callback_id(&mut self, _: usize) {}
@@ -97,19 +102,17 @@ pub enum UIEvent {
     },
 }
 
-impl<State: 'static> Element<State> {
-    pub fn collect_callback(&mut self) -> Vec<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
-        let mut ans: Vec<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> = vec![];
+type CallbackFunc<State> = Box<dyn FnOnce(&mut State, Box<dyn CallbackValue>, AUI<State>) + Send>;
+
+impl<State> Element<State> {
+    pub fn collect_callback(&mut self) -> Vec<CallbackFunc<State>> {
+        let mut ans: Vec<CallbackFunc<State>> = vec![];
         let mut stack = vec![self];
         while !stack.is_empty() {
             for Element { item } in std::mem::take(&mut stack) {
                 if let Some(callback) = item.take_callback() {
                     item.set_callback_id(ans.len());
-                    ans.push(Box::new(
-                        move |state: &mut State, new: Box<dyn CallbackValue>| {
-                            callback(state, new);
-                        },
-                    ));
+                    ans.push(callback);
                 }
                 stack.extend(item.children_mut());
             }
@@ -172,12 +175,12 @@ impl<State: Serialize> View<State> for Column<State> {
     }
 }
 
-pub fn column<State>(x: impl IntoIterator<Item = Element<State>>) -> Element<State>
+pub fn column<State>(content: impl IntoIterator<Item = Element<State>>) -> Element<State>
 where
     State: 'static + Serialize,
 {
     Column {
-        content: x.into_iter().collect(),
+        content: content.into_iter().collect(),
     }
     .into_element()
 }
@@ -186,23 +189,15 @@ where
 pub struct TextField<State: Serialize> {
     content: String,
     #[serde(skip)]
-    callback: Box<dyn Fn(&mut State, String) -> ()>,
+    callback: Option<CallbackFunc<State>>,
     #[serde(rename = "callbackId")]
     callback_id: usize,
 }
-#[typetag::serialize]
-impl<State: Serialize + 'static> View<State> for TextField<State> {
-    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
-        let mut callback: Box<dyn Fn(&mut State, String) -> ()> = Box::new(|_, _| {});
-        std::mem::swap(&mut self.callback, &mut callback);
 
-        Some(Box::new(
-            move |state: &mut State, new: Box<dyn CallbackValue>| {
-                if let Ok(new) = (new as Box<dyn Any>).downcast::<String>() {
-                    callback(state, *new);
-                }
-            },
-        ))
+#[typetag::serialize]
+impl<State: Serialize> View<State> for TextField<State> {
+    fn take_callback(&mut self) -> Option<CallbackFunc<State>> {
+        self.callback.take()
     }
     fn set_callback_id(&mut self, id: usize) {
         self.callback_id = id
@@ -212,13 +207,19 @@ impl<State: Serialize + 'static> View<State> for TextField<State> {
 pub fn text_field<State, Callback, Content>(content: Content, callback: Callback) -> Element<State>
 where
     State: 'static + Serialize,
-    Callback: Fn(&mut State, String) -> () + 'static,
+    Callback: FnOnce(&mut State, String, AUI<State>) + Send + 'static,
     Content: ToString,
 {
     TextField {
         callback_id: 0,
         content: content.to_string(),
-        callback: Box::new(callback),
+        callback: Some(Box::new(
+            move |state: &mut State, new: Box<dyn CallbackValue>, ui: AUI<State>| {
+                if let Ok(new) = (new as Box<dyn Any>).downcast::<String>() {
+                    callback(state, *new, ui)
+                }
+            },
+        )),
     }
     .into_element()
 }
@@ -227,19 +228,14 @@ where
 pub struct Button<State: Serialize> {
     content: Element<State>,
     #[serde(skip)]
-    callback: Box<dyn Fn(&mut State) -> ()>,
+    callback: Option<CallbackFunc<State>>,
     #[serde(rename = "callbackId")]
     callback_id: usize,
 }
 #[typetag::serialize]
 impl<State: Serialize + 'static> View<State> for Button<State> {
-    fn take_callback(&mut self) -> Option<Box<dyn Fn(&mut State, Box<dyn CallbackValue>)>> {
-        let mut callback: Box<dyn Fn(&mut State) -> ()> = Box::new(|_| {});
-        std::mem::swap(&mut self.callback, &mut callback);
-
-        Some(Box::new(move |state: &mut State, _| {
-            callback(state);
-        }))
+    fn take_callback(&mut self) -> Option<CallbackFunc<State>> {
+        self.callback.take()
     }
     fn set_callback_id(&mut self, id: usize) {
         self.callback_id = id
@@ -252,11 +248,15 @@ pub fn button<State, Callback>(
 ) -> Element<State>
 where
     State: 'static + Serialize,
-    Callback: Fn(&mut State) -> () + 'static,
+    Callback: Fn(&mut State, AUI<State>) + Send + 'static,
 {
     Button {
         content: content.into(),
-        callback: Box::new(callback),
+        callback: Some(Box::new(
+            move |state: &mut State, new: Box<dyn CallbackValue>, ui: AUI<State>| {
+                callback(state, ui);
+            },
+        )),
         callback_id: 0,
     }
     .into_element()
@@ -265,12 +265,14 @@ where
 pub fn simple_view(state: &Config) -> Element<Config> {
     let layout = column([
         text(format!("state.enable_abc {}", state.enable_abc.to_string())),
-        button(&state.name, |state: &mut Config| state.enable_abc = true),
-        button(text(&state.name), |state: &mut Config| {
+        button(&state.name, |state: &mut Config, _| state.enable_abc = true),
+        button(text(&state.name), |state: &mut Config, _| {
             state.enable_abc = false
         }),
-        text_field(&state.name, |state: &mut Config, new| state.name = new),
-        text_field(&state.name, Config::change_name),
+        text_field(&state.name, |state: &mut Config, new, _| state.name = new),
+        text_field(&state.name, |state, new, _| {
+            Config::change_name(state, new);
+        }),
         text("abc"),
     ]);
     // state.account_list.iter().enumerate().map(|i, account: AccountConfig| {
@@ -300,5 +302,103 @@ pub fn simple_config() -> Config {
     }
 }
 
+#[derive(Clone)]
+pub struct AUI<State>(Arc<Mutex<UI<State>>>);
 
+pub struct UI<State> {
+    state: State,
+    view: Box<dyn Fn(&State) -> Element<State> + Send>,
+    callback: Vec<CallbackFunc<State>>,
+    is_in_render_loop: bool,
+}
 
+impl<State: Serialize + Clone + Send + 'static> AUI<State> {
+    pub fn new(state: State, view: impl Fn(&State) -> Element<State> + Send + 'static) -> Self {
+        AUI(Arc::new(Mutex::new(UI {
+            state,
+            view: Box::new(view),
+            callback: vec![],
+            is_in_render_loop: false,
+        })))
+    }
+
+    fn commit(&self) {
+        let mut ui = self.ui();
+        let mut view = (ui.view)(&ui.state);
+        ui.callback = view.collect_callback();
+        Store::proxy().set_config_ui(view);
+    }
+
+    fn ui(&self) -> MutexGuard<UI<State>> {
+        self.0.lock().unwrap()
+    }
+
+    pub fn into_state(self) -> State {
+        Arc::into_inner(self.0).unwrap().into_inner().unwrap().state
+    }
+
+    pub fn enter_render_loop(&self) {
+        // ensure single render loop
+        {
+            let Ok(mut ui) = self.0.try_lock() else {
+                return;
+            };
+            if ui.is_in_render_loop {
+                return;
+            };
+            ui.is_in_render_loop = true;
+        }
+
+        loop {
+            self.commit();
+
+            match Store::proxy().wait_config_ui_event() {
+                UIEvent::ReRender => continue,
+                UIEvent::Exit => break,
+                UIEvent::Callback { id, value } => {
+                    let mut ui = self.ui();
+                    let f = ui.callback.swap_remove(id);
+                    f(&mut ui.state, value, self.clone());
+                }
+            };
+        }
+
+        self.ui().is_in_render_loop = false;
+    }
+
+    pub fn exit_render_loop(&self) {
+        // if self.0.try_lock().is_err() {
+        //     self.spawn(|ui| {
+        //         ui.exit_render_loop();
+        //     });
+        //     return;
+        // }
+
+        // Store::proxy().send_exit_config_ui_event();
+    }
+
+    pub fn update<F: FnOnce(&mut State) + Send + 'static>(&self, f: F) {
+        // if during lock, like event handler
+        // if self.0.try_lock().is_err() {
+        //     self.spawn(move |ui| {
+        //         ui.update(f);
+        //     });
+        //     return;
+        // }
+
+        f(&mut self.ui().state);
+
+        // if lock hold in show, it's ok
+        // if lock hold in handle_event, it's ok too, callback is still valid
+        // if at proxy.wait_config_ui_event, we need to trigger an event
+        Store::proxy().send_re_render_config_ui_event();
+    }
+
+    pub fn spawn<F: FnOnce(AUI<State>) + Send + 'static>(&self, f: F) -> JoinHandle<()> {
+        let ctx: AUI<State> = self.clone();
+        let handler = std::thread::spawn(move || {
+            f(ctx);
+        });
+        handler
+    }
+}

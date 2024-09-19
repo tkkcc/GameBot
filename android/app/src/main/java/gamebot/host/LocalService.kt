@@ -50,6 +50,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -145,9 +147,13 @@ class LocalService(
 
                 val coroutine = rememberCoroutineScope()
                 CompositionLocalProvider(LocalUIEvent provides { id, value ->
-                    coroutine.launch {
-                        configUIEvent.value.send(UIEvent.Callback(id, value))
-                    }
+//                    coroutine.launch {
+//                        try {
+                            configUIEvent.value.trySend(UIEvent.Callback(id, value))
+//                        } catch (e: ClosedSendChannelException) {
+//
+//                        }
+//                    }
                 }) {
                     configUI.value.Render()
                 }
@@ -159,6 +165,7 @@ class LocalService(
     override fun updateConfigUI(pfd: ParcelFileDescriptor) {
         val stream = ParcelFileDescriptor.AutoCloseInputStream(pfd)
         val component: Component = Json.decodeFromStream(stream)
+        configUIEvent.value.close()
         configUI.value = component
         configUIEvent.value = Channel(1, BufferOverflow.DROP_LATEST)
     }
@@ -167,25 +174,24 @@ class LocalService(
         configUIEvent.value.trySend(UIEvent.ReRender)
     }
 
+    override fun sendExitConfigUIEvent() {
+        configUIEvent.value.trySend(UIEvent.Exit)
+    }
+
+
 
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalSerializationApi::class)
     override fun waitConfigUIEvent(): ParcelFileDescriptor {
-        Log.e("gamebot", "local servie wait config ui evnett")
-//        val channel = configUIEvent.value
-
-//        Log.e("gamebot", "180 ${channel.isClosedForSend} ${channel.isClosedForReceive}")
+//        Log.e("gamebot", "local servie wait config ui event")
 
         val event = runBlocking {
-            Log.e("gamebot", "local servie wait config ui evnett11111111")
-            runCatching {
-                configUIEvent.value.send(UIEvent.Callback(1,CallbackValue.String("a")))
+//            Log.e("gamebot", "local servie wait config ui evnett11111111")
+            try {
                 configUIEvent.value.receive()
-            }.onFailure {
-                Log.e("gamebot","what's the fuck", it)
-            }.getOrThrow()
+            } catch(e: ClosedReceiveChannelException) {
+                UIEvent.Exit
+            }
         }
-//        Log.e("gamebot", "186 " + Json.encodeToString(event))
-//        Log.e("gamebot", "187 ${channel.isClosedForSend} ${channel.isClosedForReceive}")
 
         val stream = ByteArrayOutputStream()
         Json.encodeToStream(event, stream)

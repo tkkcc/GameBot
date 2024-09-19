@@ -1,11 +1,16 @@
-use std::time::{Duration, Instant};
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
 
 use gamebot::{
-    self, click_recent, d, gesture, gesture_smooth, simple_config, simple_view, take_nodeshot,
-    take_screenshot, touch_down, touch_move, touch_up, update_config_ui, wait_millis, wait_secs,
-    ColorPoint, ColorPointGroup, ColorPointGroupIn, NodeSelector, Region,
+    self, button, click_recent, column, d, gesture, gesture_smooth, simple_config, simple_view,
+    take_nodeshot, take_screenshot, text, text_field, touch_down, touch_move, touch_up,
+    wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn, Element, NodeSelector,
+    Region, AUI,
 };
 use log::error;
+use serde::Serialize;
 
 fn operator_swipe() {
     let x0 = 1600.0;
@@ -149,15 +154,97 @@ fn test_find() {
     error!("{:?}", start.elapsed());
 }
 
+fn test_ui() {
+    #[derive(Clone, Copy, Default, Serialize)]
+    enum Server {
+        #[default]
+        Official,
+        Bilibili,
+        VVV,
+    }
+
+    #[derive(Default, Serialize, Clone)]
+    struct AccountConfig {
+        username: String,
+        password: String,
+        server: Server,
+        id: usize,
+    }
+    #[derive(Default, Serialize, Clone)]
+    pub struct Config {
+        name: String,
+        account: Vec<AccountConfig>,
+        enable_abc: bool,
+    }
+    impl Config {
+        fn change_name(&mut self, new: String) {
+            self.name = new;
+        }
+    }
+
+    pub fn simple_view(state: &Config) -> Element<Config> {
+        let layout = column([
+            text(format!("state.enable_abc {}", state.enable_abc.to_string())),
+            button(&state.name, |state: &mut Config, ui| {
+                ui.enter_render_loop();
+                ui.update(|s| {
+                    s.enable_abc = false;
+                });
+                ui.exit_render_loop();
+                ui.spawn(|ui| {
+                    wait_secs(1);
+                    ui.update(|state| {
+                        state.enable_abc = true;
+                    })
+                });
+                // ui.enter_render_loop();
+
+                state.enable_abc = true;
+            }),
+            button(text(&state.name), |state: &mut Config, _| {
+                state.enable_abc = false
+            }),
+            text_field(&state.name, |state: &mut Config, new, _| state.name = new),
+            text_field(&state.name, |state, new, _| {
+                Config::change_name(state, new);
+            }),
+            text("abc"),
+        ]);
+        // state.account_list.iter().enumerate().map(|i, account: AccountConfig| {
+        //   section_row(account.title, account.info, checkbox(account.enable_abc, |state|state.account[i].enable_abc=new))
+        // });
+        layout
+    }
+
+    pub fn simple_config() -> Config {
+        Config {
+            account: vec![
+                AccountConfig {
+                    username: "use1".into(),
+                    password: "paww1".into(),
+                    id: 0,
+                    ..Default::default()
+                },
+                AccountConfig {
+                    username: "use2".into(),
+                    password: "paww2".into(),
+                    id: 1,
+                    ..Default::default()
+                },
+            ],
+            name: "what my name".into(),
+            enable_abc: true,
+        }
+    }
+    let ui = AUI::new(simple_config(), simple_view);
+    ui.enter_render_loop();
+}
+
 gamebot::entry!(start);
 fn start() {
     // click_recent();
     // wait_millis(100);
     // click_recent();
     // wait_secs(1);
-
-    let mut state = simple_config();
-    loop {
-        update_config_ui(&mut state, simple_view);
-    }
+    test_ui();
 }

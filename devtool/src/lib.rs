@@ -186,20 +186,22 @@ fn test_ui() {
         let layout = column([
             text(format!("state.enable_abc {}", state.enable_abc.to_string())),
             button(&state.name, |state: &mut Config, ui| {
-                ui.enter_render_loop();
                 ui.update(|s| {
                     s.enable_abc = false;
                 });
-                ui.exit_render_loop();
                 ui.spawn(|ui| {
                     wait_secs(1);
                     ui.update(|state| {
                         state.enable_abc = true;
+                        state.name = "aaa".into();
+                    });
+                    wait_secs(1);
+                    ui.update(|state| {
+                        state.enable_abc = false;
                     })
                 });
-                // ui.enter_render_loop();
-
                 state.enable_abc = true;
+                state.name = "true".into();
             }),
             button(text(&state.name), |state: &mut Config, _| {
                 state.enable_abc = false
@@ -236,7 +238,7 @@ fn test_ui() {
             enable_abc: true,
         }
     }
-    let ui = AUI::new(simple_config(), simple_view);
+    let mut ui = AUI::new(simple_config(), simple_view);
     ui.enter_render_loop();
 }
 

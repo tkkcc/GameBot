@@ -51,11 +51,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
-import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.encodeToString
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
@@ -85,8 +84,9 @@ class LocalService(
     val context: ComponentActivity,
 ) : ILocalService.Stub() {
     val configUI: MutableState<Component> = mutableStateOf(Component.Column())
-    var configUIEvent = mutableStateOf(Channel<UIEvent>(1, BufferOverflow.DROP_LATEST))
-//    var configUIEvent = mutableStateOf(Channel<UIEvent>())
+    var configUIEvent = mutableStateOf(Channel<UIEvent>())
+
+    //    var configUIEvent = mutableStateOf(Channel<UIEvent>())
     var byteBuffer = ByteBuffer.allocateDirect(0)
 
     init {
@@ -149,7 +149,7 @@ class LocalService(
                 CompositionLocalProvider(LocalUIEvent provides { id, value ->
 //                    coroutine.launch {
 //                        try {
-                            configUIEvent.value.trySend(UIEvent.Callback(id, value))
+                    configUIEvent.value.trySend(UIEvent.Callback(id, value))
 //                        } catch (e: ClosedSendChannelException) {
 //
 //                        }
@@ -161,17 +161,18 @@ class LocalService(
         }
     }
 
+
+
     @OptIn(ExperimentalSerializationApi::class)
     override fun updateConfigUI(pfd: ParcelFileDescriptor) {
         val stream = ParcelFileDescriptor.AutoCloseInputStream(pfd)
         val component: Component = Json.decodeFromStream(stream)
-        configUIEvent.value.close()
         configUI.value = component
-        configUIEvent.value = Channel(1, BufferOverflow.DROP_LATEST)
+        configUIEvent.value = Channel(8, BufferOverflow.DROP_LATEST)
     }
 
     override fun sendReRenderConfigUIEvent() {
-        configUIEvent.value.trySend(UIEvent.ReRender)
+        configUIEvent.value.trySend(UIEvent.Empty)
     }
 
     override fun sendExitConfigUIEvent() {
@@ -179,22 +180,27 @@ class LocalService(
     }
 
 
-
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalSerializationApi::class)
     override fun waitConfigUIEvent(): ParcelFileDescriptor {
-//        Log.e("gamebot", "local servie wait config ui event")
-
+        val channel = configUIEvent.value
         val event = runBlocking {
-//            Log.e("gamebot", "local servie wait config ui evnett11111111")
-            try {
-                configUIEvent.value.receive()
-            } catch(e: ClosedReceiveChannelException) {
-                UIEvent.Exit
+            buildList<UIEvent> {
+                try {
+                    add(channel.receive())
+                    while (!channel.isEmpty) {
+                        add(channel.receive())
+                    }
+                } catch (e: ClosedReceiveChannelException) {
+                    clear()
+                    add(UIEvent.Exit)
+                }
             }
+
         }
 
         val stream = ByteArrayOutputStream()
-        Json.encodeToStream(event, stream)
+        Json.encodeToStream(ListSerializer(UIEvent.serializer()), event, stream)
+        Log.e("gamebot",stream.toString())
         return sendLargeData(stream.toByteArray())
     }
 

@@ -150,8 +150,8 @@ fun initConfigUI(
 sealed class UIEvent{
 
     @Serializable
-    @SerialName("ReRender")
-    data object ReRender: UIEvent()
+    @SerialName("Empty")
+    data object Empty: UIEvent()
 
     @Serializable
     @SerialName("Exit")

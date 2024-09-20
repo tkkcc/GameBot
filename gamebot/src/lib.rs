@@ -420,7 +420,7 @@ impl Proxy {
         self.env.delete_local_ref(value);
     }
 
-    fn wait_config_ui_event(&mut self) -> UIEvent {
+    fn wait_config_ui_event<State>(&mut self) -> Vec<UIEvent<State>> {
         let event = self
             .env
             .call_method(&self.host, "waitConfigUIEvent", "()[B", &[])
@@ -429,9 +429,7 @@ impl Proxy {
         let event: JByteArray = event.l().unwrap().into();
         let event = self.env.convert_byte_array(event).unwrap();
         // d!(String::from_utf8(event.clone()).unwrap());
-        let event: UIEvent = serde_json::from_slice(&event).unwrap();
-        // d!(&event);
-        event
+        serde_json::from_slice(&event).unwrap()
     }
 
     // fn update_config_ui<State: Serialize + 'static>(

@@ -61,9 +61,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
-    val what: Int = 0
-    val what2: String = "888dsaf"
-
     lateinit var localService: ILocalService
 
     private lateinit var uiAutomationHidden: UiAutomationHidden

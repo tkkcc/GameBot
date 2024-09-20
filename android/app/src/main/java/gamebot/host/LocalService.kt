@@ -45,7 +45,6 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import gamebot.host.presentation.CenterView
-import initConfigUI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
@@ -59,7 +58,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.ByteArrayOutputStream
-import java.nio.ByteBuffer
 
 @Composable
 fun MemoryMonitor() {
@@ -80,26 +78,20 @@ fun MemoryMonitor() {
     Text("memory free: $memory MB, total: $memoryTotal MB")
 }
 
+
+data class ConfigUI(
+    val layout: MutableState<Component> = mutableStateOf(Component.Empty()),
+    val event: MutableState<Channel<UIEvent>> = mutableStateOf(Channel())
+)
+
+
 class LocalService(
     val context: ComponentActivity,
 ) : ILocalService.Stub() {
-//    val guestMap:HashMap<> = HashMap()
+//    val configUI: MutableState<Component> = mutableStateOf(Component.Column())
+//    var configUIEvent = mutableStateOf(Channel<UIEvent>())
 
-    val configUI: MutableState<Component> = mutableStateOf(Component.Column())
-    var configUIEvent = mutableStateOf(Channel<UIEvent>())
-
-    //    var configUIEvent = mutableStateOf(Channel<UIEvent>())
-    var byteBuffer = ByteBuffer.allocateDirect(0)
-
-    init {
-
-        context.runOnUiThread {
-            initConfigUI(context, configUI, configUIEvent)
-        }
-
-
-    }
-//            val ui = ComposeUI(context as ComponentActivity, configUI)
+    val configUIList = mutableMapOf<Int, ConfigUI>()
 
     override fun toast(text: String) {
         context.runOnUiThread {
@@ -146,17 +138,12 @@ class LocalService(
                     Text("stop devtool")
                 }
 
-                val coroutine = rememberCoroutineScope()
-                CompositionLocalProvider(LocalUIEvent provides { id, value ->
-//                    coroutine.launch {
-//                        try {
-                    configUIEvent.value.trySend(UIEvent.Callback(id, value))
-//                        } catch (e: ClosedSendChannelException) {
-//
-//                        }
-//                    }
-                }) {
-                    configUI.value.Render()
+                configUIList.getOrPut(0, { ConfigUI() }).apply {
+                    CompositionLocalProvider(LocalUIEvent provides { id, value ->
+                        event.value.trySend(UIEvent.Callback(id, value))
+                    }) {
+                        layout.value.Render()
+                    }
                 }
             }
         }
@@ -167,76 +154,82 @@ class LocalService(
     override fun updateConfigUI(token: Int, pfd: ParcelFileDescriptor) {
         val stream = ParcelFileDescriptor.AutoCloseInputStream(pfd)
         val component: Component = Json.decodeFromStream(stream)
-        configUI.value = component
-        configUIEvent.value = Channel(8, BufferOverflow.DROP_LATEST)
+
+        configUIList.getOrPut(token, {
+            ConfigUI()
+        }).apply {
+            layout.value = component
+            event.value = Channel(8, BufferOverflow.DROP_LATEST)
+        }
     }
 
-    override fun sendReRenderConfigUIEvent(token: Int) {
-        configUIEvent.value.trySend(UIEvent.Empty)
-    }
-
-    override fun sendExitConfigUIEvent(token: Int) {
-        configUIEvent.value.trySend(UIEvent.Exit)
+    override fun sendEmptyConfigUIEvent(token: Int) {
+        configUIList[token]?.apply {
+            event.value.trySend(UIEvent.Empty)
+        }
     }
 
 
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalSerializationApi::class)
     override fun waitConfigUIEvent(token: Int): ParcelFileDescriptor {
-        val channel = configUIEvent.value
-        val event = runBlocking {
+
+        val event = configUIList[token]?.let {
+            val channel = it.event.value
             buildList<UIEvent> {
                 try {
-                    add(channel.receive())
-                    while (!channel.isEmpty) {
+                    runBlocking {
                         add(channel.receive())
+                        while (!channel.isEmpty) {
+                            add(channel.receive())
+                        }
                     }
                 } catch (e: ClosedReceiveChannelException) {
                     clear()
                     add(UIEvent.Exit)
                 }
             }
+        } ?: emptyList()
 
-        }
 
         val stream = ByteArrayOutputStream()
         Json.encodeToStream(ListSerializer(UIEvent.serializer()), event, stream)
-        Log.e("gamebot", stream.toString())
+//        Log.e("gamebot",  stream.toString())
         return sendLargeData(stream.toByteArray())
     }
 
-    override fun stopConfigUIEvent(token: Int) {
-        configUI.value = Component.Empty()
-        configUIEvent.value.close()
+    override fun stopConfigUI(token: Int) {
+        configUIList[token]?.apply {
+            event.value.close()
+            layout.value = Component.Empty()
+        }
+        configUIList.remove(token)
     }
 
     val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
 
     fun addFloatingView(gravity: Int = Gravity.BOTTOM or Gravity.START): ComposeView {
-        val layoutFlag: Int =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                @Suppress("DEPRECATION")
-                WindowManager.LayoutParams.TYPE_PHONE
-            }
+        val layoutFlag: Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+        }
 
-        val params =
-            WindowManager.LayoutParams(
+        val params = WindowManager.LayoutParams(
 //                WindowManager.LayoutParams.MATCH_PARENT,
 //                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                100,
-                100,
-                layoutFlag,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            100,
+            100,
+            layoutFlag,
 //                    0,
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
 //                            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
 //                            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
 //                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
 //            0,
-                PixelFormat.TRANSLUCENT,
-            )
+            PixelFormat.TRANSLUCENT,
+        )
 //                params.gravity = gravity
 
         class MyLifecycleOwner : SavedStateRegistryOwner {
@@ -258,11 +251,10 @@ class LocalService(
                 get() = mSavedStateRegistryController.savedStateRegistry
         }
 
-        val textView =
-            ComposeView(context).apply {
-                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        val textView = ComposeView(context).apply {
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
 //                    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindowOrReleasedFromPool)
-            }
+        }
         textView.setContent {
             var text by remember {
                 mutableStateOf("a111111")
@@ -280,11 +272,10 @@ class LocalService(
         textView.setViewTreeLifecycleOwner(lifecycleOwner)
         textView.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
         val viewModelStore = ViewModelStore()
-        val viewModelStoreOwner =
-            object : ViewModelStoreOwner {
-                override val viewModelStore: ViewModelStore
-                    get() = viewModelStore
-            }
+        val viewModelStoreOwner = object : ViewModelStoreOwner {
+            override val viewModelStore: ViewModelStore
+                get() = viewModelStore
+        }
         textView.setViewTreeViewModelStoreOwner(viewModelStoreOwner)
 
         val v = EditText(context)

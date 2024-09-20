@@ -25,16 +25,12 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
         }
     }
 
-    fun stopConfigUIEvent() {
-        localService.stopConfigUIEvent(token)
+    fun stopConfigUI() {
+        localService.stopConfigUI(token)
     }
 
-    fun sendReRenderConfigUIEvent() {
-        localService.sendReRenderConfigUIEvent(token)
-    }
-
-    fun sendExitConfigUIEvent() {
-        localService.sendExitConfigUIEvent(token)
+    fun sendEmptyConfigUIEvent() {
+        localService.sendEmptyConfigUIEvent(token)
     }
 
     fun takeNodeshot(): Nodeshot = remoteService.takeNodeshot()

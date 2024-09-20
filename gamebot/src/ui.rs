@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     sync::mpsc::{Receiver, Sender},
-    thread::{JoinHandle},
+    thread::JoinHandle,
 };
 
 use serde::{Deserialize, Serialize};
@@ -246,7 +246,7 @@ pub struct UIContext<State> {
 
 impl<State: Send + 'static> UIContext<State> {
     pub fn rerender(&self) {
-        proxy().send_re_render_config_ui_event()
+        proxy().send_empty_config_ui_event()
     }
     pub fn exit(&self) {
         self.event_sender.send(UIEvent::Exit).unwrap();

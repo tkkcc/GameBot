@@ -1,7 +1,4 @@
-use std::{
-    thread,
-    time::Instant,
-};
+use std::{thread, time::Instant};
 
 use gamebot::{
     api::*,
@@ -257,17 +254,13 @@ fn test_ui() {
 
 gamebot::entry!(start);
 fn start() {
-    click_recent();
-    wait_millis(100);
-    click_recent();
-    wait_secs(1);
-    // test_ui();
+    // click_recent();
+    // wait_millis(100);
+    // click_recent();
+    // wait_secs(1);
+    test_ui();
 
-    let handler = thread::spawn(|| {
-        test_ui();
-    });
-    click_recent();
-    wait_millis(100);
-    click_recent();
-    handler.join();
+    // click_recent();
+    // wait_millis(100);
+    // click_recent();
 }

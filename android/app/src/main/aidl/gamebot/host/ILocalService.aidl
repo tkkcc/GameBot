@@ -12,7 +12,6 @@ interface ILocalService {
     void test();
     void updateConfigUI(int token, in ParcelFileDescriptor pfd);
     ParcelFileDescriptor waitConfigUIEvent(int token) ;
-    void stopConfigUIEvent(int token);
-    void sendReRenderConfigUIEvent(int token);
-    void sendExitConfigUIEvent(int token);
+    void stopConfigUI(int token);
+    void sendEmptyConfigUIEvent(int token);
 }

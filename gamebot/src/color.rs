@@ -1,13 +1,11 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, result::Result};
 
+use crate::api::proxy;
 use image::{ImageReader, RgbaImage};
 use serde::Deserialize;
+use thiserror::Error;
 
-enum Error {}
-
-type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone)]
 pub struct Point {
     pub x: i32,
     pub y: i32,
@@ -15,7 +13,7 @@ pub struct Point {
 
 impl Point {
     // only return jni error
-    fn click(&self) {
+    pub fn click(&self) {
         proxy().click(self.x as f32, self.y as f32)
     }
 }
@@ -42,9 +40,6 @@ pub struct ColorPointIn {
 
 #[derive(Debug)]
 struct ParseError {}
-use thiserror::Error;
-
-use crate::api::proxy;
 
 #[derive(Error, Debug)]
 pub enum GameBotError {
@@ -53,14 +48,12 @@ pub enum GameBotError {
 }
 
 impl ColorPoint {
-    fn click(&self) -> Result<()> {
-        Ok(())
-    }
+    fn click(&self) {}
 }
 impl TryFrom<&str> for ColorPointGroup {
     type Error = GameBotError;
 
-    fn try_from(value: &str) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         todo!()
     }
 }
@@ -155,8 +148,8 @@ impl From<DiskImageIn> for ImageIn {
             .into_rgba8();
         Self {
             img,
-            region: region,
-            tolerance: tolerance,
+            region,
+            tolerance,
         }
     }
 }

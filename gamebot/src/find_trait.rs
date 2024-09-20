@@ -1,4 +1,3 @@
-
 use crate::{
     api::{take_screenshot, IntoSeconds},
     color::{ColorPoint, ColorPointGroup, ColorPointGroupIn, DiskImageIn, ImageIn, Point},

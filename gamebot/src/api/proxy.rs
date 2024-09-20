@@ -1,7 +1,4 @@
-use std::{
-    error::Error,
-    sync::Arc,
-};
+use std::{error::Error, sync::Arc};
 
 use jni::{
     objects::{JByteArray, JByteBuffer, JObject, JObjectArray},
@@ -117,58 +114,55 @@ impl Proxy {
     }
     pub(crate) fn take_screenshot(&mut self) -> Screenshot {
         self.env
-            .with_local_frame(
-                4,
-                |env| -> Result<Screenshot, Box<dyn std::error::Error>> {
-                    let screenshot = env
-                        .call_method(self.host, "takeScreenshot", "()LScreenshot;", &[])
-                        .unwrap()
-                        .l()
-                        .unwrap();
-                    let width = env
-                        .get_field(&screenshot, "width", "I")
-                        .unwrap()
-                        .i()
-                        .unwrap()
-                        .try_into()
-                        .unwrap();
-                    let height = env
-                        .get_field(&screenshot, "height", "I")
-                        .unwrap()
-                        .i()
-                        .unwrap()
-                        .try_into()
-                        .unwrap();
-                    // let pixel_stride = env
-                    //     .get_field(&screenshot, "pixelStride", "I")
-                    //     .unwrap()
-                    //     .i()
-                    //     .unwrap();
-                    // let row_stride = env
-                    //     .get_field(&screenshot, "rowStride", "I")
-                    //     .unwrap()
-                    //     .i()
-                    //     .unwrap();
+            .with_local_frame(4, |env| -> Result<Screenshot, Box<dyn std::error::Error>> {
+                let screenshot = env
+                    .call_method(self.host, "takeScreenshot", "()LScreenshot;", &[])
+                    .unwrap()
+                    .l()
+                    .unwrap();
+                let width = env
+                    .get_field(&screenshot, "width", "I")
+                    .unwrap()
+                    .i()
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
+                let height = env
+                    .get_field(&screenshot, "height", "I")
+                    .unwrap()
+                    .i()
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
+                // let pixel_stride = env
+                //     .get_field(&screenshot, "pixelStride", "I")
+                //     .unwrap()
+                //     .i()
+                //     .unwrap();
+                // let row_stride = env
+                //     .get_field(&screenshot, "rowStride", "I")
+                //     .unwrap()
+                //     .i()
+                //     .unwrap();
 
-                    let data: JByteBuffer = env
-                        .get_field(&screenshot, "data", "Ljava/nio/ByteBuffer;")
-                        .unwrap()
-                        .l()
-                        .unwrap()
-                        .into();
+                let data: JByteBuffer = env
+                    .get_field(&screenshot, "data", "Ljava/nio/ByteBuffer;")
+                    .unwrap()
+                    .l()
+                    .unwrap()
+                    .into();
 
-                    let addr = env.get_direct_buffer_address(&data).unwrap();
-                    let capacity = env.get_direct_buffer_capacity(&data).unwrap();
-                    let data = unsafe { std::slice::from_raw_parts(addr, capacity) };
-                    Ok(Screenshot {
-                        width,
-                        height,
-                        // pixel_stride,
-                        // row_stride,
-                        data,
-                    })
-                },
-            )
+                let addr = env.get_direct_buffer_address(&data).unwrap();
+                let capacity = env.get_direct_buffer_capacity(&data).unwrap();
+                let data = unsafe { std::slice::from_raw_parts(addr, capacity) };
+                Ok(Screenshot {
+                    width,
+                    height,
+                    // pixel_stride,
+                    // row_stride,
+                    data,
+                })
+            })
             .unwrap()
     }
 
@@ -225,15 +219,9 @@ impl Proxy {
             .unwrap();
     }
 
-    pub(crate) fn send_re_render_config_ui_event(&mut self) {
+    pub(crate) fn send_empty_config_ui_event(&mut self) {
         self.env
-            .call_method(self.host, "sendReRenderConfigUIEvent", "()V", &[])
-            .unwrap();
-    }
-
-    pub(crate) fn send_exit_config_ui_event(&mut self) {
-        self.env
-            .call_method(self.host, "sendExitConfigUIEvent", "()V", &[])
+            .call_method(self.host, "sendEmptyConfigUIEvent", "()V", &[])
             .unwrap();
     }
 }

@@ -1,4 +1,3 @@
-use std::sync::LazyLock;
 
 use crate::{
     api::{take_screenshot, IntoSeconds},

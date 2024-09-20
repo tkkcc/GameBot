@@ -4,8 +4,8 @@ use std::{
     sync::{Arc, Weak},
 };
 
-use jni::objects::{AutoLocal, GlobalRef, JObject};
-use serde::{Deserialize, Serialize};
+use jni::objects::{GlobalRef, JObject};
+use serde::Deserialize;
 
 use crate::{
     api::{proxy, take_nodeshot},

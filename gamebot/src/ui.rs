@@ -1,12 +1,7 @@
 use std::{
     any::Any,
-    error::Error,
-    fmt::Display,
-    sync::{
-        mpsc::{Receiver, Sender},
-        Arc, Mutex, MutexGuard, TryLockError,
-    },
-    thread::{self, JoinHandle},
+    sync::mpsc::{Receiver, Sender},
+    thread::{JoinHandle},
 };
 
 use serde::{Deserialize, Serialize};

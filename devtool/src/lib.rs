@@ -1,6 +1,6 @@
 use std::{
     thread,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use gamebot::{
@@ -129,7 +129,7 @@ fn test_find() {
     let nodeshot = take_nodeshot();
     let screenshot = take_screenshot();
     let start = Instant::now();
-    for i in (0..100) {
+    for i in 0..100 {
         let x = ColorPointGroupIn {
             group: vec![ColorPoint::default(), ColorPoint::default()],
             region: Region {

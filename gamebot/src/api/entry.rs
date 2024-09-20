@@ -1,10 +1,10 @@
-use std::sync::{LazyLock, OnceLock};
+use std::sync::OnceLock;
 
 use jni::{objects::JObject, JNIEnv};
 
 use super::{
     status::{
-        get_status, is_running_status, set_running_status, set_status, set_stopped_status, Status,
+        is_running_status, set_running_status, set_stopped_status,
         STATUS_TOKEN,
     },
     store::Store,

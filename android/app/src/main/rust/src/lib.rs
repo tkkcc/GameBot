@@ -40,7 +40,7 @@ fn load_library(name: &str) -> Result<(), Box<dyn std::error::Error>> {
 #[no_mangle]
 extern "C" fn Java_RemoteService_startGuest(
     mut env: JNIEnv,
-    class: JClass,
+    _: JClass,
     name: JString,
     host: JObject,
 ) {
@@ -57,7 +57,7 @@ extern "C" fn Java_RemoteService_startGuest(
 #[no_mangle]
 extern "C" fn Java_RemoteService_stopGuest(
     mut env: JNIEnv,
-    class: JClass,
+    _: JClass,
     name: JString,
     host: JObject,
 ) {

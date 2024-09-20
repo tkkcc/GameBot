@@ -1,10 +1,10 @@
 use std::{
     error::Error,
-    sync::{Arc, OnceLock},
+    sync::Arc,
 };
 
 use jni::{
-    objects::{GlobalRef, JByteArray, JByteBuffer, JObject, JObjectArray},
+    objects::{JByteArray, JByteBuffer, JObject, JObjectArray},
     JNIEnv,
 };
 use serde::Serialize;
@@ -82,7 +82,7 @@ impl Proxy {
             .unwrap()
     }
 
-    pub(crate) fn set_config_ui<State: Serialize>(&mut self, mut ui: Element<State>) {
+    pub(crate) fn set_config_ui<State: Serialize>(&mut self, ui: Element<State>) {
         let byte = serde_json::to_vec(&ui).unwrap();
         let value = self.env.byte_array_from_slice(&byte).unwrap();
         self.env
@@ -119,7 +119,7 @@ impl Proxy {
         self.env
             .with_local_frame(
                 4,
-                |mut env| -> Result<Screenshot, Box<dyn std::error::Error>> {
+                |env| -> Result<Screenshot, Box<dyn std::error::Error>> {
                     let screenshot = env
                         .call_method(self.host, "takeScreenshot", "()LScreenshot;", &[])
                         .unwrap()

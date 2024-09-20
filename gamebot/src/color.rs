@@ -1,11 +1,4 @@
-use core::f64;
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    sync::LazyLock,
-    thread::sleep,
-    time::Duration,
-};
+use std::path::PathBuf;
 
 use image::{ImageReader, RgbaImage};
 use serde::Deserialize;

@@ -9,7 +9,6 @@ import android.graphics.PixelFormat
 import android.graphics.Point
 import android.graphics.Rect
 import android.hardware.display.DisplayManagerHidden
-import android.hardware.display.IDisplayManager
 import android.hardware.display.VirtualDisplay
 import android.hardware.input.IInputManager
 import android.media.Image
@@ -19,32 +18,27 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
-import android.os.ParcelFileDescriptor
 import android.os.ServiceManager
 import android.os.SystemClock
 import android.util.Log
 import android.view.IWindowManager
 import android.view.InputDevice
-import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.MotionEvent.PointerCoords
 import android.view.MotionEvent.PointerProperties
 import android.view.SurfaceControlHidden
-import android.view.accessibility.AccessibilityInteractionClient
 import android.view.accessibility.AccessibilityNodeInfo
-import android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK
 import dev.rikka.tools.refine.Refine
+import gamebot.host.Host
 import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
-import gamebot.host.sendLargeData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
 import java.io.BufferedReader
@@ -52,8 +46,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
-import java.lang.Thread.sleep
-import java.lang.reflect.Field
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.roundToInt
@@ -79,8 +71,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     private lateinit var uiAutomation: UiAutomation
     private val uiAutomationThread = HandlerThread("GameBotUiAutomationThread")
     private val imageReaderThread = HandlerThread("GameBotImageReaderThread")
-    lateinit var mWm: IWindowManager
-    lateinit var mIm: IInputManager
+    lateinit var windowManager: IWindowManager
+    lateinit var inputManager: IInputManager
+    private val hostMap = mutableMapOf<String, Host>()
 
     override fun destroy() {
         Log.e("", "destroy in remote service")
@@ -91,60 +84,40 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         TODO("Not yet implemented")
     }
 
-    external fun startGuest(name: String, host: RemoteService)
+    @Synchronized
+    fun hostOf(name: String): Host {
+        return hostMap.getOrPut(name, {
+            val used = hostMap.values.map { it.token }.toSet()
+            var i = used.size
+            for (j in used.indices) {
+                if (!used.contains(j)) {
+                    i = j
+                    break
+                }
+            }
+            Host(this, localService, i)
+        })
+    }
+
+    external fun startGuest(name: String, host: Host)
     override fun startGuest(name: String) {
         Binder.clearCallingIdentity()
-        val ss = this
-        startGuest(name, this)
+        startGuest(name, hostOf(name))
     }
 
-    external fun stopGuest(name: String, host: RemoteService)
+    external fun stopGuest(name: String, host: Host)
 
-    override fun stopGuest(name: String){
+    override fun stopGuest(name: String) {
         Binder.clearCallingIdentity()
-        stopGuest(name, this)
+        stopGuest(name, hostOf(name))
     }
-
-
-    fun toast(msg: String) {
-        localService.toast(msg)
-    }
-
-    fun toast2(msg: String) {
-//        localService.toast(msg)
-    }
-
-
-    fun updateConfigUI(layout: ByteArray) {
-        sendLargeData(layout).use { pfd ->
-            localService.updateConfigUI(pfd)
-        }
-    }
-
-    fun waitConfigUIEvent(): ByteArray {
-        return localService.waitConfigUIEvent().use { pfd ->
-            ParcelFileDescriptor.AutoCloseInputStream(pfd).readBytes()
-        }
-    }
-
-    fun stopConfigUIEvent() {
-        localService.stopConfigUIEvent()
-    }
-
-    fun sendReRenderConfigUIEvent() {
-        localService.sendReRenderConfigUIEvent()
-    }
-    fun sendExitConfigUIEvent() {
-        localService.sendExitConfigUIEvent()
-    }
-
 
 
     var nodeshotSerdeCache: Nodeshot = Nodeshot(ByteBuffer.allocateDirect(0), emptyArray())
 
     @Synchronized
     @OptIn(ExperimentalSerializationApi::class)
-    fun updateNodeshotSerde() {
+    fun updateNodeshot() {
         val (info, infoRef) = takeNodeshotRaw()
 //            Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
 
@@ -158,11 +131,11 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun takeNodeshotSerde(): Nodeshot {
+    fun takeNodeshot(): Nodeshot {
         // sync update
         if (isNodeshotInvalid() && requestUpdateNodeshot.isEmpty) {
             Log.e("", "sync update nodeshot serde")
-            updateNodeshotSerde()
+            updateNodeshot()
         } else {
 //            Log.e("","async update screenshot")
         }
@@ -175,10 +148,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
 
-    fun click(x: Float, y: Float) {
-        touchDown(x, y, 0)
-        touchUp(x, y, 0)
-    }
+
 
     //    var pointerPropertiesList: MutableList<PointerProperties> = mutableListOf()
     var lastTouchDownTime = SystemClock.uptimeMillis()
@@ -190,31 +160,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         DOWN(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN),
         UP(MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP),
         MOVE(MotionEvent.ACTION_MOVE, MotionEvent.ACTION_MOVE);
-    }
-
-    fun gesture() {
-
-        Binder.clearCallingIdentity()
-        val now = SystemClock.uptimeMillis()
-        val privateField
-                : Field = uiAutomation::class.java.getDeclaredField("mConnectionId")
-        privateField.setAccessible(true);
-        val mConnectionId = privateField.get(uiAutomation) as Int
-        AccessibilityInteractionClient.getInstance()
-
-//        Log.e("gamebot", uiAutomationHidden.mConnectionId.toString())
-        Log.e("gamebot", "connectionid " + mConnectionId.toString())
-
-
-//        val x = mutableListOf(Point(100, 100))
-//        val y = mutableListOf(Point(200, 200))
-        Log.e("gamebot", "start inject touch event")
-
-        injectTouchEvent(500.0f,500.0f,0,TouchAction.DOWN, now)
-        injectTouchEvent(500.0f,600.0f,0,TouchAction.MOVE,now + 1000)
-        injectTouchEvent(500.0f,700.0f,0,TouchAction.MOVE,now + 2000)
-        injectTouchEvent(500.0f,700.0f,0,TouchAction.UP,now + 3000)
-        Log.e("gamebot", "after inject touch event")
     }
 
 
@@ -269,58 +214,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             InputDevice.SOURCE_TOUCHSCREEN,
             0
         )
-        mIm.injectInputEvent(event, 0)
+        inputManager.injectInputEvent(event, 0)
         event.recycle()
-    }
-
-    fun touchDown(x: Float, y: Float, id: Int) {
-        injectTouchEvent(x, y, id, TouchAction.DOWN)
-    }
-
-    fun touchMove(x: Float, y: Float, id: Int) {
-        injectTouchEvent(x, y, id, TouchAction.MOVE)
-    }
-
-    fun touchUp(x: Float, y: Float, id: Int) {
-        injectTouchEvent(x, y, id, TouchAction.UP)
-    }
-
-
-    fun keyDown(keyCode: Int) {
-        Binder.clearCallingIdentity()
-
-//        val t = SystemClock.uptimeMillis()
-        val event = KeyEvent(KeyEvent.ACTION_DOWN, keyCode)
-        mIm.injectInputEvent(event, 0)
-//        event.recy()
-    }
-
-    fun keyUp(keyCode: Int) {
-        Binder.clearCallingIdentity()
-
-//        val t = SystemClock.uptimeMillis()
-        val event = KeyEvent(KeyEvent.ACTION_UP, keyCode)
-        mIm.injectInputEvent(event, 0)
-//        event.recy()
-    }
-
-    fun clickRecent() {
-        Binder.clearCallingIdentity()
-
-        keyDown(KeyEvent.KEYCODE_APP_SWITCH)
-//        sleep(500)
-        keyUp(KeyEvent.KEYCODE_APP_SWITCH)
-    }
-
-    fun clickHome() {
-        Binder.clearCallingIdentity()
-
-        keyDown(KeyEvent.KEYCODE_HOME)
-        keyUp(KeyEvent.KEYCODE_HOME)
-    }
-
-    fun clickNode(node: AccessibilityNodeInfo): Boolean {
-        return node.performAction(ACTION_CLICK)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -341,25 +236,25 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         return screenshot
     }
 
-    fun takeNodeshot(): Array<AccessibilityNodeInfo> {
-        // sync update
-        if (isNodeshotInvalid()) {
-            Log.e("", "sync update nodeshot")
-            updateNodeshot()
-        } else {
-//            Log.e("","async update screenshot")
-        }
-
-        // async update
-        requestUpdateNodeshot.trySend(Unit)
-
-        // cached
-        return nodeshotCache
-    }
-
-    fun rootNode(): AccessibilityNodeInfo? {
-        return uiAutomation.rootInActiveWindow
-    }
+//    fun takeNodeshot(): Array<AccessibilityNodeInfo> {
+//        // sync update
+//        if (isNodeshotInvalid()) {
+//            Log.e("", "sync update nodeshot")
+//            updateNodeshot()
+//        } else {
+////            Log.e("","async update screenshot")
+//        }
+//
+//        // async update
+//        requestUpdateNodeshot.trySend(Unit)
+//
+//        // cached
+//        return nodeshotCache
+//    }
+//
+//    fun rootNode(): AccessibilityNodeInfo? {
+//        return uiAutomation.rootInActiveWindow
+//    }
 
     fun connectUiAutomation() {
         Log.e("137", "connectUiAutomation")
@@ -379,24 +274,24 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     var cacheDir: String = CACHE_DIR
 
-    fun fetchScreenNode(): List<AccessibilityNodeInfo> {
-        val root = uiAutomation.rootInActiveWindow
-        val ans = mutableListOf<AccessibilityNodeInfo>()
-        val queue = ArrayDeque<AccessibilityNodeInfo>()
-        queue.add(root ?: let { return ans })
-        while (queue.isNotEmpty()) {
-            val node = queue.removeFirst()
-            ans.add(node)
-            for (i in 0 until node.childCount) {
-                node.getChild(i)?.let {
-                    queue.add(it)
-                }
-//                queue.add(node.getChild(i))
-            }
-        }
-
-        return ans
-    }
+//    fun fetchScreenNode(): List<AccessibilityNodeInfo> {
+//        val root = uiAutomation.rootInActiveWindow
+//        val ans = mutableListOf<AccessibilityNodeInfo>()
+//        val queue = ArrayDeque<AccessibilityNodeInfo>()
+//        queue.add(root ?: let { return ans })
+//        while (queue.isNotEmpty()) {
+//            val node = queue.removeFirst()
+//            ans.add(node)
+//            for (i in 0 until node.childCount) {
+//                node.getChild(i)?.let {
+//                    queue.add(it)
+//                }
+////                queue.add(node.getChild(i))
+//            }
+//        }
+//
+//        return ans
+//    }
 
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -432,46 +327,46 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         return Pair(info, infoRef)
     }
 
-    fun measureSceenNodeSearchSpeed() {
-        while (true) {
-
-
-            var start = System.currentTimeMillis()
-            val window = uiAutomation.rootInActiveWindow
-            Log.e("findRoot", "findRoot ${System.currentTimeMillis() - start}ms")
-            start = System.currentTimeMillis()
-//            val out = window.findAccessibilityNodeInfosByText("1")
-            val out = updateNodeshotSerde()
-            val jsonans = Json.encodeToString(out)
-            Log.e(
-                "findText",
-                "findText ${System.currentTimeMillis() - start}ms,  ${
-                    jsonans
-                }"
-            )
-            start = System.currentTimeMillis()
-
-            sleep(33)
-        }
-
-    }
+//    fun measureSceenNodeSearchSpeed() {
+//        while (true) {
+//
+//
+//            var start = System.currentTimeMillis()
+//            val window = uiAutomation.rootInActiveWindow
+//            Log.e("findRoot", "findRoot ${System.currentTimeMillis() - start}ms")
+//            start = System.currentTimeMillis()
+////            val out = window.findAccessibilityNodeInfosByText("1")
+//            val out = updateNodeshotSerde()
+//            val jsonans = Json.encodeToString(out)
+//            Log.e(
+//                "findText",
+//                "findText ${System.currentTimeMillis() - start}ms,  ${
+//                    jsonans
+//                }"
+//            )
+//            start = System.currentTimeMillis()
+//
+//            sleep(33)
+//        }
+//
+//    }
 
 
     fun getPhysicalDisplaySize(): Point = Point().apply {
-        mWm.getInitialDisplaySize(0, this)
+        windowManager.getInitialDisplaySize(0, this)
     }
 
     fun getOverrideDisplaySize(): Point = Point().apply {
-        mWm.getBaseDisplaySize(0, this)
+        windowManager.getBaseDisplaySize(0, this)
     }
 
-    fun getPhysicalDisplayDensity(): Int = mWm.getInitialDisplayDensity(0)
+    fun getPhysicalDisplayDensity(): Int = windowManager.getInitialDisplayDensity(0)
 
 
-    fun getOverrideDisplayDensity(): Int = mWm.getBaseDisplayDensity(0)
+    fun getOverrideDisplayDensity(): Int = windowManager.getBaseDisplayDensity(0)
 
     fun setOverrideDisplaySize(point: Point) {
-        mWm.setForcedDisplaySize(0, point.x, point.y)
+        windowManager.setForcedDisplaySize(0, point.x, point.y)
     }
 
     fun setOverrideDensitySize(density: Int) {
@@ -479,12 +374,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
         if (Build.VERSION.SDK_INT >= 25) {
             // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/nougat-mr1-dev/services/core/java/com/android/server/wm/WindowManagerService.java
-            mWm.setForcedDisplayDensityForUser(0, density, 0)
+            windowManager.setForcedDisplayDensityForUser(0, density, 0)
             Log.d(TAG, "setForcedDisplayDensityForUser success")
         } else {
             // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/nougat-dev/services/core/java/com/android/server/wm/WindowManagerService.java
 
-            mWm.setForcedDisplayDensity(0, density)
+            windowManager.setForcedDisplayDensity(0, density)
             Log.d(TAG, "setForcedDisplayDensity success")
         }
     }
@@ -531,9 +426,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
     fun getRotation(): Int = if (Build.VERSION.SDK_INT < 26) {
-        mWm.rotation
+        windowManager.rotation
     } else {
-        mWm.defaultDisplayRotation
+        windowManager.defaultDisplayRotation
     }
 
     var byteBuffer = ByteBuffer.allocateDirect(0)
@@ -692,14 +587,14 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
-    var nodeshotCache: Array<AccessibilityNodeInfo> = emptyArray()
+//    var nodeshotCache: Array<AccessibilityNodeInfo> = emptyArray()
 
 
-    @Synchronized
-    fun updateNodeshot() {
-        nodeshotCache = fetchScreenNode().toTypedArray()
-        updateNodeshotTimestamp()
-    }
+//    @Synchronized
+//    fun updateNodeshot() {
+//        nodeshotCache = fetchScreenNode().toTypedArray()
+//        updateNodeshotTimestamp()
+//    }
 
     @Synchronized
     fun updateScreenshot() {
@@ -744,7 +639,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             runBlocking(Dispatchers.Default) {
                 requestUpdateNodeshot.receive()
             }
-            updateNodeshotSerde()
+            updateNodeshot()
         }
 
 
@@ -809,13 +704,13 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         val token = clearCallingIdentity()
 
 
-        mWm = IWindowManager.Stub.asInterface(
+        windowManager = IWindowManager.Stub.asInterface(
             ServiceManager.getService(
                 Context.WINDOW_SERVICE
             )
         )
 
-        mIm = IInputManager.Stub.asInterface(
+        inputManager = IInputManager.Stub.asInterface(
             ServiceManager.getService(
                 Context.INPUT_SERVICE
             )
@@ -832,21 +727,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 //        click(0,0)
         Log.e("137", "after init , uid = ${getCallingUid()}")
-    }
-
-
-    fun findNodeInKotlin() {
-        fetchScreenNode()
-//        return uiAutomation.rootInActiveWindow
-    }
-
-    fun getStringTest() {
-//        return null
-//        return "83332334214"
-    }
-
-    fun dispatchGesture() {
-
     }
 
 
@@ -871,21 +751,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
         }
 
-
-
-
-
-//        thread {
-////            sleep(1000)
-////            Log.e("", "root node: ${takeNode()}")
-//            val root = takeNode()
-//            val region = Rect()
-//            root?.getBoundsInScreen(region)
-//            Log.e("", "root region ${region}")
-//        }
-//        if (root!=null) {
-
-//        }
         Log.e("", "rust call finish")
     }
 }

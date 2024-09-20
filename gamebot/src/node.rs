@@ -1,5 +1,4 @@
 use std::{
-    borrow::Borrow,
     cell::RefCell,
     ops::Deref,
     sync::{Arc, Weak},
@@ -8,7 +7,12 @@ use std::{
 use jni::objects::{AutoLocal, GlobalRef, JObject};
 use serde::{Deserialize, Serialize};
 
-use crate::{mail::Rect, take_nodeshot, Store, NODE_ACTION_CLICK};
+use crate::{
+    api::{proxy, take_nodeshot},
+    color::Rect,
+};
+
+static NODE_ACTION_CLICK: i32 = 0x00000010;
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
@@ -89,7 +93,7 @@ impl ANode {
     pub fn click(&self) {
         let obj = self.obj.borrow();
         let obj: &JObject = obj.as_ref().unwrap();
-        Store::proxy().node_action(obj, NODE_ACTION_CLICK);
+        proxy().node_action(obj, NODE_ACTION_CLICK);
     }
 }
 

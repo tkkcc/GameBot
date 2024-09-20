@@ -1,10 +1,8 @@
 use std::sync::LazyLock;
 
 use crate::{
-    mail::{
-        ColorPoint, ColorPointGroup, ColorPointGroupIn, DiskImageIn, ImageIn, IntoSeconds, Point,
-    },
-    take_screenshot,
+    api::{take_screenshot, IntoSeconds},
+    color::{ColorPoint, ColorPointGroup, ColorPointGroupIn, DiskImageIn, ImageIn, Point},
 };
 
 pub trait Find {
@@ -95,22 +93,6 @@ impl GroupFind for [ColorPoint] {
 }
 impl GroupAppear for [ColorPoint] {
     type T = Point;
-}
-
-fn t1() {
-    let v = ColorPoint::default();
-    let v2 = ColorPoint::default();
-    let v3 = [Box::new(v) as Box<dyn Find<Return = Point>>];
-    v2.find();
-    v3.all_find();
-    let x = [v2];
-    x.all_find();
-    x.all_appear(4);
-
-    (ColorPoint::default(), ColorPointGroup::default()).any_find_index();
-
-    let v22: LazyLock<ColorPoint> = LazyLock::new(|| ColorPoint::default());
-    let v23: &ColorPoint = &v22;
 }
 
 impl Find for ColorPoint {

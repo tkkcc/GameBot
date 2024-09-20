@@ -4,9 +4,10 @@ use std::{
 };
 
 use gamebot::{
-    self, button, column, gesture, gesture_smooth, take_nodeshot, take_screenshot, text,
-    text_field, touch_down, touch_move, touch_up, wait_millis, wait_secs, AUIContext, ColorPoint,
-    ColorPointGroup, ColorPointGroupIn, Element, NodeSelector, Region, AUI,
+    api::*,
+    color::{ColorPoint, ColorPointGroup, ColorPointGroupIn, Region},
+    node::NodeSelector,
+    ui::{button, col, text, text_field, Element, UIContext, UI},
 };
 use log::error;
 use serde::Serialize;
@@ -182,7 +183,7 @@ fn test_ui() {
         }
     }
 
-    pub fn simple_view(state: &mut Config, ui: AUIContext<Config>) -> Element<Config> {
+    pub fn simple_view(state: &mut Config, ui: UIContext<Config>) -> Element<Config> {
         if !state.launched {
             state.launched = true;
             ui.spawn(|ui| loop {
@@ -192,7 +193,7 @@ fn test_ui() {
                 })
             });
         }
-        let layout = column([
+        let layout = col([
             text(format!("state.enable_abc {}", state.enable_abc.to_string())),
             button(&state.name, |state: &mut Config, ui| {
                 ui.update(|s| {
@@ -248,20 +249,23 @@ fn test_ui() {
             launched: false,
         }
     }
-    let mut ui = AUI::new(simple_config(), simple_view);
+    let mut ui = UI::new(simple_config(), simple_view);
     ui.enter_render_loop();
 }
 
 gamebot::entry!(start);
 fn start() {
-    // click_recent();
-    // wait_millis(100);
-    // click_recent();
-    // wait_secs(1);
+    click_recent();
+    wait_millis(100);
+    click_recent();
+    wait_secs(1);
     // test_ui();
 
-    thread::spawn(|| {
+    let handler = thread::spawn(|| {
         test_ui();
-    })
-    .join();
+    });
+    click_recent();
+    wait_millis(100);
+    click_recent();
+    handler.join();
 }

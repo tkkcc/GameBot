@@ -9,7 +9,6 @@ use std::{
 
 use image::{ImageReader, RgbaImage};
 use serde::Deserialize;
-use static_toml::static_toml;
 
 enum Error {}
 
@@ -24,7 +23,7 @@ pub struct Point {
 impl Point {
     // only return jni error
     fn click(&self) {
-        Store::proxy().click(self.x as f32, self.y as f32)
+        proxy().click(self.x as f32, self.y as f32)
     }
 }
 
@@ -52,7 +51,7 @@ pub struct ColorPointIn {
 struct ParseError {}
 use thiserror::Error;
 
-use crate::Store;
+use crate::api::proxy;
 
 #[derive(Error, Debug)]
 pub enum GameBotError {
@@ -180,38 +179,6 @@ pub struct ColorPointGroupIn {
     pub group: Vec<ColorPoint>,
     pub tolerance: f32,
     pub region: Region,
-}
-
-pub trait IntoSeconds {
-    fn into_seconds(self) -> Duration;
-}
-impl IntoSeconds for u64 {
-    fn into_seconds(self) -> Duration {
-        Duration::from_secs(self)
-    }
-}
-impl IntoSeconds for f64 {
-    fn into_seconds(self) -> Duration {
-        Duration::from_secs_f64(self)
-    }
-}
-impl IntoSeconds for Duration {
-    fn into_seconds(self) -> Duration {
-        self
-    }
-}
-pub trait IntoMilliseconds {
-    fn into_milliseconds(self) -> Duration;
-}
-impl IntoMilliseconds for u64 {
-    fn into_milliseconds(self) -> Duration {
-        Duration::from_millis(self)
-    }
-}
-impl IntoMilliseconds for Duration {
-    fn into_milliseconds(self) -> Duration {
-        self
-    }
 }
 
 impl From<&ColorPoint> for Point {

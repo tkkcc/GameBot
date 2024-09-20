@@ -10,42 +10,8 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use strum::VariantArray;
 
-use crate::{d, wait_secs, CallbackMsg, Store};
-
-#[derive(VariantArray, Clone, Copy, Default, Serialize)]
-enum Server {
-    #[default]
-    Official,
-    Bilibili,
-    VVV,
-}
-
-#[derive(Default, Serialize)]
-struct AccountConfig {
-    username: String,
-    password: String,
-    server: Server,
-    id: usize,
-}
-#[derive(Default, Serialize)]
-pub struct Config {
-    name: String,
-    account: Vec<AccountConfig>,
-    enable_abc: bool,
-    #[serde(skip)]
-    launched: bool,
-}
-impl Config {
-    fn change_name(&mut self, new: String) {
-        self.name = new;
-    }
-}
-
-// trait MutableState: erased_serde::Serialize {}
-// serialize_trait_object!(MutableState);
-// impl<T: erased_serde::Serialize> MutableState for T {}
+use crate::api::proxy;
 
 #[typetag::serialize(tag = "type")]
 trait View<State> {
@@ -110,8 +76,7 @@ pub enum UIEvent<State> {
     Update(Box<dyn FnOnce(&mut State) + Send>),
 }
 
-type CallbackFunc<State> =
-    Box<dyn Fn(&mut State, Box<dyn CallbackValue>, AUIContext<State>) + Send>;
+type CallbackFunc<State> = Box<dyn Fn(&mut State, Box<dyn CallbackValue>, UIContext<State>) + Send>;
 
 impl<State> Element<State> {
     pub fn collect_callback(&mut self) -> Vec<CallbackFunc<State>> {
@@ -184,7 +149,7 @@ impl<State: Serialize> View<State> for Column<State> {
     }
 }
 
-pub fn column<State>(content: impl IntoIterator<Item = Element<State>>) -> Element<State>
+pub fn col<State>(content: impl IntoIterator<Item = Element<State>>) -> Element<State>
 where
     State: 'static + Serialize,
 {
@@ -216,14 +181,14 @@ impl<State: Serialize> View<State> for TextField<State> {
 pub fn text_field<State, Callback, Content>(content: Content, callback: Callback) -> Element<State>
 where
     State: 'static + Serialize,
-    Callback: Fn(&mut State, String, AUIContext<State>) + Send + 'static,
+    Callback: Fn(&mut State, String, UIContext<State>) + Send + 'static,
     Content: ToString,
 {
     TextField {
         callback_id: 0,
         content: content.to_string(),
         callback: Some(Box::new(
-            move |state: &mut State, new: Box<dyn CallbackValue>, ui: AUIContext<State>| {
+            move |state: &mut State, new: Box<dyn CallbackValue>, ui: UIContext<State>| {
                 if let Ok(new) = (new as Box<dyn Any>).downcast::<String>() {
                     callback(state, *new, ui)
                 }
@@ -257,12 +222,12 @@ pub fn button<State, Callback>(
 ) -> Element<State>
 where
     State: 'static + Serialize,
-    Callback: Fn(&mut State, AUIContext<State>) + Send + 'static,
+    Callback: Fn(&mut State, UIContext<State>) + Send + 'static,
 {
     Button {
         content: content.into(),
         callback: Some(Box::new(
-            move |state: &mut State, new: Box<dyn CallbackValue>, ui: AUIContext<State>| {
+            move |state: &mut State, new: Box<dyn CallbackValue>, ui: UIContext<State>| {
                 callback(state, ui);
             },
         )),
@@ -271,81 +236,22 @@ where
     .into_element()
 }
 
-// pub fn simple_view(state: &mut Config, ui: AUIContext<Config>) -> Element<Config> {
-//     if !state.launched {
-//         state.launched = true;
-//         ui.spawn(|ui| loop {
-//             wait_secs(1);
-//             ui.update(|state| {
-//                 state.name += "1";
-//             })
-//         });
-//     }
-//
-//     let layout = column([
-//         text(format!("state.enable_abc {}", state.enable_abc.to_string())),
-//         button(&state.name, |state: &mut Config, _| state.enable_abc = true),
-//         button(text(&state.name), |state: &mut Config, _| {
-//             state.enable_abc = false
-//         }),
-//         text_field(&state.name, |state: &mut Config, new, _| state.name = new),
-//         text_field(&state.name, |state, new, _| {
-//             Config::change_name(state, new);
-//         }),
-//         text("abc"),
-//     ]);
-//     // state.account_list.iter().enumerate().map(|i, account: AccountConfig| {
-//     //   section_row(account.title, account.info, checkbox(account.enable_abc, |state|state.account[i].enable_abc=new))
-//     // });
-//     layout
-// }
-//
-// pub fn simple_config() -> Config {
-//     Config {
-//         account: vec![
-//             AccountConfig {
-//                 username: "use1".into(),
-//                 password: "paww1".into(),
-//                 id: 0,
-//                 ..Default::default()
-//             },
-//             AccountConfig {
-//                 username: "use2".into(),
-//                 password: "paww2".into(),
-//                 id: 1,
-//                 ..Default::default()
-//             },
-//         ],
-//         name: "what my name".into(),
-//         enable_abc: true,
-//         launched: false,
-//     }
-// }
-
-pub struct AUI<State> {
+pub struct UI<State> {
     state: State,
-    view: Box<dyn Fn(&mut State, AUIContext<State>) -> Element<State>>,
+    view: Box<dyn Fn(&mut State, UIContext<State>) -> Element<State>>,
     callback: Vec<CallbackFunc<State>>,
     event_receiver: Receiver<UIEvent<State>>,
     event_sender: Sender<UIEvent<State>>,
 }
 
-// pub struct UI<State> {
-//     state: State,
-//     view: Box<dyn Fn(&State) -> Element<State> + Send>,
-//     callback: Vec<CallbackFunc<State>>,
-//     is_in_render_loop: bool,
-//     event_receiver: Receiver<UIEvent<State>>,
-// }
-
 // #[derive(Clone)]
-pub struct AUIContext<State> {
+pub struct UIContext<State> {
     event_sender: Sender<UIEvent<State>>,
 }
 
-impl<State: Send + 'static> AUIContext<State> {
+impl<State: Send + 'static> UIContext<State> {
     pub fn rerender(&self) {
-        Store::proxy().send_re_render_config_ui_event()
+        proxy().send_re_render_config_ui_event()
     }
     pub fn exit(&self) {
         self.event_sender.send(UIEvent::Exit).unwrap();
@@ -357,21 +263,21 @@ impl<State: Send + 'static> AUIContext<State> {
             .unwrap();
         self.rerender();
     }
-    pub fn spawn(&self, f: impl FnOnce(AUIContext<State>) + Send + 'static) -> JoinHandle<()> {
-        let ctx = AUIContext {
+    pub fn spawn(&self, f: impl FnOnce(UIContext<State>) + Send + 'static) -> JoinHandle<()> {
+        let ctx = UIContext {
             event_sender: self.event_sender.clone(),
         };
         std::thread::spawn(move || f(ctx))
     }
 }
 
-impl<State: Serialize> AUI<State> {
+impl<State: Serialize> UI<State> {
     pub fn new(
         state: State,
-        view: impl Fn(&mut State, AUIContext<State>) -> Element<State> + 'static,
+        view: impl Fn(&mut State, UIContext<State>) -> Element<State> + 'static,
     ) -> Self {
         let (event_sender, event_receiver) = std::sync::mpsc::channel();
-        AUI {
+        UI {
             state,
             view: Box::new(view),
             callback: vec![],
@@ -383,12 +289,12 @@ impl<State: Serialize> AUI<State> {
     fn render(&mut self) {
         let mut view = (self.view)(
             &mut self.state,
-            AUIContext {
+            UIContext {
                 event_sender: self.event_sender.clone(),
             },
         );
         self.callback = view.collect_callback();
-        Store::proxy().set_config_ui(view);
+        proxy().set_config_ui(view);
     }
 
     pub fn into_state(self) -> State {
@@ -399,7 +305,7 @@ impl<State: Serialize> AUI<State> {
         'outer: loop {
             self.render();
 
-            let event = Store::proxy()
+            let event = proxy()
                 .wait_config_ui_event()
                 .into_iter()
                 .chain(self.event_receiver.try_iter());
@@ -411,7 +317,7 @@ impl<State: Serialize> AUI<State> {
                     UIEvent::Callback { id, value } => (self.callback[id])(
                         &mut self.state,
                         value,
-                        AUIContext {
+                        UIContext {
                             event_sender: self.event_sender.clone(),
                         },
                     ),

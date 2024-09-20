@@ -10,9 +10,9 @@ interface ILocalService {
      */
     void toast(String text);
     void test();
-    void updateConfigUI(in ParcelFileDescriptor pfd);
-    ParcelFileDescriptor waitConfigUIEvent() ;
-    void stopConfigUIEvent();
-    void sendReRenderConfigUIEvent();
-    void sendExitConfigUIEvent();
+    void updateConfigUI(int token, in ParcelFileDescriptor pfd);
+    ParcelFileDescriptor waitConfigUIEvent(int token) ;
+    void stopConfigUIEvent(int token);
+    void sendReRenderConfigUIEvent(int token);
+    void sendExitConfigUIEvent(int token);
 }

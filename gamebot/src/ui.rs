@@ -12,7 +12,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use strum::VariantArray;
 
-use crate::{d, CallbackMsg, Store};
+use crate::{d, wait_secs, CallbackMsg, Store};
 
 #[derive(VariantArray, Clone, Copy, Default, Serialize)]
 enum Server {
@@ -34,6 +34,8 @@ pub struct Config {
     name: String,
     account: Vec<AccountConfig>,
     enable_abc: bool,
+    #[serde(skip)]
+    launched: bool,
 }
 impl Config {
     fn change_name(&mut self, new: String) {
@@ -269,49 +271,60 @@ where
     .into_element()
 }
 
-pub fn simple_view(state: &Config) -> Element<Config> {
-    let layout = column([
-        text(format!("state.enable_abc {}", state.enable_abc.to_string())),
-        button(&state.name, |state: &mut Config, _| state.enable_abc = true),
-        button(text(&state.name), |state: &mut Config, _| {
-            state.enable_abc = false
-        }),
-        text_field(&state.name, |state: &mut Config, new, _| state.name = new),
-        text_field(&state.name, |state, new, _| {
-            Config::change_name(state, new);
-        }),
-        text("abc"),
-    ]);
-    // state.account_list.iter().enumerate().map(|i, account: AccountConfig| {
-    //   section_row(account.title, account.info, checkbox(account.enable_abc, |state|state.account[i].enable_abc=new))
-    // });
-    layout
-}
-
-pub fn simple_config() -> Config {
-    Config {
-        account: vec![
-            AccountConfig {
-                username: "use1".into(),
-                password: "paww1".into(),
-                id: 0,
-                ..Default::default()
-            },
-            AccountConfig {
-                username: "use2".into(),
-                password: "paww2".into(),
-                id: 1,
-                ..Default::default()
-            },
-        ],
-        name: "what my name".into(),
-        enable_abc: true,
-    }
-}
+// pub fn simple_view(state: &mut Config, ui: AUIContext<Config>) -> Element<Config> {
+//     if !state.launched {
+//         state.launched = true;
+//         ui.spawn(|ui| loop {
+//             wait_secs(1);
+//             ui.update(|state| {
+//                 state.name += "1";
+//             })
+//         });
+//     }
+//
+//     let layout = column([
+//         text(format!("state.enable_abc {}", state.enable_abc.to_string())),
+//         button(&state.name, |state: &mut Config, _| state.enable_abc = true),
+//         button(text(&state.name), |state: &mut Config, _| {
+//             state.enable_abc = false
+//         }),
+//         text_field(&state.name, |state: &mut Config, new, _| state.name = new),
+//         text_field(&state.name, |state, new, _| {
+//             Config::change_name(state, new);
+//         }),
+//         text("abc"),
+//     ]);
+//     // state.account_list.iter().enumerate().map(|i, account: AccountConfig| {
+//     //   section_row(account.title, account.info, checkbox(account.enable_abc, |state|state.account[i].enable_abc=new))
+//     // });
+//     layout
+// }
+//
+// pub fn simple_config() -> Config {
+//     Config {
+//         account: vec![
+//             AccountConfig {
+//                 username: "use1".into(),
+//                 password: "paww1".into(),
+//                 id: 0,
+//                 ..Default::default()
+//             },
+//             AccountConfig {
+//                 username: "use2".into(),
+//                 password: "paww2".into(),
+//                 id: 1,
+//                 ..Default::default()
+//             },
+//         ],
+//         name: "what my name".into(),
+//         enable_abc: true,
+//         launched: false,
+//     }
+// }
 
 pub struct AUI<State> {
     state: State,
-    view: Box<dyn Fn(&State) -> Element<State>>,
+    view: Box<dyn Fn(&mut State, AUIContext<State>) -> Element<State>>,
     callback: Vec<CallbackFunc<State>>,
     event_receiver: Receiver<UIEvent<State>>,
     event_sender: Sender<UIEvent<State>>,
@@ -325,31 +338,38 @@ pub struct AUI<State> {
 //     event_receiver: Receiver<UIEvent<State>>,
 // }
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct AUIContext<State> {
     event_sender: Sender<UIEvent<State>>,
 }
 
-impl<State: Clone + Send + 'static> AUIContext<State> {
+impl<State: Send + 'static> AUIContext<State> {
     pub fn rerender(&self) {
         Store::proxy().send_re_render_config_ui_event()
     }
-    pub fn exit_render_loop(&self) {
-        self.event_sender.send(UIEvent::Exit);
+    pub fn exit(&self) {
+        self.event_sender.send(UIEvent::Exit).unwrap();
         self.rerender();
     }
     pub fn update(&self, f: impl FnOnce(&mut State) + Send + 'static) {
-        self.event_sender.send(UIEvent::Update(Box::new(f)));
+        self.event_sender
+            .send(UIEvent::Update(Box::new(f)))
+            .unwrap();
         self.rerender();
     }
     pub fn spawn(&self, f: impl FnOnce(AUIContext<State>) + Send + 'static) -> JoinHandle<()> {
-        let ctx = self.clone();
+        let ctx = AUIContext {
+            event_sender: self.event_sender.clone(),
+        };
         std::thread::spawn(move || f(ctx))
     }
 }
 
 impl<State: Serialize> AUI<State> {
-    pub fn new(state: State, view: impl Fn(&State) -> Element<State> + 'static) -> Self {
+    pub fn new(
+        state: State,
+        view: impl Fn(&mut State, AUIContext<State>) -> Element<State> + 'static,
+    ) -> Self {
         let (event_sender, event_receiver) = std::sync::mpsc::channel();
         AUI {
             state,
@@ -361,7 +381,12 @@ impl<State: Serialize> AUI<State> {
     }
 
     fn render(&mut self) {
-        let mut view = (self.view)(&self.state);
+        let mut view = (self.view)(
+            &mut self.state,
+            AUIContext {
+                event_sender: self.event_sender.clone(),
+            },
+        );
         self.callback = view.collect_callback();
         Store::proxy().set_config_ui(view);
     }

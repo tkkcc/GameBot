@@ -4,10 +4,9 @@ use std::{
 };
 
 use gamebot::{
-    self, button, click_recent, column, d, gesture, gesture_smooth, simple_config, simple_view,
-    take_nodeshot, take_screenshot, text, text_field, touch_down, touch_move, touch_up,
-    wait_millis, wait_secs, ColorPoint, ColorPointGroup, ColorPointGroupIn, Element, NodeSelector,
-    Region, AUI,
+    self, button, column, gesture, gesture_smooth, take_nodeshot, take_screenshot, text,
+    text_field, touch_down, touch_move, touch_up, wait_millis, wait_secs, AUIContext, ColorPoint,
+    ColorPointGroup, ColorPointGroupIn, Element, NodeSelector, Region, AUI,
 };
 use log::error;
 use serde::Serialize;
@@ -175,6 +174,7 @@ fn test_ui() {
         name: String,
         account: Vec<AccountConfig>,
         enable_abc: bool,
+        launched: bool,
     }
     impl Config {
         fn change_name(&mut self, new: String) {
@@ -182,7 +182,16 @@ fn test_ui() {
         }
     }
 
-    pub fn simple_view(state: &Config) -> Element<Config> {
+    pub fn simple_view(state: &mut Config, ui: AUIContext<Config>) -> Element<Config> {
+        if !state.launched {
+            state.launched = true;
+            ui.spawn(|ui| loop {
+                wait_secs(1);
+                ui.update(|state| {
+                    state.name += "1";
+                })
+            });
+        }
         let layout = column([
             text(format!("state.enable_abc {}", state.enable_abc.to_string())),
             button(&state.name, |state: &mut Config, ui| {
@@ -236,6 +245,7 @@ fn test_ui() {
             ],
             name: "what my name".into(),
             enable_abc: true,
+            launched: false,
         }
     }
     let mut ui = AUI::new(simple_config(), simple_view);
@@ -248,5 +258,10 @@ fn start() {
     // wait_millis(100);
     // click_recent();
     // wait_secs(1);
-    test_ui();
+    // test_ui();
+
+    thread::spawn(|| {
+        test_ui();
+    })
+    .join();
 }

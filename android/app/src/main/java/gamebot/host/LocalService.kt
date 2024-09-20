@@ -83,6 +83,8 @@ fun MemoryMonitor() {
 class LocalService(
     val context: ComponentActivity,
 ) : ILocalService.Stub() {
+//    val guestMap:HashMap<> = HashMap()
+    
     val configUI: MutableState<Component> = mutableStateOf(Component.Column())
     var configUIEvent = mutableStateOf(Channel<UIEvent>())
 
@@ -92,7 +94,6 @@ class LocalService(
     init {
 
         context.runOnUiThread {
-
             initConfigUI(context, configUI, configUIEvent)
         }
 

@@ -94,6 +94,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     external fun startGuest(name: String, host: RemoteService)
     override fun startGuest(name: String) {
         Binder.clearCallingIdentity()
+        val ss = this
         startGuest(name, this)
     }
 
@@ -113,9 +114,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //        localService.toast(msg)
     }
 
-    fun showUI(layout: String, state: String) {
-
-    }
 
     fun updateConfigUI(layout: ByteArray) {
         sendLargeData(layout).use { pfd ->

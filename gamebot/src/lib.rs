@@ -6,3 +6,5 @@ pub mod node;
 // mod proxy;
 pub mod screenshot;
 pub mod ui;
+
+pub use log;

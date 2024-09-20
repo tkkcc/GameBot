@@ -6,6 +6,7 @@ use std::{
 use gamebot::{
     api::*,
     color::{ColorPoint, ColorPointGroup, ColorPointGroupIn, Region},
+    d,
     node::NodeSelector,
     ui::{button, col, text, text_field, Element, UIContext, UI},
 };
@@ -13,6 +14,7 @@ use log::error;
 use serde::Serialize;
 
 fn operator_swipe() {
+    d!(1);
     let x0 = 1600.0;
     touch_down(x0, 100.0, 0);
     wait_millis(66);

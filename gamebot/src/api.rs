@@ -12,7 +12,7 @@ use std::{
 use status::{check_running_status, Status, STATUS_TOKEN};
 use store::Store;
 
-use crate::{node::ANode, screenshot::Screenshot};
+use crate::{d, node::ANode, screenshot::Screenshot};
 
 pub(crate) fn proxy() -> proxy::Proxy {
     Store::proxy()
@@ -283,7 +283,7 @@ pub fn gesture_interpolated(
                 let t = ease_func(t);
                 let x = x1 + (x2 - x1) * t;
                 let y = y1 + (y2 - y1) * t;
-                // d!("move", x, y, id);
+                d!("move", x, y, id);
                 touch_move(x, y, id);
             }
         }

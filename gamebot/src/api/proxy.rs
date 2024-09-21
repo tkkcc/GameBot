@@ -1,7 +1,7 @@
 use std::{error::Error, sync::Arc};
 
 use jni::{
-    objects::{JByteArray, JByteBuffer, JObject, JObjectArray},
+    objects::{JByteArray, JByteBuffer, JObject, JObjectArray, JString},
     JNIEnv,
 };
 use serde::Serialize;
@@ -218,5 +218,28 @@ impl Proxy {
         self.env
             .call_method(self.host, "sendEmptyConfigUIEvent", "()V", &[])
             .unwrap();
+    }
+
+    pub(crate) fn recent_activity_list(&mut self) {
+        let array: JObjectArray = self
+            .env
+            .call_method(
+                self.host,
+                "recentActivityList",
+                "()[Ljava/lang/String;",
+                &[],
+            )
+            .unwrap()
+            .l()
+            .unwrap()
+            .into();
+        let size = self.env.get_array_length(&array).unwrap();
+        let ans = Vec::with_capacity(size as usize);
+        for i in 0..size {
+            let x: JString = self.env.get_object_array_element(array, i).unwrap().into();
+            let x: String = self.env.get_string(&x).unwrap().into();
+            ans.push(x);
+        }
+        ans
     }
 }

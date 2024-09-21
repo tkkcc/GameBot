@@ -58,6 +58,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.ByteArrayOutputStream
+import java.lang.Thread.sleep
+import kotlin.concurrent.thread
 
 @Composable
 fun MemoryMonitor() {
@@ -102,6 +104,8 @@ class LocalService(
     lateinit var remoteService: IRemoteService
 
     override fun test() {
+
+
         context.setContent {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
@@ -288,4 +292,6 @@ class LocalService(
         windowManager.addView(textView, params)
         return textView
     }
+
+
 }

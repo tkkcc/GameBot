@@ -1,4 +1,5 @@
 //import kotlin.Pair
+import android.app.ActivityManager
 import android.app.UiAutomation
 import android.app.UiAutomationConnection
 import android.app.UiAutomationHidden
@@ -46,10 +47,11 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
+import java.lang.Thread.sleep
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.concurrent.thread
 import kotlin.math.roundToInt
-import kotlin.reflect.full.declaredMembers
 import kotlin.system.exitProcess
 
 class RemoteService(val context: Context) : IRemoteService.Stub() {
@@ -61,6 +63,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
+    lateinit var activityManager: ActivityManager
     lateinit var localService: ILocalService
 
     private lateinit var uiAutomationHidden: UiAutomationHidden
@@ -143,8 +146,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         // cached
         return nodeshotSerdeCache
     }
-
-
 
 
     //    var pointerPropertiesList: MutableList<PointerProperties> = mutableListOf()
@@ -699,6 +700,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
         // for android >=13, after clear uid, it's just shell / root uid
         val token = clearCallingIdentity()
+        activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
 
 
         windowManager = IWindowManager.Stub.asInterface(
@@ -739,17 +741,22 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         initAll()
         initDisplayProjection()
         localService.test()
-        this.javaClass.declaredMethods.forEach {
-            Log.e("", "790 ${it}")
-        }
+//        this.javaClass.declaredMethods.forEach {
+//            Log.e("", "790 ${it}")
+//        }
+//
+//        Nodeshot::class.declaredMembers.forEach {
+//            Log.e("", "791 ${it}")
+//        }
 
-        Nodeshot::class.declaredMembers.forEach {
-            Log.e("", "791 ${it}")
 
-        }
 
         Log.e("", "rust call finish")
     }
+
+
+
+
 }
 
 

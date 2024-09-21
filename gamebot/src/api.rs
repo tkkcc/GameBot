@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use status::{check_running_status, Status, STATUS_TOKEN};
+use status::{assert_running_status, Status, STATUS_TOKEN};
 use store::Store;
 
 use crate::{d, node::ANode, screenshot::Screenshot};
@@ -26,7 +26,8 @@ pub fn take_screenshot() -> Screenshot {
     proxy().take_screenshot()
 }
 pub fn click(x: f32, y: f32) {
-    proxy().click(x, y);
+    touch_down(x, y, 0);
+    touch_up(x, y, 0);
 }
 pub fn touch_down(x: f32, y: f32, id: i32) {
     proxy().touch_down(x, y, id);
@@ -45,14 +46,19 @@ pub fn take_nodeshot() -> Vec<ANode> {
     proxy().take_nodeshot()
 }
 
+pub fn wait_forever() {
+    let _ = STATUS_TOKEN.wait(Status::Running as u32);
+    assert_running_status();
+}
+
 pub fn wait_secs(s: impl IntoSeconds) {
     let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_seconds());
-    check_running_status();
+    assert_running_status();
 }
 
 pub fn wait_millis(s: impl IntoMilliseconds) {
     let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_milliseconds());
-    check_running_status();
+    assert_running_status();
 }
 
 pub mod ease {

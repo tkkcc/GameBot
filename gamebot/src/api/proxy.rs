@@ -166,11 +166,6 @@ impl Proxy {
             .unwrap()
     }
 
-    pub(crate) fn click(&mut self, x: f32, y: f32) {
-        self.env
-            .call_method(&self.host, "click", "(FF)V", &[x.into(), y.into()])
-            .unwrap();
-    }
     pub(crate) fn touch_down(&mut self, x: f32, y: f32, id: i32) {
         self.env
             .call_method(

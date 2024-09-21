@@ -1,5 +1,10 @@
-use std::{thread, time::Instant};
+use std::{
+    rc::Rc,
+    thread,
+    time::{Duration, Instant},
+};
 
+use axum::{routing::get, Router};
 use gamebot::{
     api::*,
     color::{ColorPoint, ColorPointGroup, ColorPointGroupIn, Region},
@@ -9,6 +14,7 @@ use gamebot::{
 };
 use log::error;
 use serde::Serialize;
+use tokio::net::TcpListener;
 
 fn operator_swipe() {
     d!(1);
@@ -252,13 +258,36 @@ fn test_ui() {
     ui.enter_render_loop();
 }
 
+#[tokio::main]
+async fn test_axum() {
+    d!();
+    tokio::spawn(async {
+        loop {
+            wait_secs(1);
+            // tokio::time::sleep(Duration::from_secs(1)).await;
+            d!()
+        }
+    });
+    let app = Router::new()
+        .route("/slow", get(|| tokio::time::sleep(Duration::from_secs(5))))
+        .route("/forever", get(std::future::pending::<()>));
+    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
+
+    tokio::select! {
+        _ = async {wait_forever()} => {}
+        _ = axum::serve(listener, app) => {}
+    }
+}
+
 gamebot::entry!(start);
 fn start() {
     // click_recent();
     // wait_millis(100);
     // click_recent();
     // wait_secs(1);
-    test_ui();
+    // test_ui();
+
+    test_axum();
 
     // click_recent();
     // wait_millis(100);

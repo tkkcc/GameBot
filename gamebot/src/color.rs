@@ -1,6 +1,6 @@
 use std::{path::PathBuf, result::Result};
 
-use crate::api::proxy;
+use crate::api::click;
 use image::{ImageReader, RgbaImage};
 use serde::Deserialize;
 use thiserror::Error;
@@ -14,7 +14,7 @@ pub struct Point {
 impl Point {
     // only return jni error
     pub fn click(&self) {
-        proxy().click(self.x as f32, self.y as f32)
+        click(self.x as f32, self.y as f32)
     }
 }
 

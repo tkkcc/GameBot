@@ -42,7 +42,7 @@ pub fn is_stopped_status() -> bool {
     matches!(get_status(), Status::Stopped)
 }
 
-pub fn check_running_status() {
+pub fn assert_running_status() {
     if !matches!(get_status(), Status::Running) {
         panic!();
     }

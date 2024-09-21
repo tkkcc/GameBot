@@ -7,6 +7,9 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+android_logger = "0.14.1"
+axum = "0.7.6"
 gamebot = { path = "../gamebot" }
 log = "0.4.22"
 serde = { version = "1.0.210", features = ["derive"] }
+tokio = { version = "1.40.0", features = ["full"] }

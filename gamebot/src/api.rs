@@ -12,7 +12,12 @@ use std::{
 use status::{assert_running_status, Status, STATUS_TOKEN};
 use store::Store;
 
-use crate::{d, node::ANode, screenshot::Screenshot};
+use crate::{
+    activity::{ActivityInfo, AppProcessInfo},
+    d,
+    node::ANode,
+    screenshot::Screenshot,
+};
 
 pub(crate) fn proxy() -> proxy::Proxy {
     Store::proxy()
@@ -341,4 +346,14 @@ impl IntoMilliseconds for Duration {
     fn into_milliseconds(self) -> Duration {
         self
     }
+}
+
+pub fn running_app_process_list() -> Vec<AppProcessInfo> {
+    proxy().running_app_process_list()
+}
+pub fn running_activity_list() -> Vec<ActivityInfo> {
+    proxy().running_activity_list()
+}
+pub fn current_activity() -> ActivityInfo {
+    proxy().current_activity()
 }

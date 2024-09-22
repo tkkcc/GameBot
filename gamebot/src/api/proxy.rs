@@ -7,6 +7,7 @@ use jni::{
 use serde::Serialize;
 
 use crate::{
+    activity::{ActivityInfo, AppProcessInfo},
     node::{ANode, Node},
     screenshot::Screenshot,
     ui::{Element, UIEvent},
@@ -220,26 +221,47 @@ impl Proxy {
             .unwrap();
     }
 
-    pub(crate) fn recent_activity_list(&mut self) {
-        let array: JObjectArray = self
+    pub(crate) fn current_activity(&mut self) -> ActivityInfo {
+        let obj: JString = self
+            .env
+            .call_method(self.host, "currentActivity", "()Ljava/lang/String;", &[])
+            .unwrap()
+            .l()
+            .unwrap()
+            .into();
+        let x: String = self.env.get_string(&obj).unwrap().into();
+        self.env.delete_local_ref(obj);
+        serde_json::from_str(&x).unwrap()
+    }
+
+    pub(crate) fn running_activity_list(&mut self) -> Vec<ActivityInfo> {
+        let obj: JString = self
+            .env
+            .call_method(self.host, "runningActivityList", "()Ljava/lang/String;", &[])
+            .unwrap()
+            .l()
+            .unwrap()
+            .into();
+        let x: String = self.env.get_string(&obj).unwrap().into();
+        self.env.delete_local_ref(obj);
+        serde_json::from_str(&x).unwrap()
+    }
+
+    pub(crate) fn running_app_process_list(&mut self) -> Vec<AppProcessInfo> {
+        let obj: JString = self
             .env
             .call_method(
                 self.host,
-                "recentActivityList",
-                "()[Ljava/lang/String;",
+                "runningAppProcessList",
+                "()Ljava/lang/String;",
                 &[],
             )
             .unwrap()
             .l()
             .unwrap()
             .into();
-        let size = self.env.get_array_length(&array).unwrap();
-        let ans = Vec::with_capacity(size as usize);
-        for i in 0..size {
-            let x: JString = self.env.get_object_array_element(array, i).unwrap().into();
-            let x: String = self.env.get_string(&x).unwrap().into();
-            ans.push(x);
-        }
-        ans
+        let x: String = self.env.get_string(&obj).unwrap().into();
+        self.env.delete_local_ref(obj);
+        serde_json::from_str(&x).unwrap()
     }
 }

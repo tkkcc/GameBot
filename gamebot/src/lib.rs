@@ -1,4 +1,5 @@
 #![feature(trait_upcasting)]
+mod activity;
 pub mod api;
 pub mod color;
 mod find_trait;

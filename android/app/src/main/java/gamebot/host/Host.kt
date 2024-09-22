@@ -4,19 +4,31 @@ import Nodeshot
 import RemoteService
 import RemoteService.TouchAction
 import Screenshot
-import android.app.ActivityManager.RunningAppProcessInfo
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_BACKGROUND
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_CACHED
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_CANT_SAVE_STATE
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_EMPTY
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_PERCEPTIBLE_PRE_26
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28
+import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE
 import android.os.Binder
 import android.os.ParcelFileDescriptor
-import android.util.Log
 import android.view.KeyEvent
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class Host(val remoteService: RemoteService, val localService: ILocalService, val token: Int) {
-    init{
-        val x = runningAppProcess()
+    init {
+//        val x = runningAppProcess()
 //        Log.e("gamebot", "recent task list: ${x.size}")
     }
+
     fun toast(msg: String) {
         localService.toast(msg)
     }
@@ -84,48 +96,52 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
         remoteService.inputManager.injectInputEvent(event, 0)
     }
 
-    @Serializable
-    data class ActivityName(
-        @SerialName("package")
-        val packageName: String = "",
-        @SerialName("class")
-        val className: String = ""
-    )
 
-
-    fun currentTask(): ActivityName {
-        return remoteService.activityManager.getRecentTasks(1, 0)
+    fun currentActivity(): String {
+        val data = remoteService.activityManager.getRecentTasks(1, 0)
             .firstOrNull()?.topActivity?.run {
-                ActivityName(
+                ActivityInfo(
                     packageName,
                     className
                 )
-            } ?: ActivityName()
+            } ?: ActivityInfo()
+        return Json.encodeToString(data)
     }
 
-    fun recentTaskList(): List<ActivityName> {
-        return remoteService.activityManager.getRecentTasks(Int.MAX_VALUE, 0).map {
+    fun runningActivityList(): String {
+        val data = remoteService.activityManager.getRunningTasks(Int.MAX_VALUE).map {
             it.topActivity?.run {
-                ActivityName(
+                ActivityInfo(
                     packageName,
                     className
                 )
-            } ?: ActivityName()
+            } ?: ActivityInfo()
         }.toList()
+        return Json.encodeToString(data)
     }
 
-    fun runningAppProcess() {
-        Log.e("gamebot", RunningAppProcessInfo.IMPORTANCE_FOREGROUND.toString())
-        Log.e("gamebot", RunningAppProcessInfo.IMPORTANCE_VISIBLE.toString())
-        for (runningAppProcess in remoteService.activityManager.runningAppProcesses) {
-//            Log.e("gamebot", "118 " + runningAppProcess.toString())
-            Log.e("gamebot","119 " + runningAppProcess.processName)
-            runningAppProcess.pkgList.forEach {
-                Log.e("gamebot","120 " + it)
-            }
-//            Log.e("gamebot","120 " + .toString())
-            Log.e("gamebot","121 " + runningAppProcess.importance)
-        }
+    fun runningAppProcessList(): String {
+        val data = remoteService.activityManager.runningAppProcesses.map {
+            AppProcessInfo(
+                processName = it.processName,
+                importance = when (it.importance) {
+                    IMPORTANCE_FOREGROUND -> Importance.Foreground
+                    IMPORTANCE_FOREGROUND_SERVICE -> Importance.ForegroundService
+                    IMPORTANCE_SERVICE -> Importance.Service
+                    IMPORTANCE_GONE -> Importance.Gone
+                    IMPORTANCE_TOP_SLEEPING -> Importance.TopSleeping
+                    IMPORTANCE_TOP_SLEEPING_PRE_28 -> Importance.TopSleeping
+                    IMPORTANCE_VISIBLE -> Importance.Visible
+                    IMPORTANCE_PERCEPTIBLE -> Importance.Perceptible
+                    IMPORTANCE_PERCEPTIBLE_PRE_26 -> Importance.Perceptible
+                    IMPORTANCE_BACKGROUND -> Importance.Cached
+                    IMPORTANCE_CACHED -> Importance.Cached
+                    IMPORTANCE_CANT_SAVE_STATE -> Importance.CantSaveState
+                    IMPORTANCE_EMPTY -> Importance.Cached
+                    else -> Importance.Unknown
+                }
+            )
+        }.toList()
+        return Json.encodeToString(data)
     }
-
 }

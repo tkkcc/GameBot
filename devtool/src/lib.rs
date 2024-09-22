@@ -279,6 +279,12 @@ async fn test_axum() {
     }
 }
 
+fn test_activity() {
+    d!(current_activity());
+    d!(running_activity_list());
+    d!(running_app_process_list());
+}
+
 gamebot::entry!(start);
 fn start() {
     // click_recent();
@@ -287,7 +293,8 @@ fn start() {
     // wait_secs(1);
     // test_ui();
 
-    test_axum();
+    // test_axum();
+    test_activity();
 
     // click_recent();
     // wait_millis(100);

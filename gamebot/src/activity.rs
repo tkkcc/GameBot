@@ -1,8 +1,29 @@
+use std::default;
 
-pub struct Activity {
+use serde::Deserialize;
+
+#[derive(Deserialize, Debug)]
+pub struct ActivityInfo {
     package: String,
     class: String,
 }
 
-impl Activity {
+#[derive(Deserialize, Debug)]
+enum Importance {
+    Foreground,
+    ForegroundService,
+    Visible,
+    Service,
+    CantSaveState,
+    Cached,
+    Gone,
+    Perceptible,
+    TopSleeping,
+    Unknown,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AppProcessInfo {
+    process: String,
+    importance: Importance,
 }

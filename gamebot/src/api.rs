@@ -364,7 +364,7 @@ pub fn activity_list(package: &str) -> Vec<String> {
     proxy().activity_list(package)
 }
 pub fn start_package(package: &str) {
-    let class = proxy().launch_activity(package);
+    let class = proxy().package_launch_activity(package);
     start_activity(package, &class);
 }
 pub fn start_activity(package: &str, class: &str) {

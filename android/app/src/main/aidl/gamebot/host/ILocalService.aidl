@@ -15,6 +15,6 @@ interface ILocalService {
     void stopConfigUI(int token);
     void sendEmptyConfigUIEvent(int token);
 
-    void startPackage(in String packageName);
-    void startActivity(in String packageName, in String className);
+//    void startPackage(in String packageName);
+//    void startActivity(in String packageName, in String className);
 }

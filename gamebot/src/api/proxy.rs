@@ -307,7 +307,7 @@ impl Proxy {
         serde_json::from_str(&x).unwrap()
     }
 
-    pub(crate) fn launch_activity(&mut self, package: &str) -> String {
+    pub(crate) fn package_launch_activity(&mut self, package: &str) -> String {
         let name: JObject = self.env.new_string(package).unwrap().into();
         let obj: JString = self
             .env

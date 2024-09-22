@@ -7,6 +7,7 @@ import UIEvent
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Context.ACTIVITY_SERVICE
+import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Binder
 import android.os.Build
@@ -102,30 +103,37 @@ class LocalService(
     }
 
     lateinit var remoteService: IRemoteService
-    override fun startPackage(packageName: String) {
-//        Binder.clearCallingIdentity()
-        Log.e("gamebot", "106 " + packageName + " ${Binder.getCallingUid()}" )
-        context.startActivity(context.packageManager.getLaunchIntentForPackage(packageName))
 
-    }
+//    override fun startPackage(packageName: String) {
+////        Binder.clearCallingIdentity()
+//        Log.e("gamebot", "106 " + packageName + " ${Binder.getCallingUid()}" )
+//        context.startActivity(context.packageManager.getLaunchIntentForPackage(packageName))
+//
+//    }
 
-    override fun startActivity(packageName: String, className: String) {
-        Log.e("gamebot", "107 " + packageName + " " + className + " ${Binder.getCallingUid()}")
-        runCatching {
-            //        Binder.clearCallingIdentity()
-            val intent = android.content.Intent().apply {
-                setClassName(packageName, className)
-            }
-            context.startActivity(intent)
-        }.onFailure {
-            Log.e("gamebot", "can't start activity", it)
-        }
-
-    }
+//    override fun startActivity(packageName: String, className: String) {
+//        Log.e("gamebot", "107 " + packageName + " " + className + " ${Binder.getCallingUid()}")
+//        runCatching {
+//            //        Binder.clearCallingIdentity()
+//            val intent = android.content.Intent().apply {
+//                setClassName(packageName, className)
+//            }
+//            context.startActivity(intent)
+//        }.onFailure {
+//            Log.e("gamebot", "can't start activity", it)
+//        }
+//
+//    }
 
     override fun test() {
         thread {
             Thread.sleep(1000)
+            val it =  Intent(Intent.ACTION_VIEW)
+            it.putExtra("sms_body", "你好这是短信内容");
+            it.setType("vnd.android-dir/mms-sms");
+
+            it.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(it);
 
 //            startPackage("gamebot.host")
         }

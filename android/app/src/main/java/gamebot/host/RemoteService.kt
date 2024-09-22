@@ -113,6 +113,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     external fun stopGuest(name: String, host: Host)
 
     override fun stopGuest(name: String) {
+//        hostOf(name).startPackage("gamebot.host")
         Binder.clearCallingIdentity()
         stopGuest(name, hostOf(name))
     }

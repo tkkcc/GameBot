@@ -8,6 +8,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Context.ACTIVITY_SERVICE
 import android.graphics.PixelFormat
+import android.os.Binder
 import android.os.Build
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
@@ -58,8 +59,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.ByteArrayOutputStream
-import java.lang.Thread.sleep
-import kotlin.concurrent.thread
 
 @Composable
 fun MemoryMonitor() {
@@ -103,18 +102,20 @@ class LocalService(
 
     lateinit var remoteService: IRemoteService
     override fun startPackage(packageName: String) {
-        context.runOnUiThread {
+        Binder.clearCallingIdentity()
+        Log.e("gamebot", "106 " + packageName)
+        context.startActivity(context.packageManager.getLaunchIntentForPackage(packageName))
 
-            context.startActivity(context.packageManager.getLaunchIntentForPackage(packageName) )
-        }
     }
-    override fun startActivity(packageName: String, className:String) {
-        val intent = android.content.Intent().apply {
-            setClassName(packageName, className)
-        }
-        context.runOnUiThread {
-            context.startActivity(intent)
-        }
+
+    override fun startActivity(packageName: String, className: String) {
+        Log.e("gamebot", "107 " + packageName + " " + className)
+
+//        Binder.clearCallingIdentity()
+//        val intent = android.content.Intent().apply {
+//            setClassName(packageName, className)
+//        }
+//        context.startActivity(intent)
     }
 
     override fun test() {
@@ -151,6 +152,7 @@ class LocalService(
                     scope.launch(Dispatchers.Default) {
                         Log.e("", "stop guest")
                         remoteService.stopGuest("devtool")
+//                        startPackage("gamebot.host")
                     }
                 }) {
                     Text("stop devtool")

@@ -309,8 +309,9 @@ fn test_package() {
             click_recent();
             wait_millis(500);
             let activity = &package.activity_list()[0];
-            start_activity(&package.name, &activity);
-            // start_package(&package.name);
+            // start_activity(&package.name, &activity);
+            start_package(&package.name);
+            break;
         }
     }
 }

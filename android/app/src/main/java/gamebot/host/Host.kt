@@ -21,6 +21,7 @@ import android.content.Intent
 import android.content.pm.PackageManager.GET_ACTIVITIES
 import android.os.Binder
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import android.view.KeyEvent
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -149,12 +150,17 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
 
     fun startPackage(packageName: String) {
 //        Binder.clearCallingIdentity()
-        remoteService.packageManager.getLaunchIntentForPackage(packageName)?.let {
-            remoteService.context.startActivity(it)
-        }
+//        remoteService.packageManager.getLaunchIntentForPackage(packageName)?.let {
+//            remoteService.context.startActivity(it)
+//        }
+
+        localService.startPackage(packageName)
+
     }
     fun startActivity(packageName: String, className:String) {
 //        Binder.clearCallingIdentity()
+
+        Log.e("gamebot", "startActivity in Host $packageName $className")
         localService.startActivity(packageName,className)
 
 //        val intent = Intent().apply {

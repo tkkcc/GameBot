@@ -102,20 +102,24 @@ class LocalService(
 
     lateinit var remoteService: IRemoteService
     override fun startPackage(packageName: String) {
-        Binder.clearCallingIdentity()
-        Log.e("gamebot", "106 " + packageName)
+//        Binder.clearCallingIdentity()
+        Log.e("gamebot", "106 " + packageName + " ${Binder.getCallingUid()}" )
         context.startActivity(context.packageManager.getLaunchIntentForPackage(packageName))
 
     }
 
     override fun startActivity(packageName: String, className: String) {
-        Log.e("gamebot", "107 " + packageName + " " + className)
+        Log.e("gamebot", "107 " + packageName + " " + className + " ${Binder.getCallingUid()}")
+        runCatching {
+            //        Binder.clearCallingIdentity()
+            val intent = android.content.Intent().apply {
+                setClassName(packageName, className)
+            }
+            context.startActivity(intent)
+        }.onFailure {
+            Log.e("gamebot", "can't start activity", it)
+        }
 
-//        Binder.clearCallingIdentity()
-//        val intent = android.content.Intent().apply {
-//            setClassName(packageName, className)
-//        }
-//        context.startActivity(intent)
     }
 
     override fun test() {

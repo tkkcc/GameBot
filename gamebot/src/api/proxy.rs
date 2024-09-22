@@ -115,19 +115,6 @@ impl Proxy {
         self.env.delete_local_ref(msg);
     }
 
-    pub(crate) fn start_package(&mut self, name: &str) {
-        let name: JObject = self.env.new_string(&name).unwrap().into();
-        self.env
-            .call_method(
-                self.host,
-                "startPackage",
-                "(Ljava/lang/String;)V",
-                &[(&name).into()],
-            )
-            .unwrap();
-        self.env.delete_local_ref(name);
-    }
-
     pub(crate) fn take_screenshot(&mut self) -> Screenshot {
         self.env
             .with_local_frame(4, |env| -> Result<Screenshot, Box<dyn std::error::Error>> {
@@ -320,19 +307,24 @@ impl Proxy {
         serde_json::from_str(&x).unwrap()
     }
 
-    pub(crate) fn start_activity(&mut self, package: &str, class: &str) {
-        let package: JObject = self.env.new_string(package).unwrap().into();
-        let class: JObject = self.env.new_string(class).unwrap().into();
-        self.env
+    pub(crate) fn launch_activity(&mut self, package: &str) -> String {
+        let name: JObject = self.env.new_string(package).unwrap().into();
+        let obj: JString = self
+            .env
             .call_method(
                 self.host,
-                "startActivity",
-                "(Ljava/lang/String;Ljava/lang/String;)V",
-                &[(&package).into(), (&class).into()],
+                "launchActivity",
+                "(Ljava/lang/String;)Ljava/lang/String;",
+                &[(&name).into()],
             )
-            .unwrap();
+            .unwrap()
+            .l()
+            .unwrap()
+            .into();
 
-        self.env.delete_local_ref(class);
-        self.env.delete_local_ref(package);
+        let x: String = JavaStr::from_env(&self.env, &obj).unwrap().into();
+
+        self.env.delete_local_ref(obj);
+        x
     }
 }

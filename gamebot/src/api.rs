@@ -357,14 +357,17 @@ pub fn running_activity_list() -> Vec<ActivityInfo> {
 pub fn current_activity() -> ActivityInfo {
     proxy().current_activity()
 }
-pub fn start_package(name: &str) {
-    proxy().start_package(name)
-}
 pub fn installed_package_list() -> Vec<PackageInfo> {
     proxy().installed_package_list()
 }
+pub fn start_package(package: &str) {
+    let class = proxy().launch_activity(package);
+    start_activity(package, &class);
+}
 pub fn start_activity(package: &str, class: &str) {
-    proxy().start_activity(package, class)
+    std::process::Command::new("am")
+        .args(["start", "-n", &format!("{package}/{class}")])
+        .spawn();
 }
 pub fn activity_list(package: &str) -> Vec<String> {
     proxy().activity_list(package)

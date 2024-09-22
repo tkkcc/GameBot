@@ -305,7 +305,7 @@ fn test_current_activity() {
 fn test_package() {
     for package in installed_package_list() {
         d!(&package.name, package.activity_list().first());
-        if package.name.contains("gamebot") {
+        if package.name.contains("email") {
             click_recent();
             wait_millis(500);
             let activity = &package.activity_list()[0];

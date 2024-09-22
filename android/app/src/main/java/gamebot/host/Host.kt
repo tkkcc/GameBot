@@ -17,7 +17,6 @@ import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE
 import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING
 import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28
 import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE
-import android.content.Intent
 import android.content.pm.PackageManager.GET_ACTIVITIES
 import android.os.Binder
 import android.os.ParcelFileDescriptor
@@ -148,20 +147,30 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
         return Json.encodeToString(data)
     }
 
-    fun startPackage(packageName: String) {
-//        Binder.clearCallingIdentity()
-//        remoteService.packageManager.getLaunchIntentForPackage(packageName)?.let {
-//            remoteService.context.startActivity(it)
-//        }
+    fun launchActivity(packageName: String): String {
+        return remoteService.packageManager.getLaunchIntentForPackage(packageName)?.let {
+            it.component?.className
+        } ?: ""
+    }
 
-        localService.startPackage(packageName)
+    fun startPackage(packageName: String) {
+
+        remoteService.packageManager.getLaunchIntentForPackage(packageName)?.let {
+            it.component?.let {
+                startActivity(packageName, it.className)
+            }
+        }
 
     }
-    fun startActivity(packageName: String, className:String) {
+
+    fun startActivity(packageName: String, className: String) {
 //        Binder.clearCallingIdentity()
 
         Log.e("gamebot", "startActivity in Host $packageName $className")
-        localService.startActivity(packageName,className)
+        Runtime.getRuntime().exec("am start -n ")
+//        remoteService.activityManager
+
+//        localService.startActivity(packageName, className)
 
 //        val intent = Intent().apply {
 //            setClassName(packageName, className)

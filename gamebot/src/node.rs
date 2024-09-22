@@ -18,7 +18,7 @@ static NODE_ACTION_CLICK: i32 = 0x00000010;
 #[serde(default)]
 pub struct NodeInfo {}
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Default, Debug)]
 #[serde(default)]
 pub struct Node {
     pub id: String,
@@ -47,7 +47,7 @@ pub struct Node {
     pub(crate) obj: RefCell<Option<GlobalRef>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ANode(pub Arc<Node>);
 
 impl Deref for ANode {

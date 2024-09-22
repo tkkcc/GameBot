@@ -2,6 +2,7 @@ use std::{error::Error, sync::Arc};
 
 use jni::{
     objects::{JByteArray, JByteBuffer, JObject, JObjectArray, JString},
+    strings::JavaStr,
     JNIEnv,
 };
 use serde::Serialize;
@@ -229,7 +230,7 @@ impl Proxy {
             .l()
             .unwrap()
             .into();
-        let x: String = self.env.get_string(&obj).unwrap().into();
+        let x: String = JavaStr::from_env(&self.env, &obj).unwrap().into();
         self.env.delete_local_ref(obj);
         serde_json::from_str(&x).unwrap()
     }
@@ -237,12 +238,17 @@ impl Proxy {
     pub(crate) fn running_activity_list(&mut self) -> Vec<ActivityInfo> {
         let obj: JString = self
             .env
-            .call_method(self.host, "runningActivityList", "()Ljava/lang/String;", &[])
+            .call_method(
+                self.host,
+                "runningActivityList",
+                "()Ljava/lang/String;",
+                &[],
+            )
             .unwrap()
             .l()
             .unwrap()
             .into();
-        let x: String = self.env.get_string(&obj).unwrap().into();
+        let x: String = JavaStr::from_env(&self.env, &obj).unwrap().into();
         self.env.delete_local_ref(obj);
         serde_json::from_str(&x).unwrap()
     }
@@ -260,7 +266,7 @@ impl Proxy {
             .l()
             .unwrap()
             .into();
-        let x: String = self.env.get_string(&obj).unwrap().into();
+        let x: String = JavaStr::from_env(&self.env, &obj).unwrap().into();
         self.env.delete_local_ref(obj);
         serde_json::from_str(&x).unwrap()
     }

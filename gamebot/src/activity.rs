@@ -4,12 +4,12 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 pub struct ActivityInfo {
-    package: String,
-    class: String,
+    pub package: String,
+    pub class: String,
 }
 
 #[derive(Deserialize, Debug)]
-enum Importance {
+pub enum Importance {
     Foreground,
     ForegroundService,
     Visible,
@@ -24,6 +24,6 @@ enum Importance {
 
 #[derive(Deserialize, Debug)]
 pub struct AppProcessInfo {
-    process: String,
-    importance: Importance,
+    pub process: String,
+    pub importance: Importance,
 }

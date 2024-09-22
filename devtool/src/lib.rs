@@ -1,4 +1,5 @@
 use std::{
+    mem::take,
     rc::Rc,
     thread,
     time::{Duration, Instant},
@@ -285,6 +286,22 @@ fn test_activity() {
     d!(running_app_process_list());
 }
 
+fn test_current_activity() {
+    loop {
+        let start = Instant::now();
+        current_activity();
+        // running_activity_list();
+        d!(1, start.elapsed());
+        // wait_secs(1);
+
+        // let start = Instant::now();
+        // take_nodeshot();
+        // // d!(&take_nodeshot()[0]);
+        // d!(2, start.elapsed());
+        wait_millis(3);
+    }
+}
+
 gamebot::entry!(start);
 fn start() {
     // click_recent();
@@ -294,7 +311,8 @@ fn start() {
     // test_ui();
 
     // test_axum();
-    test_activity();
+    // test_activity();
+    test_current_activity();
 
     // click_recent();
     // wait_millis(100);

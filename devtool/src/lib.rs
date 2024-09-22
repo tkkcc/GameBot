@@ -302,6 +302,19 @@ fn test_current_activity() {
     }
 }
 
+fn test_package() {
+    for package in installed_package_list() {
+        d!(&package.name, package.activity_list().first());
+        if package.name.contains("gamebot") {
+            click_recent();
+            wait_millis(500);
+            let activity = &package.activity_list()[0];
+            start_activity(&package.name, &activity);
+            // start_package(&package.name);
+        }
+    }
+}
+
 gamebot::entry!(start);
 fn start() {
     // click_recent();
@@ -312,7 +325,8 @@ fn start() {
 
     // test_axum();
     // test_activity();
-    test_current_activity();
+    // test_current_activity();
+    test_package()
 
     // click_recent();
     // wait_millis(100);

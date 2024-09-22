@@ -17,6 +17,8 @@ import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE
 import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING
 import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_TOP_SLEEPING_PRE_28
 import android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE
+import android.content.Intent
+import android.content.pm.PackageManager.GET_ACTIVITIES
 import android.os.Binder
 import android.os.ParcelFileDescriptor
 import android.view.KeyEvent
@@ -142,6 +144,53 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
                 }
             )
         }.toList()
+        return Json.encodeToString(data)
+    }
+
+    fun startPackage(packageName: String) {
+//        Binder.clearCallingIdentity()
+        remoteService.packageManager.getLaunchIntentForPackage(packageName)?.let {
+            remoteService.context.startActivity(it)
+        }
+    }
+    fun startActivity(packageName: String, className:String) {
+//        Binder.clearCallingIdentity()
+        localService.startActivity(packageName,className)
+
+//        val intent = Intent().apply {
+//            setClassName(packageName, className)
+//        }
+//        remoteService.context.startActivity(intent)
+    }
+
+    fun installedPackageList(): String {
+        Binder.clearCallingIdentity()
+        val data = remoteService.packageManager.getInstalledPackages(0).map {
+//            Log.e("gamebot", "package: ${it.activities?.joinToString {
+//
+//                it.targetActivity?.toString() ?: ""
+//            }?:""}")
+            PackageInfo(
+                packageName = it.packageName,
+                versionName = it.versionName,
+//                activityList = it.activities?.map {
+//                    it.name
+//                }?.toList() ?: emptyList()
+            )
+
+        }.toList()
+        return Json.encodeToString(data)
+    }
+
+
+    fun activityList(packageName: String): String {
+        Binder.clearCallingIdentity()
+        val data = remoteService.packageManager.getPackageInfo(
+            packageName,
+            GET_ACTIVITIES
+        ).activities?.map {
+            it.name
+        }?.toList() ?: emptyList<String>()
         return Json.encodeToString(data)
     }
 }

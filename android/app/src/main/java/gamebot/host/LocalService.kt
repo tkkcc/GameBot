@@ -102,6 +102,20 @@ class LocalService(
     }
 
     lateinit var remoteService: IRemoteService
+    override fun startPackage(packageName: String) {
+        context.runOnUiThread {
+
+            context.startActivity(context.packageManager.getLaunchIntentForPackage(packageName) )
+        }
+    }
+    override fun startActivity(packageName: String, className:String) {
+        val intent = android.content.Intent().apply {
+            setClassName(packageName, className)
+        }
+        context.runOnUiThread {
+            context.startActivity(intent)
+        }
+    }
 
     override fun test() {
 

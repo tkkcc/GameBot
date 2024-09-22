@@ -4,6 +4,7 @@ import android.app.UiAutomation
 import android.app.UiAutomationConnection
 import android.app.UiAutomationHidden
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.PixelFormat
@@ -33,6 +34,7 @@ import dev.rikka.tools.refine.Refine
 import gamebot.host.Host
 import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
+import gamebot.host.MainActivity
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +53,7 @@ import java.lang.Thread.sleep
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.concurrent.thread
+import kotlin.contracts.contract
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
@@ -63,7 +66,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
+
     lateinit var activityManager: ActivityManager
+    lateinit var packageManager: PackageManager
     lateinit var localService: ILocalService
 
     private lateinit var uiAutomationHidden: UiAutomationHidden
@@ -701,6 +706,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         // for android >=13, after clear uid, it's just shell / root uid
         val token = clearCallingIdentity()
         activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        packageManager = context.packageManager
+
 
 
         windowManager = IWindowManager.Stub.asInterface(

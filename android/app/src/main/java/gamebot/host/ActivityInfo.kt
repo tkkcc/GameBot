@@ -30,5 +30,14 @@ enum class Importance {
     Perceptible,
     TopSleeping,
     Unknown,
-    NEW
 }
+
+@Serializable
+data class PackageInfo(
+    @SerialName("name")
+    val packageName: String = "",
+    @SerialName("version")
+    val versionName: String = "",
+//    @SerialName("activity_list")
+//    val activityList: List<String> = emptyList()
+)

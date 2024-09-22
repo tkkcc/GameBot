@@ -8,7 +8,7 @@ use jni::{
 use serde::Serialize;
 
 use crate::{
-    activity::{ActivityInfo, AppProcessInfo},
+    activity::{ActivityInfo, AppProcessInfo, PackageInfo},
     node::{ANode, Node},
     screenshot::Screenshot,
     ui::{Element, UIEvent},
@@ -104,16 +104,30 @@ impl Proxy {
 
     pub(crate) fn toast(&mut self, msg: &str) {
         let msg: JObject = self.env.new_string(&msg).unwrap().into();
-        let msg = self.env.auto_local(msg);
         self.env
             .call_method(
                 self.host,
                 "toast",
                 "(Ljava/lang/String;)V",
-                &[msg.as_ref().into()],
+                &[(&msg).into()],
             )
             .unwrap();
+        self.env.delete_local_ref(msg);
     }
+
+    pub(crate) fn start_package(&mut self, name: &str) {
+        let name: JObject = self.env.new_string(&name).unwrap().into();
+        self.env
+            .call_method(
+                self.host,
+                "startPackage",
+                "(Ljava/lang/String;)V",
+                &[(&name).into()],
+            )
+            .unwrap();
+        self.env.delete_local_ref(name);
+    }
+
     pub(crate) fn take_screenshot(&mut self) -> Screenshot {
         self.env
             .with_local_frame(4, |env| -> Result<Screenshot, Box<dyn std::error::Error>> {
@@ -210,11 +224,6 @@ impl Proxy {
             .call_method(obj, "performAction", "(I)Z", &[i.into()])
             .unwrap();
     }
-    pub(crate) fn gesture(&mut self) {
-        self.env
-            .call_method(self.host, "gesture", "()V", &[])
-            .unwrap();
-    }
 
     pub(crate) fn send_empty_config_ui_event(&mut self) {
         self.env
@@ -269,5 +278,61 @@ impl Proxy {
         let x: String = JavaStr::from_env(&self.env, &obj).unwrap().into();
         self.env.delete_local_ref(obj);
         serde_json::from_str(&x).unwrap()
+    }
+
+    pub(crate) fn installed_package_list(&mut self) -> Vec<PackageInfo> {
+        let obj: JString = self
+            .env
+            .call_method(
+                self.host,
+                "installedPackageList",
+                "()Ljava/lang/String;",
+                &[],
+            )
+            .unwrap()
+            .l()
+            .unwrap()
+            .into();
+        let x: String = JavaStr::from_env(&self.env, &obj).unwrap().into();
+        self.env.delete_local_ref(obj);
+        serde_json::from_str(&x).unwrap()
+    }
+
+    pub(crate) fn activity_list(&mut self, package: &str) -> Vec<String> {
+        let name: JObject = self.env.new_string(package).unwrap().into();
+        let obj: JString = self
+            .env
+            .call_method(
+                self.host,
+                "activityList",
+                "(Ljava/lang/String;)Ljava/lang/String;",
+                &[(&name).into()],
+            )
+            .unwrap()
+            .l()
+            .unwrap()
+            .into();
+
+        let x: String = JavaStr::from_env(&self.env, &obj).unwrap().into();
+
+        self.env.delete_local_ref(obj);
+        self.env.delete_local_ref(name);
+        serde_json::from_str(&x).unwrap()
+    }
+
+    pub(crate) fn start_activity(&mut self, package: &str, class: &str) {
+        let package: JObject = self.env.new_string(package).unwrap().into();
+        let class: JObject = self.env.new_string(class).unwrap().into();
+        self.env
+            .call_method(
+                self.host,
+                "startActivity",
+                "(Ljava/lang/String;Ljava/lang/String;)V",
+                &[(&package).into(), (&class).into()],
+            )
+            .unwrap();
+
+        self.env.delete_local_ref(class);
+        self.env.delete_local_ref(package);
     }
 }

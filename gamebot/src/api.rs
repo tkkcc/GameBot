@@ -13,7 +13,7 @@ use status::{assert_running_status, Status, STATUS_TOKEN};
 use store::Store;
 
 use crate::{
-    activity::{ActivityInfo, AppProcessInfo},
+    activity::{ActivityInfo, AppProcessInfo, PackageInfo},
     d,
     node::ANode,
     screenshot::Screenshot,
@@ -356,4 +356,16 @@ pub fn running_activity_list() -> Vec<ActivityInfo> {
 }
 pub fn current_activity() -> ActivityInfo {
     proxy().current_activity()
+}
+pub fn start_package(name: &str) {
+    proxy().start_package(name)
+}
+pub fn installed_package_list() -> Vec<PackageInfo> {
+    proxy().installed_package_list()
+}
+pub fn start_activity(package: &str, class: &str) {
+    proxy().start_activity(package, class)
+}
+pub fn activity_list(package: &str) -> Vec<String> {
+    proxy().activity_list(package)
 }

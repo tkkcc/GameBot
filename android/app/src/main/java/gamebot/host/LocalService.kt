@@ -59,6 +59,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.ByteArrayOutputStream
+import kotlin.concurrent.thread
 
 @Composable
 fun MemoryMonitor() {
@@ -123,7 +124,11 @@ class LocalService(
     }
 
     override fun test() {
+        thread {
+            Thread.sleep(1000)
 
+//            startPackage("gamebot.host")
+        }
 
         context.setContent {
             val context = LocalContext.current

@@ -30,19 +30,20 @@ pub fn toast(msg: &str) {
 pub fn take_screenshot() -> Screenshot {
     proxy().take_screenshot()
 }
-pub fn wait_screenshot_after(timestamp: i64) {
-    proxy().wait_screenshot_after(timestamp)
+pub fn wait_screenshot_after(timestamp: i64, timeout: Duration) {
+    proxy().wait_screenshot_after(timestamp, timeout)
 }
-pub fn take_screenshot_after(timestamp: i64) -> Screenshot {
-    wait_screenshot_after(timestamp);
+pub fn take_screenshot_after(timestamp: i64, timeout: Duration) -> Screenshot {
+    wait_screenshot_after(timestamp, timeout);
     take_screenshot()
 }
 
-pub fn wait_nodeshot_after(timestamp: i64) {
-    proxy().wait_nodeshot_after(timestamp)
+pub fn wait_nodeshot_after(timestamp: i64, timeout: Duration) {
+    proxy().wait_nodeshot_after(timestamp, timeout)
 }
-pub fn take_nodeshot_after(timestamp: i64) -> Nodeshot {
-    wait_nodeshot_after(timestamp);
+
+pub fn take_nodeshot_after(timestamp: i64, timeout: Duration) -> Nodeshot {
+    wait_nodeshot_after(timestamp, timeout);
     take_nodeshot()
 }
 

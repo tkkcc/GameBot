@@ -2,6 +2,8 @@ use std::sync::OnceLock;
 
 use jni::{objects::JObject, JNIEnv};
 
+use crate::d;
+
 use super::{
     status::{is_running_status, set_running_status, set_stopped_status, STATUS_TOKEN},
     store::Store,
@@ -60,4 +62,5 @@ extern "C" fn stop(mut env: JNIEnv, host: JObject) {
 
     // stop callback / channel
     let _ = env.call_method(&host, "stopConfigUI", "()V", &[]);
+    // let _ = env.call_method(&host, "emitCancelToken", "()V", &[]);
 }

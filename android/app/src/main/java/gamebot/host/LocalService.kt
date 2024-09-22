@@ -140,24 +140,6 @@ class LocalService(
 
                 val channel = MutableStateFlow<Int>(1)
 
-                // Producer coroutine
-                launch {
-                    for (i in 1..10) {
-                        channel.emit(i)
-                    }
-                    delay(1000)
-                    channel.emit(11)
-                }
-
-                // Multiple consumer coroutines
-                repeat(3) {
-                    launch {
-                        println("start of consumer")
-//                        var x = 0;
-                        val x = channel.first { it >10 }
-                        println("end of consumer $x")
-                    }
-                }
             }
 
 //            startPackage("gamebot.host")
@@ -175,7 +157,7 @@ class LocalService(
                 }) {
                     Text("restart")
                 }
-                MemoryMonitor()
+//                MemoryMonitor()
                 var isRunning by remember { mutableStateOf(false) }
 //                var pluginRunningState =
                 Text(isRunning.toString())

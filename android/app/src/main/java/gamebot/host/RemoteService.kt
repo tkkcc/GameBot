@@ -36,12 +36,18 @@ import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToStream
@@ -51,6 +57,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.nio.ByteBuffer
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
@@ -91,6 +98,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     @Synchronized
     fun hostOf(name: String): Host {
         return hostMap.getOrPut(name, {
+            Log.e("", "create host")
             val used = hostMap.values.map { it.token }.toSet()
             var i = used.size
             for (j in used.indices) {
@@ -107,14 +115,16 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     override fun startGuest(name: String) {
         Binder.clearCallingIdentity()
         startGuest(name, hostOf(name))
+        hostMap.remove(name)
     }
 
     external fun stopGuest(name: String, host: Host)
 
     override fun stopGuest(name: String) {
-//        hostOf(name).startPackage("gamebot.host")
         Binder.clearCallingIdentity()
         stopGuest(name, hostOf(name))
+        hostMap.remove(name)
+
     }
 
 
@@ -125,10 +135,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     @Synchronized
     @OptIn(ExperimentalSerializationApi::class)
     fun updateNodeshot() {
-//        Log.e("", "updataNodeshot start")
-
         val (info, infoRef) = takeNodeshotRaw()
-//            Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
 
         val stream = ByteArrayOutputStream()
         Json.encodeToStream(info, stream)
@@ -137,19 +144,11 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
         nodeshotCache =
             Nodeshot(buf, infoRef.toTypedArray(), timestamp = SystemClock.uptimeMillis())
-
-
-        nodeshotStateFlow.tryEmit(nodeshotCache.timestamp)
-//        Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
-
-    }
-
-    fun waitNodeshotAfter(timestamp: Long) {
-        requestUpdateNodeshot.trySend(Unit)
-        runBlocking(Dispatchers.Default) {
-            nodeshotStateFlow.first { it > timestamp }
+        nodeshotStateFlow.update {
+            max(it, nodeshotCache.timestamp)
         }
     }
+
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun takeNodeshot(): Nodeshot {
@@ -163,10 +162,31 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         return nodeshotCache
     }
 
-    fun waitScreenshotAfter(timestamp: Long) {
+    fun waitNodeshotAfter(timestamp: Long, timeout: Long, scope: CoroutineScope) {
+        requestUpdateNodeshot.trySend(Unit)
+        Log.e("", "waitNodeshotAfter scope $timestamp $timeout ${scope.isActive}")
+        runBlocking {
+            scope.launch {
+                Log.e("", "waitNodeshotAfter $timestamp $timeout")
+                withTimeoutOrNull(timeout) {
+                    nodeshotStateFlow.onEach {
+                        Log.e("gamebot", "nodeshot state flow $it")
+                    }. first { it > timestamp }
+                }
+            }.join()
+        }
+    }
+
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun waitScreenshotAfter(timestamp: Long, timeout: Long, scope: CoroutineScope) {
         requestUpdateScreenshot.trySend(Unit)
-        runBlocking(Dispatchers.Default) {
-            screenshotStateFlow.first { it > timestamp }
+        runBlocking {
+            scope.launch {
+                withTimeoutOrNull(timeout) {
+                    screenshotStateFlow.first { it > timestamp }
+                }
+            }.join()
         }
     }
 
@@ -535,12 +555,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     @Synchronized
     fun updateScreenshot() {
-        val img = imageReader.acquireLatestImage()
-        if (img == null) {
-            screenshotCache.timestamp = SystemClock.uptimeMillis()
-            nodeshotStateFlow.tryEmit(screenshotCache.timestamp)
-            return
-        }
+        val img = imageReader.acquireLatestImage() ?: return
 
         val buf = img.planes[0].buffer
         screenshotCache.data.position(0)
@@ -556,8 +571,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
 
         screenshotCache.timestamp = SystemClock.uptimeMillis()
-        screenshotStateFlow.tryEmit(screenshotCache.timestamp)
-
+        screenshotStateFlow.update {
+            max(it, screenshotCache.timestamp)
+        }
     }
 
     lateinit var imageReader: ImageReader
@@ -567,7 +583,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     fun initDisplayProjection() {
         uiAutomation.setOnAccessibilityEventListener {
 //            Log.e("", "741, new accessibility event")
-            runBlocking(Dispatchers.Default) {
+           runBlocking(Dispatchers.Default) {
                 requestUpdateNodeshot.receive()
             }
             updateNodeshot()
@@ -586,7 +602,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         imageReader.setOnImageAvailableListener({
 //            Log.e("", "new screenshot available")
 
-            runBlocking(Dispatchers.Default) {
+           runBlocking(Dispatchers.Default) {
                 requestUpdateScreenshot.receive()
             }
 //            Log.e("", "update screenshot from callback")

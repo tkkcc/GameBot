@@ -1,4 +1,5 @@
 use std::{
+    i64,
     mem::take,
     rc::Rc,
     thread,
@@ -323,15 +324,25 @@ fn test_package() {
 fn test_screenshot_after() {
     // let shot = take_screenshot();
     // let x = Instant::now();
-    // // d!(x.elapsed());
-    // let y = take_screenshot_after(shot.timestamp);
+    // d!(x.elapsed());
+    // let y = take_screenshot_after(shot.timestamp, Duration::from_secs(1));
     // d!(x.elapsed());
 
-    let shot = take_nodeshot();
-    let x = Instant::now();
+    thread::spawn(|| {
+        wait_secs(1);
+        let shot = take_nodeshot();
+        let shot = take_nodeshot_after(shot.timestamp, Duration::MAX);
+        let shot = take_nodeshot_after(shot.timestamp, Duration::MAX);
+        let shot = take_nodeshot_after(shot.timestamp, Duration::MAX);
+        let shot = take_nodeshot_after(shot.timestamp, Duration::MAX);
+    })
+    .join()
+    .unwrap();
+
+    // let shot = take_nodeshot();
+    // let x = Instant::now();
+    // let y = take_nodeshot_after(shot.timestamp, Some(Duration::from_millis(i64::MAX as u64)));
     // d!(x.elapsed());
-    let y = take_nodeshot_after(shot.timestamp);
-    d!(x.elapsed());
 }
 
 gamebot::entry!(start);

@@ -1,4 +1,4 @@
-use std::{error::Error, sync::Arc};
+use std::{error::Error, sync::Arc, time::Duration};
 
 use jni::{
     objects::{JByteArray, JByteBuffer, JObject, JObjectArray, JString},
@@ -9,6 +9,7 @@ use serde::Serialize;
 
 use crate::{
     activity::{ActivityInfo, AppProcessInfo, PackageInfo},
+    d,
     node::{ANode, Node, Nodeshot},
     screenshot::Screenshot,
     ui::{Element, UIEvent},
@@ -108,17 +109,6 @@ impl Proxy {
             )
             .unwrap();
         self.env.delete_local_ref(msg);
-    }
-
-    pub(crate) fn wait_screenshot_after(&mut self, timestamp: i64) {
-        self.env
-            .call_method(
-                &self.host,
-                "waitScreenshotAfter",
-                "(J)V",
-                &[timestamp.into()],
-            )
-            .unwrap();
     }
 
     pub(crate) fn take_screenshot(&mut self) -> Screenshot {
@@ -340,9 +330,27 @@ impl Proxy {
         x
     }
 
-    pub(crate) fn wait_nodeshot_after(&mut self, timestamp: i64) {
+    pub(crate) fn wait_nodeshot_after(&mut self, timestamp: i64, timeout: Duration) {
+        let timeout = timeout.as_millis().min(i64::MAX as _) as i64;
+
         self.env
-            .call_method(&self.host, "waitNodeshotAfter", "(J)V", &[timestamp.into()])
+            .call_method(
+                &self.host,
+                "waitNodeshotAfter",
+                "(JJ)V",
+                &[timestamp.into(), timeout.into()],
+            )
+            .unwrap();
+    }
+    pub(crate) fn wait_screenshot_after(&mut self, timestamp: i64, timeout: Duration) {
+        let timeout = timeout.as_millis().min(i64::MAX as _) as i64;
+        self.env
+            .call_method(
+                &self.host,
+                "waitScreenshotAfter",
+                "(JJ)V",
+                &[timestamp.into(), timeout.into()],
+            )
             .unwrap();
     }
 }

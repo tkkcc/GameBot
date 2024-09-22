@@ -22,13 +22,23 @@ import android.os.Binder
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.view.KeyEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class Host(val remoteService: RemoteService, val localService: ILocalService, val token: Int) {
-    init {
+    //    init {
 //        val x = runningAppProcess()
 //        Log.e("gamebot", "recent task list: ${x.size}")
+//    }
+    val scope = CoroutineScope(Dispatchers.Default)
+
+    init {
+
+        Log.e("gamebot", "host scope ${scope.isActive}")
     }
 
     fun toast(msg: String) {
@@ -49,7 +59,7 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
 
 
     fun waitAccessibilityEvent() {
-        remoteService.uiAutomation.setOnAccessibilityEventListener {  }
+        remoteService.uiAutomation.setOnAccessibilityEventListener { }
     }
 
     fun stopConfigUI() {
@@ -62,8 +72,17 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
 
     fun takeNodeshot(): Nodeshot = remoteService.takeNodeshot()
     fun takeScreenshot(): Screenshot = remoteService.takeScreenshot()
-    fun waitScreenshotAfter(timestamp:Long) = remoteService.waitScreenshotAfter(timestamp)
-    fun waitNodeshotAfter(timestamp:Long) = remoteService.waitNodeshotAfter(timestamp)
+    fun waitScreenshotAfter(timestamp: Long, timeout: Long) =
+        remoteService.waitScreenshotAfter(timestamp, timeout,scope)
+
+    fun waitNodeshotAfter(timestamp: Long, timeout: Long) =
+        remoteService.waitNodeshotAfter(timestamp, timeout,scope)
+
+    fun emitCancelToken() {
+        Log.e("gamebot", "emitCancelToken")
+        scope.cancel()
+    }
+
     fun click(x: Float, y: Float) {
         touchDown(x, y, 0)
         touchUp(x, y, 0)

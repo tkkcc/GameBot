@@ -10,6 +10,7 @@ pub struct Screenshot {
     // pub row_stride: i32,
     pub data: &'static [u8],
     // pub data: Vec<u8>,
+    pub timestamp: i64,
 }
 
 impl Screenshot {

@@ -47,6 +47,11 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
         }
     }
 
+
+    fun waitAccessibilityEvent() {
+        remoteService.uiAutomation.setOnAccessibilityEventListener {  }
+    }
+
     fun stopConfigUI() {
         localService.stopConfigUI(token)
     }
@@ -57,6 +62,8 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
 
     fun takeNodeshot(): Nodeshot = remoteService.takeNodeshot()
     fun takeScreenshot(): Screenshot = remoteService.takeScreenshot()
+    fun waitScreenshotAfter(timestamp:Long) = remoteService.waitScreenshotAfter(timestamp)
+    fun waitNodeshotAfter(timestamp:Long) = remoteService.waitNodeshotAfter(timestamp)
     fun click(x: Float, y: Float) {
         touchDown(x, y, 0)
         touchUp(x, y, 0)

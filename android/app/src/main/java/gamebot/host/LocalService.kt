@@ -7,9 +7,7 @@ import UIEvent
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Context.ACTIVITY_SERVICE
-import android.content.Intent
 import android.graphics.PixelFormat
-import android.os.Binder
 import android.os.Build
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
@@ -52,6 +50,15 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.single
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -128,12 +135,30 @@ class LocalService(
     override fun test() {
         thread {
             Thread.sleep(1000)
-            val it =  Intent(Intent.ACTION_VIEW)
-            it.putExtra("sms_body", "你好这是短信内容");
-            it.setType("vnd.android-dir/mms-sms");
 
-            it.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(it);
+            runBlocking(Dispatchers.Default) {
+
+                val channel = MutableStateFlow<Int>(1)
+
+                // Producer coroutine
+                launch {
+                    for (i in 1..10) {
+                        channel.emit(i)
+                    }
+                    delay(1000)
+                    channel.emit(11)
+                }
+
+                // Multiple consumer coroutines
+                repeat(3) {
+                    launch {
+                        println("start of consumer")
+//                        var x = 0;
+                        val x = channel.first { it >10 }
+                        println("end of consumer $x")
+                    }
+                }
+            }
 
 //            startPackage("gamebot.host")
         }

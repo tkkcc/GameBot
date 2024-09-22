@@ -63,15 +63,16 @@ data class NodeInfo(
 data class Nodeshot(
     val data: ByteBuffer,
 //    val data_raw: Array<NodeInfo>,
-    val reference: Array<AccessibilityNodeInfo>
+    val reference: Array<AccessibilityNodeInfo>,
+    val timestamp: Long,
 )
 
 data class Screenshot(
     val width: Int,
     val height: Int,
     val data: ByteBuffer,
-    val pixelStride: Int,
-    val rowStride: Int,
-    val rotation: Int,
-//    var timestamp: Long
+//    val pixelStride: Int,
+//    val rowStride: Int,
+//    val rotation: Int,
+    var timestamp: Long
 )

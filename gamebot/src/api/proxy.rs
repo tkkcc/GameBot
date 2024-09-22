@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::{
     activity::{ActivityInfo, AppProcessInfo, PackageInfo},
-    node::{ANode, Node},
+    node::{ANode, Node, Nodeshot},
     screenshot::Screenshot,
     ui::{Element, UIEvent},
 };
@@ -24,7 +24,7 @@ impl Proxy {
         Self { env, host }
     }
 
-    pub(crate) fn take_nodeshot(&mut self) -> Vec<ANode> {
+    pub(crate) fn take_nodeshot(&mut self) -> Nodeshot {
         self.env
             .with_local_frame(32, |env| -> std::result::Result<_, Box<dyn Error>> {
                 let ans = env
@@ -37,12 +37,6 @@ impl Proxy {
                     .l()
                     .unwrap()
                     .into();
-                // let data_raw: JObjectArray = env
-                //     .get_field(&obj, "data_raw", "[LNodeInfo;")
-                //     .unwrap()
-                //     .l()
-                //     .unwrap()
-                //     .into();
                 let reference: JObjectArray = env
                     .get_field(
                         &obj,
@@ -53,6 +47,7 @@ impl Proxy {
                     .l()
                     .unwrap()
                     .into();
+                let timestamp: i64 = env.get_field(&obj, "timestamp", "J").unwrap().j().unwrap();
 
                 let addr = env.get_direct_buffer_address(&data).unwrap();
                 let capacity = env.get_direct_buffer_capacity(&data).unwrap();
@@ -76,7 +71,7 @@ impl Proxy {
                     });
                 }
 
-                Ok(data)
+                Ok(Nodeshot { data, timestamp })
             })
             .unwrap()
     }
@@ -115,6 +110,17 @@ impl Proxy {
         self.env.delete_local_ref(msg);
     }
 
+    pub(crate) fn wait_screenshot_after(&mut self, timestamp: i64) {
+        self.env
+            .call_method(
+                &self.host,
+                "waitScreenshotAfter",
+                "(J)V",
+                &[timestamp.into()],
+            )
+            .unwrap();
+    }
+
     pub(crate) fn take_screenshot(&mut self) -> Screenshot {
         self.env
             .with_local_frame(4, |env| -> Result<Screenshot, Box<dyn std::error::Error>> {
@@ -136,6 +142,11 @@ impl Proxy {
                     .i()
                     .unwrap()
                     .try_into()
+                    .unwrap();
+                let timestamp: i64 = env
+                    .get_field(&screenshot, "timestamp", "J")
+                    .unwrap()
+                    .j()
                     .unwrap();
                 // let pixel_stride = env
                 //     .get_field(&screenshot, "pixelStride", "I")
@@ -164,6 +175,7 @@ impl Proxy {
                     // pixel_stride,
                     // row_stride,
                     data,
+                    timestamp,
                 })
             })
             .unwrap()
@@ -326,5 +338,11 @@ impl Proxy {
 
         self.env.delete_local_ref(obj);
         x
+    }
+
+    pub(crate) fn wait_nodeshot_after(&mut self, timestamp: i64) {
+        self.env
+            .call_method(&self.host, "waitNodeshotAfter", "(J)V", &[timestamp.into()])
+            .unwrap();
     }
 }

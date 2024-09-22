@@ -320,6 +320,20 @@ fn test_package() {
     }
 }
 
+fn test_screenshot_after() {
+    // let shot = take_screenshot();
+    // let x = Instant::now();
+    // // d!(x.elapsed());
+    // let y = take_screenshot_after(shot.timestamp);
+    // d!(x.elapsed());
+
+    let shot = take_nodeshot();
+    let x = Instant::now();
+    // d!(x.elapsed());
+    let y = take_nodeshot_after(shot.timestamp);
+    d!(x.elapsed());
+}
+
 gamebot::entry!(start);
 fn start() {
     // click_recent();
@@ -331,8 +345,9 @@ fn start() {
     // test_axum();
     // test_activity();
     // test_current_activity();
-    test_package()
+    // test_package()
 
+    test_screenshot_after();
     // click_recent();
     // wait_millis(100);
     // click_recent();

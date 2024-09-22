@@ -34,12 +34,13 @@ import dev.rikka.tools.refine.Refine
 import gamebot.host.Host
 import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
-import gamebot.host.MainActivity
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
@@ -49,11 +50,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
-import java.lang.Thread.sleep
 import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicLong
-import kotlin.concurrent.thread
-import kotlin.contracts.contract
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
@@ -67,17 +64,19 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
 
+    lateinit var localService: ILocalService
     lateinit var activityManager: ActivityManager
     lateinit var packageManager: PackageManager
-    lateinit var localService: ILocalService
-
-    private lateinit var uiAutomationHidden: UiAutomationHidden
-    private lateinit var uiAutomationConnection: UiAutomationConnection
-    private lateinit var uiAutomation: UiAutomation
-    private val uiAutomationThread = HandlerThread("GameBotUiAutomationThread")
-    private val imageReaderThread = HandlerThread("GameBotImageReaderThread")
     lateinit var windowManager: IWindowManager
     lateinit var inputManager: IInputManager
+
+    lateinit var uiAutomationHidden: UiAutomationHidden
+    lateinit var uiAutomationConnection: UiAutomationConnection
+    lateinit var uiAutomation: UiAutomation
+
+    private val uiAutomationThread = HandlerThread("GameBotUiAutomationThread")
+    private val imageReaderThread = HandlerThread("GameBotImageReaderThread")
+
     private val hostMap = mutableMapOf<String, Host>()
 
     override fun destroy() {
@@ -119,11 +118,15 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
 
-    var nodeshotSerdeCache: Nodeshot = Nodeshot(ByteBuffer.allocateDirect(0), emptyArray())
+    val screenshotStateFlow = MutableStateFlow(0L)
+    val nodeshotStateFlow = MutableStateFlow(0L)
+    var nodeshotCache: Nodeshot = Nodeshot(ByteBuffer.allocateDirect(0), emptyArray(), 0)
 
     @Synchronized
     @OptIn(ExperimentalSerializationApi::class)
     fun updateNodeshot() {
+//        Log.e("", "updataNodeshot start")
+
         val (info, infoRef) = takeNodeshotRaw()
 //            Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
 
@@ -132,32 +135,55 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         val buf = ByteBuffer.allocateDirect(stream.size())
         buf.put(stream.toByteArray())
 
-        nodeshotSerdeCache = Nodeshot(buf, infoRef.toTypedArray())
-        updateNodeshotTimestamp()
+        nodeshotCache =
+            Nodeshot(buf, infoRef.toTypedArray(), timestamp = SystemClock.uptimeMillis())
+
+
+        nodeshotStateFlow.tryEmit(nodeshotCache.timestamp)
+//        Log.e("", "screen node size: ${info.size}, ${infoRef.size}")
+
+    }
+
+    fun waitNodeshotAfter(timestamp: Long) {
+        requestUpdateNodeshot.trySend(Unit)
+        runBlocking(Dispatchers.Default) {
+            nodeshotStateFlow.first { it > timestamp }
+        }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun takeNodeshot(): Nodeshot {
-        // sync update
-        if (isNodeshotInvalid() && requestUpdateNodeshot.isEmpty) {
-            Log.e("", "sync update nodeshot serde")
+        val now = nodeshotCache.timestamp
+        if (SystemClock.uptimeMillis() - now > 100 && requestUpdateNodeshot.isEmpty) {
             updateNodeshot()
-        } else {
-//            Log.e("","async update screenshot")
         }
 
-        // async update
         requestUpdateNodeshot.trySend(Unit)
 
-        // cached
-        return nodeshotSerdeCache
+        return nodeshotCache
+    }
+
+    fun waitScreenshotAfter(timestamp: Long) {
+        requestUpdateScreenshot.trySend(Unit)
+        runBlocking(Dispatchers.Default) {
+            screenshotStateFlow.first { it > timestamp }
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun takeScreenshot(): Screenshot {
+        val timestamp = screenshotCache.timestamp
+        if (SystemClock.uptimeMillis() - timestamp > 100 && requestUpdateScreenshot.isEmpty) {
+            updateScreenshot()
+        }
+
+        requestUpdateScreenshot.trySend(Unit)
+
+        return screenshotCache
     }
 
 
-    //    var pointerPropertiesList: MutableList<PointerProperties> = mutableListOf()
     var lastTouchDownTime = SystemClock.uptimeMillis()
-
-    //    var pointerCoordsList: MutableList<PointerCoords> = mutableListOf()
     var pointerState = mutableMapOf<Int, PointerCoords>()
 
     enum class TouchAction(val single: Int, val multi: Int) {
@@ -165,7 +191,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         UP(MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP),
         MOVE(MotionEvent.ACTION_MOVE, MotionEvent.ACTION_MOVE);
     }
-
 
     @Synchronized
     fun injectTouchEvent(
@@ -221,44 +246,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         inputManager.injectInputEvent(event, 0)
         event.recycle()
     }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    fun takeScreenshot(): Screenshot {
-        // sync update
-        if (isScreenshotInvalid() && requestUpdateScreenshot.isEmpty) {
-            Log.e("", "sync update screenshot")
-            updateScreenshot()
-        } else {
-//            Log.e("","async update screenshot")
-
-        }
-
-        // async update
-        requestUpdateScreenshot.trySend(Unit)
-
-        // cached
-        return screenshot
-    }
-
-//    fun takeNodeshot(): Array<AccessibilityNodeInfo> {
-//        // sync update
-//        if (isNodeshotInvalid()) {
-//            Log.e("", "sync update nodeshot")
-//            updateNodeshot()
-//        } else {
-////            Log.e("","async update screenshot")
-//        }
-//
-//        // async update
-//        requestUpdateNodeshot.trySend(Unit)
-//
-//        // cached
-//        return nodeshotCache
-//    }
-//
-//    fun rootNode(): AccessibilityNodeInfo? {
-//        return uiAutomation.rootInActiveWindow
-//    }
 
     fun connectUiAutomation() {
         Log.e("137", "connectUiAutomation")
@@ -330,30 +317,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
         return Pair(info, infoRef)
     }
-
-//    fun measureSceenNodeSearchSpeed() {
-//        while (true) {
-//
-//
-//            var start = System.currentTimeMillis()
-//            val window = uiAutomation.rootInActiveWindow
-//            Log.e("findRoot", "findRoot ${System.currentTimeMillis() - start}ms")
-//            start = System.currentTimeMillis()
-////            val out = window.findAccessibilityNodeInfosByText("1")
-//            val out = updateNodeshotSerde()
-//            val jsonans = Json.encodeToString(out)
-//            Log.e(
-//                "findText",
-//                "findText ${System.currentTimeMillis() - start}ms,  ${
-//                    jsonans
-//                }"
-//            )
-//            start = System.currentTimeMillis()
-//
-//            sleep(33)
-//        }
-//
-//    }
 
 
     fun getPhysicalDisplaySize(): Point = Point().apply {
@@ -435,12 +398,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         windowManager.defaultDisplayRotation
     }
 
-    var byteBuffer = ByteBuffer.allocateDirect(0)
+    var uiAutomationScreenshotBuffer = ByteBuffer.allocateDirect(0)
 
     @Deprecated("slower than display projection way")
     fun updateScreenshotByUiAutomation() {
 
-        val startTime = System.currentTimeMillis()
+        val startTime = SystemClock.uptimeMillis()
         //        Log.d(
         //            TAG, "callinguid? ${Binder.getCallingUid()} ${Binder.getCallingPid()} " +
         //                    "${android.os.Process.SYSTEM_UID}"
@@ -449,7 +412,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         val size = getOverrideDisplaySize()
         val physical = getPhysicalDisplaySize()
         //        Log.d(TAG, "$size $physical ${size==physical} ${size.equals(physical)}")
-        val startTime2 = System.currentTimeMillis()
+        val startTime2 = SystemClock.uptimeMillis()
 
 //        Log.e("", "size, ${size}, physical ${physical}")
         // android >= 9.0 时，takeScreenshot尊重overrideDisplaySize
@@ -510,15 +473,15 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             bitmap = swBitmap
         }
 
-        if (byteBuffer.capacity() < bitmap.byteCount) {
-            byteBuffer = ByteBuffer.allocateDirect(bitmap.byteCount)
+        if (uiAutomationScreenshotBuffer.capacity() < bitmap.byteCount) {
+            uiAutomationScreenshotBuffer = ByteBuffer.allocateDirect(bitmap.byteCount)
         }
-        byteBuffer.position(0)
-        bitmap.copyPixelsToBuffer(byteBuffer)
+        uiAutomationScreenshotBuffer.position(0)
+        bitmap.copyPixelsToBuffer(uiAutomationScreenshotBuffer)
 
         Log.d(
             TAG,
-            "screenshot time ${System.currentTimeMillis() - startTime}ms ${System.currentTimeMillis() - startTime2}ms"
+            "screenshot time ${SystemClock.uptimeMillis() - startTime}ms ${SystemClock.uptimeMillis() - startTime2}ms"
         )
 
         val dst = File(cacheDir, "tmp.png")
@@ -532,36 +495,15 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         bitmap.recycle()
     }
 
-    var screenshot = Screenshot(
+    var screenshotCache = Screenshot(
         width = 0,
         height = 0,
         data = ByteBuffer.allocateDirect(0),
-        pixelStride = 0,
-        rowStride = 0,
-        rotation = 0,
-//        timestamp = 0
+        timestamp = 0
     )
 
     val requestUpdateScreenshot = Channel<Unit>(Channel.CONFLATED)
-    val screenshotTimestamp = AtomicLong(0)
-    fun updateScreenshotTimestamp() {
-        screenshotTimestamp.set(System.currentTimeMillis())
-    }
-
-    fun isScreenshotInvalid(): Boolean {
-        return (System.currentTimeMillis() - screenshotTimestamp.get()) > 100 // 15fps => 66.6ms
-    }
-
     val requestUpdateNodeshot = Channel<Unit>(Channel.CONFLATED)
-    val nodeshotTimestamp = AtomicLong(0)
-    fun updateNodeshotTimestamp() {
-//        Log.e("","updateNodeshotTimestamp")
-        nodeshotTimestamp.set(System.currentTimeMillis())
-    }
-
-    fun isNodeshotInvalid(): Boolean {
-        return (System.currentTimeMillis() - nodeshotTimestamp.get()) > 100 // 15fps => 66.6ms
-    }
 
     fun saveScreenshot(img: Image) {
         val buf = img.planes[0].buffer
@@ -591,46 +533,31 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
-//    var nodeshotCache: Array<AccessibilityNodeInfo> = emptyArray()
-
-
-//    @Synchronized
-//    fun updateNodeshot() {
-//        nodeshotCache = fetchScreenNode().toTypedArray()
-//        updateNodeshotTimestamp()
-//    }
-
     @Synchronized
     fun updateScreenshot() {
-        // do nothing if no one need new screenshot
         val img = imageReader.acquireLatestImage()
         if (img == null) {
-//            Log.e("", "no image")
-
-            updateScreenshotTimestamp()
+            screenshotCache.timestamp = SystemClock.uptimeMillis()
+            nodeshotStateFlow.tryEmit(screenshotCache.timestamp)
             return
         }
 
-//        Log.e("", "new image got")
         val buf = img.planes[0].buffer
-        if (screenshot.width != imageReader.width || screenshot.height != imageReader.height) {
-            val data = ByteBuffer.allocateDirect(buf.capacity())
-            data.put(buf)
-            screenshot = Screenshot(
+        screenshotCache.data.position(0)
+        screenshotCache.data.put(buf)
+        img.close()
+
+        // update info
+        if (screenshotCache.width != imageReader.width || screenshotCache.height != imageReader.height) {
+            screenshotCache = screenshotCache.copy(
                 width = imageReader.width,
                 height = imageReader.height,
-                data = data,
-                pixelStride = img.planes[0].pixelStride,
-                rowStride = img.planes[0].rowStride,
-                rotation = 0,
             )
-        } else {
-            // there can be a time we are writing screenshot and user use the updating one
-            screenshot.data.position(0)
-            screenshot.data.put(buf)
         }
-        updateScreenshotTimestamp()
-        img.close()
+
+        screenshotCache.timestamp = SystemClock.uptimeMillis()
+        screenshotStateFlow.tryEmit(screenshotCache.timestamp)
+
     }
 
     lateinit var imageReader: ImageReader
@@ -648,21 +575,26 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 
         val screenSize = getPhysicalDisplaySize()
+
+        screenshotCache =
+            screenshotCache.copy(data = ByteBuffer.allocateDirect(screenSize.x * screenSize.y * 4))
+
+
         imageReaderThread.start()
         imageReader =
             ImageReader.newInstance(screenSize.x, screenSize.y, PixelFormat.RGBA_8888, 2)
         imageReader.setOnImageAvailableListener({
-//            Log.e("","new screenshot available")
+//            Log.e("", "new screenshot available")
 
             runBlocking(Dispatchers.Default) {
                 requestUpdateScreenshot.receive()
             }
-//            Log.e("","update screenshot from callback")
+//            Log.e("", "update screenshot from callback")
             updateScreenshot()
         }, Handler(imageReaderThread.looper))
 
         // is android Image plane align row stride to times of 4?
-        byteBuffer = ByteBuffer.allocateDirect(screenSize.x * screenSize.y * 4)
+//        uiAutomationScreenshotBuffer = ByteBuffer.allocateDirect(screenSize.x * screenSize.y * 4)
 
 //        val manager = context.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
 //        context.startService(Intent(context,MediaProjection::class.java))
@@ -759,11 +691,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //        }
 
 
-
         Log.e("", "rust call finish")
     }
-
-
 
 
 }

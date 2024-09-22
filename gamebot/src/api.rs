@@ -15,7 +15,7 @@ use store::Store;
 use crate::{
     activity::{ActivityInfo, AppProcessInfo, PackageInfo},
     d,
-    node::ANode,
+    node::{ANode, Nodeshot},
     screenshot::Screenshot,
 };
 
@@ -30,6 +30,22 @@ pub fn toast(msg: &str) {
 pub fn take_screenshot() -> Screenshot {
     proxy().take_screenshot()
 }
+pub fn wait_screenshot_after(timestamp: i64) {
+    proxy().wait_screenshot_after(timestamp)
+}
+pub fn take_screenshot_after(timestamp: i64) -> Screenshot {
+    wait_screenshot_after(timestamp);
+    take_screenshot()
+}
+
+pub fn wait_nodeshot_after(timestamp: i64) {
+    proxy().wait_nodeshot_after(timestamp)
+}
+pub fn take_nodeshot_after(timestamp: i64) -> Nodeshot {
+    wait_nodeshot_after(timestamp);
+    take_nodeshot()
+}
+
 pub fn click(x: f32, y: f32) {
     touch_down(x, y, 0);
     touch_up(x, y, 0);
@@ -47,7 +63,7 @@ pub fn click_recent() {
     proxy().click_recent();
 }
 
-pub fn take_nodeshot() -> Vec<ANode> {
+pub fn take_nodeshot() -> Nodeshot {
     proxy().take_nodeshot()
 }
 

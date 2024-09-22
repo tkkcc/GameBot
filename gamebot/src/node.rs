@@ -48,6 +48,12 @@ pub struct Node {
 }
 
 #[derive(Clone, Debug)]
+pub struct Nodeshot {
+    pub data: Vec<ANode>,
+    pub timestamp: i64,
+}
+
+#[derive(Clone, Debug)]
 pub struct ANode(pub Arc<Node>);
 
 impl Deref for ANode {
@@ -108,11 +114,12 @@ impl NodeSelector {
         }
     }
     pub fn find(&self) -> Option<ANode> {
-        take_nodeshot().into_iter().find(|x| (self.filter)(&x))
+        take_nodeshot().data.into_iter().find(|x| (self.filter)(&x))
         // root_node().and_then(|n| find_node_at(&n, &self.filter))
     }
     pub fn find_all(&self) -> Vec<ANode> {
         take_nodeshot()
+            .data
             .into_iter()
             .filter(|x| (self.filter)(&x))
             .collect()

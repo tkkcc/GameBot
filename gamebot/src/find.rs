@@ -19,26 +19,13 @@ pub trait Find {
     type FindOut;
 
     fn find(&self) -> Option<Self::FindOut>;
-    // fn appear(&self, timeout: Duration) -> bool;
-
     fn exist(&self) -> bool {
         self.find().is_some()
     }
-    // fn appear_millis(&self, timeout: u64) -> bool {
-    //     self.appear(Duration::from_millis(timeout))
-    // }
     fn appear(&self, timeout: impl IntoSeconds) -> bool {
         self.appear(timeout.into_seconds())
     }
 }
-
-pub trait FindExt: Find {
-    fn appear_secs(&self, timeout: impl IntoSeconds) -> bool {
-        self.appear(timeout.into_seconds())
-    }
-}
-
-// impl<R> FindExt for dyn Find<FindOut = R> {}
 
 pub trait GroupFindOnce<'a, I: Find + 'a>: IntoIterator<Item = &'a I> {
     fn all_exist(self) -> bool;
@@ -46,27 +33,8 @@ pub trait GroupFindOnce<'a, I: Find + 'a>: IntoIterator<Item = &'a I> {
 }
 
 pub trait GroupFind<'a, I: Find + 'a>: GroupFindOnce<'a, I> + Copy {
-    fn all_appear(self, timeout: Duration) -> bool;
-    // {
-    //     wait_for_true(|| self.all_exist(), timeout, Duration::ZERO)
-    // }
-    fn any_appear(self, timeout: Duration) -> bool;
-    // {
-    //     wait_for_true(|| self.any_exist(), timeout, Duration::ZERO)
-    // }
-
-    fn all_appear_millis(self, timeout: u64) -> bool {
-        self.all_appear(Duration::from_millis(timeout))
-    }
-    fn any_appear_millis(self, timeout: u64) -> bool {
-        self.any_appear(Duration::from_millis(timeout))
-    }
-    fn all_appear_secs(self, timeout: impl IntoSeconds) -> bool {
-        self.all_appear(timeout.into_seconds())
-    }
-    fn any_appear_secs(self, timeout: impl IntoSeconds) -> bool {
-        self.any_appear(timeout.into_seconds())
-    }
+    fn all_appear(self, timeout: impl IntoSeconds) -> bool;
+    fn any_appear(self, timeout: impl IntoSeconds) -> bool;
 }
 
 impl<'a, T: IntoIterator<Item = &'a ColorPoint>> GroupFindOnce<'a, ColorPoint> for T {
@@ -82,13 +50,13 @@ impl<'a, T: IntoIterator<Item = &'a ColorPoint>> GroupFindOnce<'a, ColorPoint> f
 }
 
 impl<'a, T: IntoIterator<Item = &'a ColorPoint> + Copy> GroupFind<'a, ColorPoint> for T {
-    fn all_appear(self, timeout: Duration) -> bool {
+    fn all_appear(self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| {
             self.into_iter().all(|x| shot.find_color_point(x).is_some())
         })
     }
 
-    fn any_appear(self, timeout: Duration) -> bool {
+    fn any_appear(self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| {
             self.into_iter().any(|x| shot.find_color_point(x).is_some())
         })
@@ -110,14 +78,14 @@ impl<'a, T: IntoIterator<Item = &'a ColorPointGroup>> GroupFindOnce<'a, ColorPoi
 }
 
 impl<'a, T: IntoIterator<Item = &'a ColorPointGroup> + Copy> GroupFind<'a, ColorPointGroup> for T {
-    fn all_appear(self, timeout: Duration) -> bool {
+    fn all_appear(self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| {
             self.into_iter()
                 .all(|x| shot.find_color_point_group(x).is_some())
         })
     }
 
-    fn any_appear(self, timeout: Duration) -> bool {
+    fn any_appear(self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| {
             self.into_iter()
                 .any(|x| shot.find_color_point_group(x).is_some())
@@ -142,14 +110,14 @@ impl<'a, T: IntoIterator<Item = &'a ColorPointGroupIn>> GroupFindOnce<'a, ColorP
 impl<'a, T: IntoIterator<Item = &'a ColorPointGroupIn> + Copy> GroupFind<'a, ColorPointGroupIn>
     for T
 {
-    fn all_appear(self, timeout: Duration) -> bool {
+    fn all_appear(self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| {
             self.into_iter()
                 .all(|x| shot.find_color_point_group_in(x).is_some())
         })
     }
 
-    fn any_appear(self, timeout: Duration) -> bool {
+    fn any_appear(self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| {
             self.into_iter()
                 .any(|x| shot.find_color_point_group_in(x).is_some())
@@ -170,13 +138,13 @@ impl<'a, T: IntoIterator<Item = &'a ImageIn>> GroupFindOnce<'a, ImageIn> for T {
 }
 
 impl<'a, T: IntoIterator<Item = &'a ImageIn> + Copy> GroupFind<'a, ImageIn> for T {
-    fn all_appear(self, timeout: Duration) -> bool {
+    fn all_appear(self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| {
             self.into_iter().all(|x| shot.find_image_in(x).is_some())
         })
     }
 
-    fn any_appear(self, timeout: Duration) -> bool {
+    fn any_appear(self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| {
             self.into_iter().any(|x| shot.find_image_in(x).is_some())
         })
@@ -200,14 +168,14 @@ impl<'a, T: IntoIterator<Item = &'a DiskImageIn>> GroupFindOnce<'a, DiskImageIn>
 }
 
 impl<'a, T: IntoIterator<Item = &'a DiskImageIn> + Copy> GroupFind<'a, DiskImageIn> for T {
-    fn all_appear(self, timeout: Duration) -> bool {
+    fn all_appear(self, timeout: impl IntoSeconds) -> bool {
         let img: Vec<_> = self.into_iter().map(|x| ImageIn::from(x.clone())).collect();
         appear_with_screenshot(timeout, |shot| {
             img.iter().all(|x| shot.find_image_in(x).is_some())
         })
     }
 
-    fn any_appear(self, timeout: Duration) -> bool {
+    fn any_appear(self, timeout: impl IntoSeconds) -> bool {
         let img: Vec<_> = self.into_iter().map(|x| ImageIn::from(x.clone())).collect();
         appear_with_screenshot(timeout, |shot| {
             img.iter().any(|x| shot.find_image_in(x).is_some())
@@ -228,13 +196,13 @@ impl<'a, T: IntoIterator<Item = &'a NodeSelector>> GroupFindOnce<'a, NodeSelecto
 }
 
 impl<'a, T: IntoIterator<Item = &'a NodeSelector> + Copy> GroupFind<'a, NodeSelector> for T {
-    fn all_appear(self, timeout: Duration) -> bool {
+    fn all_appear(self, timeout: impl IntoSeconds) -> bool {
         appear_with_nodeshot(timeout, |shot| {
             self.into_iter().all(|x| shot.match_selector(x))
         })
     }
 
-    fn any_appear(self, timeout: Duration) -> bool {
+    fn any_appear(self, timeout: impl IntoSeconds) -> bool {
         appear_with_nodeshot(timeout, |shot| {
             self.into_iter().any(|x| shot.match_selector(x))
         })
@@ -252,7 +220,7 @@ impl<'a, T: IntoIterator<Item = &'a Condition>> GroupFindOnce<'a, Condition> for
 }
 
 impl<'a, T: IntoIterator<Item = &'a Condition> + Copy> GroupFind<'a, Condition> for T {
-    fn all_appear(self, timeout: Duration) -> bool {
+    fn all_appear(self, timeout: impl IntoSeconds) -> bool {
         wait_for_true(
             || self.into_iter().all(|x| (x.cond)()),
             timeout,
@@ -260,7 +228,7 @@ impl<'a, T: IntoIterator<Item = &'a Condition> + Copy> GroupFind<'a, Condition> 
         )
     }
 
-    fn any_appear(self, timeout: Duration) -> bool {
+    fn any_appear(self, timeout: impl IntoSeconds) -> bool {
         wait_for_true(
             || self.into_iter().any(|x| (x.cond)()),
             timeout,
@@ -284,7 +252,7 @@ impl<'a, T: IntoIterator<Item = &'a ConditionOption<R>>, R: 'a>
 impl<'a, T: IntoIterator<Item = &'a ConditionOption<R>> + Copy, R: 'a>
     GroupFind<'a, ConditionOption<R>> for T
 {
-    fn all_appear(self, timeout: Duration) -> bool {
+    fn all_appear(self, timeout: impl IntoSeconds) -> bool {
         wait_for_true(
             || self.into_iter().all(|x| (x.cond)().is_some()),
             timeout,
@@ -292,7 +260,7 @@ impl<'a, T: IntoIterator<Item = &'a ConditionOption<R>> + Copy, R: 'a>
         )
     }
 
-    fn any_appear(self, timeout: Duration) -> bool {
+    fn any_appear(self, timeout: impl IntoSeconds) -> bool {
         wait_for_true(
             || self.into_iter().any(|x| (x.cond)().is_some()),
             timeout,
@@ -303,9 +271,11 @@ impl<'a, T: IntoIterator<Item = &'a ConditionOption<R>> + Copy, R: 'a>
 
 fn wait_for<T>(
     mut func: impl FnMut() -> Option<T>,
-    timeout: Duration,
-    interval: Duration,
+    timeout: impl IntoSeconds,
+    interval: impl IntoSeconds,
 ) -> Option<T> {
+    let timeout = timeout.into_seconds();
+    let interval = interval.into_seconds();
     let start = std::time::Instant::now();
     loop {
         let per_loop_start = Instant::now();
@@ -322,9 +292,10 @@ fn wait_for<T>(
 fn wait_for_true(
     mut func: impl FnMut() -> bool,
     timeout: impl IntoSeconds,
-    interval: Duration,
+    interval: impl IntoSeconds,
 ) -> bool {
     let timeout = timeout.into_seconds();
+    let interval = interval.into_seconds();
     let start = std::time::Instant::now();
     loop {
         let per_loop_start = Instant::now();
@@ -513,40 +484,3 @@ impl<T> Find for ConditionOption<T> {
         wait_for_true(|| self.evaluate().is_some(), timeout, Duration::ZERO)
     }
 }
-
-// pub trait GroupFindDynamic {
-//     fn all_exist(&self) -> bool {
-//         todo!()
-//     }
-//     fn any_exist(&self) -> bool {
-//         todo!()
-//     }
-//     fn all_appear(&self, timeout: Duration) -> bool {
-//         todo!()
-//     }
-//     fn any_appear(&self, timeout: Duration) -> bool {
-//         todo!()
-//     }
-//     fn all_appear_millis(&self, timeout: u64) -> bool {
-//         self.all_appear(Duration::from_millis(timeout))
-//     }
-//     fn any_appear_millis(&self, timeout: u64) -> bool {
-//         self.any_appear(Duration::from_millis(timeout))
-//     }
-//     fn all_appear_secs(&self, timeout: impl IntoSeconds) -> bool {
-//         self.all_appear(timeout.into_seconds())
-//     }
-//     fn any_appear_secs(&self, timeout: impl IntoSeconds) -> bool {
-//         self.any_appear(timeout.into_seconds())
-//     }
-// }
-//
-// impl<R1, R2, T1, T2> GroupFindDynamic for (T1, T2)
-// where
-//     T1: Find<FindOut = R1>,
-//     T2: Find<FindOut = R2>,
-// {
-//     fn all_exist(&self) -> bool {
-//         self.0.exist() && self.1.exist()
-//     }
-// }

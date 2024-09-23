@@ -348,7 +348,7 @@ fn test_screenshot_after() {
 
 fn test_group_find() {
     let x = vec![ColorPointGroup::default()];
-    x.all_appear_millis(100);
+    x.all_appear(0.5);
 }
 
 gamebot::entry!(start);

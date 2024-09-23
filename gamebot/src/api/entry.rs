@@ -42,9 +42,9 @@ extern "C" fn start(mut env: JNIEnv, host: JObject) {
     }
     set_running_status();
 
-    Store::init(&mut env, &host).unwrap();
+    env.call_method(&host, "onStart", "()V", &[]).unwrap();
 
-    // Store::proxy().wait_config_ui_event();
+    Store::init(&mut env, &host).unwrap();
 
     if let Some(f) = USER_START.get() {
         let _ = std::panic::catch_unwind(|| {
@@ -61,6 +61,5 @@ extern "C" fn stop(mut env: JNIEnv, host: JObject) {
     STATUS_TOKEN.wake(i32::MAX);
 
     // stop callback / channel
-    let _ = env.call_method(&host, "stopConfigUI", "()V", &[]);
-    // let _ = env.call_method(&host, "emitCancelToken", "()V", &[]);
+    let _ = env.call_method(&host, "onStop", "()V", &[]);
 }

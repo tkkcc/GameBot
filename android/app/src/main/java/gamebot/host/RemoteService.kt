@@ -97,17 +97,19 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     @Synchronized
     fun hostOf(name: String): Host {
+        // we won't remove key from hostMap
+        // because host is stored on Guest OnceLock
         return hostMap.getOrPut(name, {
-            Log.e("", "create host")
-            val used = hostMap.values.map { it.token }.toSet()
-            var i = used.size
-            for (j in used.indices) {
-                if (!used.contains(j)) {
-                    i = j
-                    break
-                }
-            }
-            Host(this, localService, i)
+//            Log.e("", "create host")
+//            val used = hostMap.values.map { it.token }.toSet()
+//            var i = used.size
+//            for (j in used.indices) {
+//                if (!used.contains(j)) {
+//                    i = j
+//                    break
+//                }
+//            }
+            Host(this, localService, hostMap.size)
         })
     }
 
@@ -115,7 +117,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     override fun startGuest(name: String) {
         Binder.clearCallingIdentity()
         startGuest(name, hostOf(name))
-        hostMap.remove(name)
     }
 
     external fun stopGuest(name: String, host: Host)
@@ -123,8 +124,6 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     override fun stopGuest(name: String) {
         Binder.clearCallingIdentity()
         stopGuest(name, hostOf(name))
-        hostMap.remove(name)
-
     }
 
 
@@ -164,13 +163,13 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     fun waitNodeshotAfter(timestamp: Long, timeout: Long, scope: CoroutineScope) {
         requestUpdateNodeshot.trySend(Unit)
-        Log.e("", "waitNodeshotAfter scope $timestamp $timeout ${scope.isActive}")
+//        Log.e("", "waitNodeshotAfter scope $timestamp $timeout ${scope.isActive}")
         runBlocking {
             scope.launch {
-                Log.e("", "waitNodeshotAfter $timestamp $timeout")
+//                Log.e("", "waitNodeshotAfter $timestamp $timeout")
                 withTimeoutOrNull(timeout) {
                     nodeshotStateFlow.onEach {
-                        Log.e("gamebot", "nodeshot state flow $it")
+//                        Log.e("gamebot", "nodeshot state flow $it")
                     }. first { it > timestamp }
                 }
             }.join()

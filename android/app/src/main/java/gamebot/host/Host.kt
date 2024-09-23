@@ -25,21 +25,12 @@ import android.view.KeyEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.isActive
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class Host(val remoteService: RemoteService, val localService: ILocalService, val token: Int) {
-    //    init {
-//        val x = runningAppProcess()
-//        Log.e("gamebot", "recent task list: ${x.size}")
-//    }
-    val scope = CoroutineScope(Dispatchers.Default)
 
-    init {
-
-        Log.e("gamebot", "host scope ${scope.isActive}")
-    }
+    lateinit var scope: CoroutineScope
 
     fun toast(msg: String) {
         localService.toast(msg)
@@ -72,15 +63,25 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
 
     fun takeNodeshot(): Nodeshot = remoteService.takeNodeshot()
     fun takeScreenshot(): Screenshot = remoteService.takeScreenshot()
-    fun waitScreenshotAfter(timestamp: Long, timeout: Long) =
-        remoteService.waitScreenshotAfter(timestamp, timeout,scope)
+    fun waitScreenshotAfter(timestamp: Long, timeout: Long) {
+        remoteService.waitScreenshotAfter(timestamp, timeout, scope)
+    }
 
-    fun waitNodeshotAfter(timestamp: Long, timeout: Long) =
-        remoteService.waitNodeshotAfter(timestamp, timeout,scope)
+    fun waitNodeshotAfter(timestamp: Long, timeout: Long) {
+        remoteService.waitNodeshotAfter(timestamp, timeout, scope)
 
-    fun emitCancelToken() {
-        Log.e("gamebot", "emitCancelToken")
+    }
+
+
+    fun onStart() {
+        Log.e("gamebot", "onStart")
+        scope = CoroutineScope(Dispatchers.Default)
+    }
+
+    fun onStop() {
+        Log.e("gamebot", "onStop")
         scope.cancel()
+        localService.stopConfigUI(token)
     }
 
     fun click(x: Float, y: Float) {
@@ -235,3 +236,5 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
         return Json.encodeToString(data)
     }
 }
+
+

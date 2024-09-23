@@ -7,12 +7,9 @@ use std::{
 };
 
 use crate::{
-    api::{
-        take_nodeshot, take_nodeshot_after, take_screenshot, wait, wait_nodeshot_after,
-        wait_screenshot_after, wait_secs, Seconds,
-    },
+    api::{take_nodeshot, take_screenshot, wait, wait_screenshot_after, Seconds},
     color::{ColorPoint, ColorPointGroup, ColorPointGroupIn, DiskImageIn, ImageIn, Point},
-    node::{ANode, Node, NodeSelector, Nodeshot},
+    node::{ANode, NodeSelector, Nodeshot},
     screenshot::Screenshot,
 };
 

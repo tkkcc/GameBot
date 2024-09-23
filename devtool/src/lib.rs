@@ -195,7 +195,7 @@ fn test_ui() {
         if !state.launched {
             state.launched = true;
             ui.spawn(|ui| loop {
-                wait_secs(1);
+                wait(1);
                 ui.update(|state| {
                     state.name += "1";
                 })
@@ -208,12 +208,12 @@ fn test_ui() {
                     s.enable_abc = false;
                 });
                 ui.spawn(|ui| {
-                    wait_secs(1);
+                    wait(1);
                     ui.update(|state| {
                         state.enable_abc = true;
                         state.name = "aaa".into();
                     });
-                    wait_secs(1);
+                    wait(1);
                     ui.update(|state| {
                         state.enable_abc = false;
                     })
@@ -266,7 +266,7 @@ async fn test_axum() {
     d!();
     tokio::spawn(async {
         loop {
-            wait_secs(1);
+            wait(1);
             // tokio::time::sleep(Duration::from_secs(1)).await;
             d!()
         }
@@ -330,7 +330,7 @@ fn test_screenshot_after() {
     // d!(x.elapsed());
 
     thread::spawn(|| {
-        wait_secs(1);
+        wait(1);
         let shot = take_nodeshot();
         let shot = take_nodeshot_after(shot.timestamp, Duration::MAX);
         let shot = take_nodeshot_after(shot.timestamp, Duration::MAX);

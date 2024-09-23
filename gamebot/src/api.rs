@@ -73,12 +73,9 @@ pub fn wait_forever() {
     assert_running_status();
 }
 
-pub fn wait(s: Duration) {
-    let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s);
+pub fn wait(s: impl Seconds) {
+    let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_duration());
     assert_running_status();
-}
-pub fn wait_secs(s: impl Seconds) {
-    wait(s.into_duration());
 }
 
 pub fn wait_millis(s: u64) {
@@ -393,12 +390,12 @@ pub fn start_package(package: &str) {
     start_activity(package, &class);
 }
 pub fn start_activity(package: &str, class: &str) {
-    std::process::Command::new("am")
+    let _ = std::process::Command::new("am")
         .args(["start", &format!("{package}/{class}")])
         .spawn();
 }
 pub fn stop_package(package: &str) {
-    std::process::Command::new("am")
+    let _ = std::process::Command::new("am")
         .args(["force-stop", package])
         .spawn();
 }

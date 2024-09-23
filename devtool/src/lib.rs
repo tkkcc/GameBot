@@ -1,3 +1,5 @@
+mod tract_onnx;
+
 use std::{
     i64,
     mem::take,
@@ -18,6 +20,7 @@ use gamebot::{
 use log::error;
 use serde::Serialize;
 use tokio::net::TcpListener;
+use tract_onnx::test_tract_onnx;
 
 fn operator_swipe() {
     d!(1);
@@ -353,6 +356,7 @@ fn test_group_find() {
 
 gamebot::entry!(start);
 fn start() {
+    test_tract_onnx();
     // click_recent();
     // wait_millis(100);
     // click_recent();

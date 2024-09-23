@@ -1,3 +1,4 @@
+mod candle_onnx;
 mod tract_onnx;
 
 use std::{
@@ -9,6 +10,7 @@ use std::{
 };
 
 use axum::{routing::get, Router};
+use candle_onnx::test_candle_onnx;
 use gamebot::{
     api::*,
     color::{ColorPoint, ColorPointGroup, ColorPointGroupIn, Region},
@@ -356,7 +358,8 @@ fn test_group_find() {
 
 gamebot::entry!(start);
 fn start() {
-    test_tract_onnx();
+    // test_tract_onnx();
+    test_candle_onnx();
     // click_recent();
     // wait_millis(100);
     // click_recent();

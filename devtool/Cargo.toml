@@ -10,10 +10,16 @@ crate-type = ["cdylib"]
 android_logger = "0.14.1"
 anyhow = "1.0.89"
 axum = "0.7.6"
+candle-core = { version = "*" }
+candle-examples = "0.7.0"
+candle-nn = "0.7.0"
+candle-onnx = "0.7.0"
 clap = { version = "4.5.18", features = ["derive"] }
 gamebot = { path = "../gamebot" }
+hf-hub = "0.3.2"
 image = "0.25.2"
 log = "0.4.22"
+openssl-sys = { version = "0.9.103", features = ["vendored"] }
 serde = { version = "1.0.210", features = ["derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
 tract-onnx = "0.21.7"

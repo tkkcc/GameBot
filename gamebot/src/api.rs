@@ -73,14 +73,16 @@ pub fn wait_forever() {
     assert_running_status();
 }
 
-pub fn wait_secs(s: impl IntoSeconds) {
-    let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_seconds());
+pub fn wait(s: Duration) {
+    let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s);
     assert_running_status();
 }
+pub fn wait_secs(s: impl IntoSeconds) {
+    wait(s.into_seconds());
+}
 
-pub fn wait_millis(s: impl IntoMilliseconds) {
-    let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s.into_milliseconds());
-    assert_running_status();
+pub fn wait_millis(s: u64) {
+    wait(Duration::from_millis(s));
 }
 
 pub mod ease {
@@ -169,7 +171,7 @@ pub fn gesture(path: &[Vec<(u64, (i32, i32))>]) {
         time,
     } in point_list
     {
-        wait_millis(time.saturating_sub(start.elapsed()));
+        wait(time.saturating_sub(start.elapsed()));
 
         // d!(start.elapsed(), x, y, id, &action);
 
@@ -263,7 +265,7 @@ pub fn gesture_interpolated(
         // d!(move_event.len(), move_event);
         // break;
         // d!(next_wake_time, start.elapsed());
-        wait_millis(next_wake_time.saturating_sub(start.elapsed()));
+        wait(next_wake_time.saturating_sub(start.elapsed()));
         let i = updown_event
             .iter()
             .position(|e| e.time > start.elapsed())
@@ -346,24 +348,24 @@ impl IntoSeconds for f64 {
         Duration::from_secs_f64(self)
     }
 }
-impl IntoSeconds for Duration {
+impl IntoSeconds for f32 {
     fn into_seconds(self) -> Duration {
-        self
+        Duration::from_secs_f32(self)
     }
 }
-pub trait IntoMilliseconds {
-    fn into_milliseconds(self) -> Duration;
-}
-impl IntoMilliseconds for u64 {
-    fn into_milliseconds(self) -> Duration {
-        Duration::from_millis(self)
-    }
-}
-impl IntoMilliseconds for Duration {
-    fn into_milliseconds(self) -> Duration {
-        self
-    }
-}
+// pub trait IntoMilliseconds {
+//     fn into_milliseconds(self) -> Duration;
+// }
+// impl IntoMilliseconds for u64 {
+//     fn into_milliseconds(self) -> Duration {
+//         Duration::from_millis(self)
+//     }
+// }
+// impl IntoMilliseconds for Duration {
+//     fn into_milliseconds(self) -> Duration {
+//         self
+//     }
+// }
 
 pub fn running_app_process_list() -> Vec<AppProcessInfo> {
     proxy().running_app_process_list()

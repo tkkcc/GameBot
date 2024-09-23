@@ -54,7 +54,7 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
     }
 
     fun stopConfigUI() {
-        localService.stopConfigUI(token)
+        localService.clearConfigUI(token)
     }
 
     fun sendEmptyConfigUIEvent() {
@@ -81,7 +81,7 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
     fun onStop() {
         Log.e("gamebot", "onStop")
         scope.cancel()
-        localService.stopConfigUI(token)
+        localService.clearConfigUI(token)
     }
 
     fun click(x: Float, y: Float) {

@@ -11,6 +11,7 @@ use gamebot::{
     api::*,
     color::{ColorPoint, ColorPointGroup, ColorPointGroupIn, Region},
     d,
+    find::GroupFind,
     node::NodeSelector,
     ui::{button, col, text, text_field, Element, UIContext, UI},
 };
@@ -345,6 +346,11 @@ fn test_screenshot_after() {
     // d!(x.elapsed());
 }
 
+fn test_group_find() {
+    let x = vec![ColorPointGroup::default()];
+    x.all_appear_millis(100);
+}
+
 gamebot::entry!(start);
 fn start() {
     // click_recent();
@@ -358,7 +364,8 @@ fn start() {
     // test_current_activity();
     // test_package()
 
-    test_screenshot_after();
+    // test_screenshot_after();
+
     // click_recent();
     // wait_millis(100);
     // click_recent();

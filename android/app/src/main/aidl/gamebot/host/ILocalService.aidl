@@ -12,7 +12,7 @@ interface ILocalService {
     void test();
     void updateConfigUI(int token, in ParcelFileDescriptor pfd);
     ParcelFileDescriptor waitConfigUIEvent(int token) ;
-    void stopConfigUI(int token);
+    void clearConfigUI(int token);
     void sendEmptyConfigUIEvent(int token);
 
 //    void startPackage(in String packageName);

@@ -19,13 +19,16 @@ pub trait Find {
     type FindOut;
 
     fn find(&self) -> Option<Self::FindOut>;
-    fn appear(&self, timeout: Duration) -> bool;
+    // fn appear(&self, timeout: Duration) -> bool;
 
     fn exist(&self) -> bool {
         self.find().is_some()
     }
-    fn appear_millis(&self, timeout: u64) -> bool {
-        self.appear(Duration::from_millis(timeout))
+    // fn appear_millis(&self, timeout: u64) -> bool {
+    //     self.appear(Duration::from_millis(timeout))
+    // }
+    fn appear(&self, timeout: impl IntoSeconds) -> bool {
+        self.appear(timeout.into_seconds())
     }
 }
 
@@ -35,7 +38,7 @@ pub trait FindExt: Find {
     }
 }
 
-impl<R> FindExt for dyn Find<FindOut = R> {}
+// impl<R> FindExt for dyn Find<FindOut = R> {}
 
 pub trait GroupFindOnce<'a, I: Find + 'a>: IntoIterator<Item = &'a I> {
     fn all_exist(self) -> bool;
@@ -316,7 +319,12 @@ fn wait_for<T>(
     }
 }
 
-fn wait_for_true(mut func: impl FnMut() -> bool, timeout: Duration, interval: Duration) -> bool {
+fn wait_for_true(
+    mut func: impl FnMut() -> bool,
+    timeout: impl IntoSeconds,
+    interval: Duration,
+) -> bool {
+    let timeout = timeout.into_seconds();
     let start = std::time::Instant::now();
     loop {
         let per_loop_start = Instant::now();
@@ -330,7 +338,8 @@ fn wait_for_true(mut func: impl FnMut() -> bool, timeout: Duration, interval: Du
     }
 }
 
-fn appear_with_screenshot(timeout: Duration, f: impl Fn(&Screenshot) -> bool) -> bool {
+fn appear_with_screenshot(timeout: impl IntoSeconds, f: impl Fn(&Screenshot) -> bool) -> bool {
+    let timeout = timeout.into_seconds();
     let start = Instant::now();
     loop {
         if start.elapsed() > timeout {
@@ -344,7 +353,8 @@ fn appear_with_screenshot(timeout: Duration, f: impl Fn(&Screenshot) -> bool) ->
     }
 }
 
-fn appear_with_nodeshot(timeout: Duration, f: impl Fn(&Nodeshot) -> bool) -> bool {
+fn appear_with_nodeshot(timeout: impl IntoSeconds, f: impl Fn(&Nodeshot) -> bool) -> bool {
+    let timeout = timeout.into_seconds();
     let start = Instant::now();
     loop {
         if start.elapsed() > timeout {
@@ -364,7 +374,7 @@ impl Find for ColorPoint {
     fn find(&self) -> Option<Self::FindOut> {
         take_screenshot().find_color_point(self)
     }
-    fn appear(&self, timeout: Duration) -> bool {
+    fn appear(&self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| shot.find_color_point(self).is_some())
     }
 }
@@ -375,7 +385,7 @@ impl Find for ColorPointGroup {
     fn find(&self) -> Option<Self::FindOut> {
         take_screenshot().find_color_point_group(self)
     }
-    fn appear(&self, timeout: Duration) -> bool {
+    fn appear(&self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| shot.find_color_point_group(self).is_some())
     }
 }
@@ -386,7 +396,7 @@ impl Find for ColorPointGroupIn {
     fn find(&self) -> Option<Self::FindOut> {
         take_screenshot().find_color_point_group_in(self)
     }
-    fn appear(&self, timeout: Duration) -> bool {
+    fn appear(&self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| {
             shot.find_color_point_group_in(self).is_some()
         })
@@ -399,7 +409,7 @@ impl Find for ImageIn {
     fn find(&self) -> Option<Self::FindOut> {
         take_screenshot().find_image_in(self)
     }
-    fn appear(&self, timeout: Duration) -> bool {
+    fn appear(&self, timeout: impl IntoSeconds) -> bool {
         appear_with_screenshot(timeout, |shot| shot.find_image_in(self).is_some())
     }
 }
@@ -410,7 +420,7 @@ impl Find for DiskImageIn {
     fn find(&self) -> Option<Self::FindOut> {
         ImageIn::from(self.clone()).find()
     }
-    fn appear(&self, timeout: Duration) -> bool {
+    fn appear(&self, timeout: impl IntoSeconds) -> bool {
         ImageIn::from(self.clone()).appear(timeout)
     }
 }
@@ -440,7 +450,7 @@ impl Find for NodeSelector {
         self.find()
     }
 
-    fn appear(&self, timeout: Duration) -> bool {
+    fn appear(&self, timeout: impl IntoSeconds) -> bool {
         appear_with_nodeshot(timeout, |shot| shot.match_selector(self))
     }
 }
@@ -487,7 +497,7 @@ impl Find for Condition {
         }
     }
 
-    fn appear(&self, timeout: Duration) -> bool {
+    fn appear(&self, timeout: impl IntoSeconds) -> bool {
         wait_for_true(|| self.evaluate(), timeout, Duration::ZERO)
     }
 }
@@ -499,7 +509,7 @@ impl<T> Find for ConditionOption<T> {
         self.evaluate()
     }
 
-    fn appear(&self, timeout: Duration) -> bool {
+    fn appear(&self, timeout: impl IntoSeconds) -> bool {
         wait_for_true(|| self.evaluate().is_some(), timeout, Duration::ZERO)
     }
 }

@@ -338,6 +338,11 @@ pub fn gesture_interpolated(
 pub trait IntoSeconds {
     fn into_seconds(self) -> Duration;
 }
+impl IntoSeconds for Duration {
+    fn into_seconds(self) -> Duration {
+        self
+    }
+}
 impl IntoSeconds for u64 {
     fn into_seconds(self) -> Duration {
         Duration::from_secs(self)
@@ -353,6 +358,7 @@ impl IntoSeconds for f32 {
         Duration::from_secs_f32(self)
     }
 }
+
 // pub trait IntoMilliseconds {
 //     fn into_milliseconds(self) -> Duration;
 // }

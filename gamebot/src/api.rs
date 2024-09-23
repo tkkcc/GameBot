@@ -77,8 +77,8 @@ pub fn wait(s: Duration) {
     let _ = STATUS_TOKEN.wait_for(Status::Running as u32, s);
     assert_running_status();
 }
-pub fn wait_secs(s: impl IntoSeconds) {
-    wait(s.into_seconds());
+pub fn wait_secs(s: impl Seconds) {
+    wait(s.into_duration());
 }
 
 pub fn wait_millis(s: u64) {
@@ -335,26 +335,26 @@ pub fn gesture_interpolated(
     }
 }
 
-pub trait IntoSeconds {
-    fn into_seconds(self) -> Duration;
+pub trait Seconds {
+    fn into_duration(self) -> Duration;
 }
-impl IntoSeconds for Duration {
-    fn into_seconds(self) -> Duration {
+impl Seconds for Duration {
+    fn into_duration(self) -> Duration {
         self
     }
 }
-impl IntoSeconds for u64 {
-    fn into_seconds(self) -> Duration {
+impl Seconds for u64 {
+    fn into_duration(self) -> Duration {
         Duration::from_secs(self)
     }
 }
-impl IntoSeconds for f64 {
-    fn into_seconds(self) -> Duration {
+impl Seconds for f64 {
+    fn into_duration(self) -> Duration {
         Duration::from_secs_f64(self)
     }
 }
-impl IntoSeconds for f32 {
-    fn into_seconds(self) -> Duration {
+impl Seconds for f32 {
+    fn into_duration(self) -> Duration {
         Duration::from_secs_f32(self)
     }
 }

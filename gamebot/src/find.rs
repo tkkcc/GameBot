@@ -189,25 +189,25 @@ impl<'a, T: IntoIterator<Item = &'a DiskImageIn> + Copy> GroupFind<'a, DiskImage
 impl<'a, T: IntoIterator<Item = &'a NodeSelector>> GroupFindOnce<'a, NodeSelector> for T {
     fn all_exist(self) -> bool {
         let shot = take_nodeshot();
-        self.into_iter().all(|x| shot.match_selector(x))
+        self.into_iter().all(|x| shot.find_selector(x).is_some())
     }
 
     fn any_exist(self) -> bool {
         let shot = take_nodeshot();
-        self.into_iter().any(|x| shot.match_selector(x))
+        self.into_iter().any(|x| shot.find_selector(x).is_some())
     }
 }
 
 impl<'a, T: IntoIterator<Item = &'a NodeSelector> + Copy> GroupFind<'a, NodeSelector> for T {
     fn all_appear(self, timeout: impl Seconds) -> bool {
         appear_with_nodeshot(timeout, |shot| {
-            self.into_iter().all(|x| shot.match_selector(x))
+            self.into_iter().all(|x| shot.find_selector(x).is_some())
         })
     }
 
     fn any_appear(self, timeout: impl Seconds) -> bool {
         appear_with_nodeshot(timeout, |shot| {
-            self.into_iter().any(|x| shot.match_selector(x))
+            self.into_iter().any(|x| shot.find_selector(x).is_some())
         })
     }
 }
@@ -421,11 +421,11 @@ impl Find for NodeSelector {
     type FindOut = ANode;
 
     fn find(&self) -> Option<Self::FindOut> {
-        self.find()
+        take_nodeshot().find_selector(self)
     }
 
     fn appear(&self, timeout: impl Seconds) -> bool {
-        appear_with_nodeshot(timeout, |shot| shot.match_selector(self))
+        appear_with_nodeshot(timeout, |shot| shot.find_selector(self).is_some())
     }
 }
 

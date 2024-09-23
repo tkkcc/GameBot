@@ -54,8 +54,15 @@ pub struct Nodeshot {
 }
 
 impl Nodeshot {
-    pub fn match_selector(&self, selector: &NodeSelector) -> bool {
-        self.data.iter().any(|x| (selector.filter)(x))
+    pub fn find_selector(&self, selector: &NodeSelector) -> Option<ANode> {
+        self.data.iter().find(|x| (selector.filter)(x)).cloned()
+    }
+    pub fn find_all_selector(&self, selector: &NodeSelector) -> Vec<ANode> {
+        self.data
+            .iter()
+            .filter(|x| (selector.filter)(x))
+            .map(Clone::clone)
+            .collect()
     }
 }
 
@@ -119,16 +126,7 @@ impl NodeSelector {
             filter: Box::new(filter),
         }
     }
-    pub fn find(&self) -> Option<ANode> {
-        take_nodeshot().data.into_iter().find(|x| (self.filter)(&x))
-        // root_node().and_then(|n| find_node_at(&n, &self.filter))
-    }
     pub fn find_all(&self) -> Vec<ANode> {
-        take_nodeshot()
-            .data
-            .into_iter()
-            .filter(|x| (self.filter)(&x))
-            .collect()
-        // root_node().map_or(vec![], |n| find_all_node_at(&n, &self.filter))
+        take_nodeshot().find_all_selector(&self)
     }
 }

@@ -53,6 +53,12 @@ pub struct Nodeshot {
     pub timestamp: i64,
 }
 
+impl Nodeshot {
+    pub fn match_selector(&self, selector: &NodeSelector) -> bool {
+        self.data.iter().any(|x| (selector.filter)(x))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ANode(pub Arc<Node>);
 

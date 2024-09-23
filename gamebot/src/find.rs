@@ -11,7 +11,7 @@ use crate::{
         wait_screenshot_after, wait_secs, IntoSeconds,
     },
     color::{ColorPoint, ColorPointGroup, ColorPointGroupIn, DiskImageIn, ImageIn, Point},
-    node::{ANode, Node, NodeSelector},
+    node::{ANode, Node, NodeSelector, Nodeshot},
     screenshot::Screenshot,
 };
 
@@ -215,24 +215,26 @@ impl<'a, T: IntoIterator<Item = &'a DiskImageIn> + Copy> GroupFind<'a, DiskImage
 impl<'a, T: IntoIterator<Item = &'a NodeSelector>> GroupFindOnce<'a, NodeSelector> for T {
     fn all_exist(self) -> bool {
         let shot = take_nodeshot();
-        self.into_iter()
-            .all(|x| shot.data.iter().any(|y| (x.filter)(y)))
+        self.into_iter().all(|x| shot.match_selector(x))
     }
 
     fn any_exist(self) -> bool {
         let shot = take_nodeshot();
-        self.into_iter()
-            .any(|x| shot.data.iter().any(|y| (x.filter)(y)))
+        self.into_iter().any(|x| shot.match_selector(x))
     }
 }
 
 impl<'a, T: IntoIterator<Item = &'a NodeSelector> + Copy> GroupFind<'a, NodeSelector> for T {
     fn all_appear(self, timeout: Duration) -> bool {
-        appear_with_nodeshot(timeout, |node| self.into_iter().all(|x| (x.filter)(node)))
+        appear_with_nodeshot(timeout, |shot| {
+            self.into_iter().all(|x| shot.match_selector(x))
+        })
     }
 
     fn any_appear(self, timeout: Duration) -> bool {
-        appear_with_nodeshot(timeout, |node| self.into_iter().any(|x| (x.filter)(node)))
+        appear_with_nodeshot(timeout, |shot| {
+            self.into_iter().any(|x| shot.match_selector(x))
+        })
     }
 }
 
@@ -296,39 +298,6 @@ impl<'a, T: IntoIterator<Item = &'a ConditionOption<R>> + Copy, R: 'a>
     }
 }
 
-pub trait FindGroupDynamic {
-    fn all_exist(&self) -> bool {
-        todo!()
-    }
-    fn any_exist(&self) -> bool {
-        todo!()
-    }
-    fn any_find_index(&self) -> Option<usize> {
-        Some(0)
-    }
-}
-
-impl<R1, R2, T1, T2> FindGroupDynamic for (T1, T2)
-where
-    T1: Find<FindOut = R1>,
-    T2: Find<FindOut = R2>,
-{
-}
-
-fn ttt() {
-    fn a(x: &[ColorPoint]) {}
-    let x = vec![ColorPoint::default()];
-    x.all_appear_millis(300);
-    x.any_appear_millis(300);
-    x.any_exist();
-    x.any_exist();
-
-    let x1 = ColorPoint::default();
-    let x = [&x1];
-    x.all_exist();
-    x.all_appear_secs(10);
-}
-
 fn wait_for<T>(
     mut func: impl FnMut() -> Option<T>,
     timeout: Duration,
@@ -375,14 +344,14 @@ fn appear_with_screenshot(timeout: Duration, f: impl Fn(&Screenshot) -> bool) ->
     }
 }
 
-fn appear_with_nodeshot(timeout: Duration, f: impl Fn(&Node) -> bool) -> bool {
+fn appear_with_nodeshot(timeout: Duration, f: impl Fn(&Nodeshot) -> bool) -> bool {
     let start = Instant::now();
     loop {
         if start.elapsed() > timeout {
             return false;
         }
         let shot = take_nodeshot();
-        if shot.data.iter().any(|x| f(x)) {
+        if f(&shot) {
             return true;
         }
         wait_screenshot_after(shot.timestamp, timeout.saturating_sub(start.elapsed()));
@@ -472,7 +441,7 @@ impl Find for NodeSelector {
     }
 
     fn appear(&self, timeout: Duration) -> bool {
-        appear_with_nodeshot(timeout, |node| (self.filter)(node))
+        appear_with_nodeshot(timeout, |shot| shot.match_selector(self))
     }
 }
 
@@ -486,6 +455,10 @@ impl Condition {
             cond: Box::new(cond),
         }
     }
+
+    fn evaluate(&self) -> bool {
+        (self.cond)()
+    }
 }
 
 struct ConditionOption<T> {
@@ -498,13 +471,16 @@ impl<T> ConditionOption<T> {
             cond: Box::new(cond),
         }
     }
+    fn evaluate(&self) -> Option<T> {
+        (self.cond)()
+    }
 }
 
 impl Find for Condition {
     type FindOut = bool;
 
     fn find(&self) -> Option<Self::FindOut> {
-        if (self.cond)() {
+        if self.evaluate() {
             Some(true)
         } else {
             None
@@ -512,7 +488,7 @@ impl Find for Condition {
     }
 
     fn appear(&self, timeout: Duration) -> bool {
-        wait_for_true(|| (self.cond)(), timeout, Duration::ZERO)
+        wait_for_true(|| self.evaluate(), timeout, Duration::ZERO)
     }
 }
 
@@ -520,10 +496,47 @@ impl<T> Find for ConditionOption<T> {
     type FindOut = T;
 
     fn find(&self) -> Option<Self::FindOut> {
-        (self.cond)()
+        self.evaluate()
     }
 
     fn appear(&self, timeout: Duration) -> bool {
-        wait_for_true(|| (self.cond)().is_some(), timeout, Duration::ZERO)
+        wait_for_true(|| self.evaluate().is_some(), timeout, Duration::ZERO)
     }
 }
+
+// pub trait GroupFindDynamic {
+//     fn all_exist(&self) -> bool {
+//         todo!()
+//     }
+//     fn any_exist(&self) -> bool {
+//         todo!()
+//     }
+//     fn all_appear(&self, timeout: Duration) -> bool {
+//         todo!()
+//     }
+//     fn any_appear(&self, timeout: Duration) -> bool {
+//         todo!()
+//     }
+//     fn all_appear_millis(&self, timeout: u64) -> bool {
+//         self.all_appear(Duration::from_millis(timeout))
+//     }
+//     fn any_appear_millis(&self, timeout: u64) -> bool {
+//         self.any_appear(Duration::from_millis(timeout))
+//     }
+//     fn all_appear_secs(&self, timeout: impl IntoSeconds) -> bool {
+//         self.all_appear(timeout.into_seconds())
+//     }
+//     fn any_appear_secs(&self, timeout: impl IntoSeconds) -> bool {
+//         self.any_appear(timeout.into_seconds())
+//     }
+// }
+//
+// impl<R1, R2, T1, T2> GroupFindDynamic for (T1, T2)
+// where
+//     T1: Find<FindOut = R1>,
+//     T2: Find<FindOut = R2>,
+// {
+//     fn all_exist(&self) -> bool {
+//         self.0.exist() && self.1.exist()
+//     }
+// }

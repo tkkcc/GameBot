@@ -1,6 +1,7 @@
-// mod burn_onnx;
+mod burn_onnx;
 mod candle_onnx;
 // mod model;
+mod model;
 mod tract_onnx;
 
 use std::{
@@ -12,7 +13,7 @@ use std::{
 };
 
 use axum::{routing::get, Router};
-// use burn_onnx::test_burn_onnx;
+use burn_onnx::test_burn_onnx;
 use candle_onnx::test_candle_onnx;
 use gamebot::{
     api::*,
@@ -361,11 +362,12 @@ fn test_group_find() {
 
 gamebot::entry!(start);
 fn start() {
-    // test_burn_onnx();
+    test_burn_onnx();
 
-    // test_tract_onnx();
+    test_tract_onnx();
 
     test_candle_onnx();
+    return;
 
     // click_recent();
     // wait_millis(100);

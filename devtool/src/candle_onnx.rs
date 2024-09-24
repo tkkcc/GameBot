@@ -4,6 +4,8 @@
 // #[cfg(feature = "accelerate")]
 // extern crate accelerate_src;
 
+use std::time::Instant;
+
 use candle_core::{DType, Device, Tensor};
 use candle_core::{IndexOp, D};
 use clap::{Parser, ValueEnum};
@@ -33,14 +35,14 @@ pub fn test_candle_onnx() -> anyhow::Result<()> {
     // let args = Args::parse();
     let args = Args {
         image: "/data/local/tmp/grace_hopper.jpg".into(),
-        // model: Some("/data/local/tmp/squeezenet1.1-7.onnx".into()),
-        model: Some("/data/local/tmp/ddddocr_old.onnx".into()),
+        model: Some("/data/local/tmp/squeezenet1.1-7.onnx".into()),
+        // model: Some("/data/local/tmp/ddddocr_old.onnx".into()),
         // model: None,
         which: Which::SqueezeNet,
     };
     let image = candle_examples::imagenet::load_image224(args.image)?;
-    let image = image.mean_keepdim(0)?.unsqueeze(0)?;
-    let image = image.interpolate2d(64, 128)?.squeeze(0)?;
+    // let image = image.mean_keepdim(0)?.unsqueeze(0)?;
+    // let image = image.interpolate2d(64, 128)?.squeeze(0)?;
 
     // let image = match args.which {
     //     Which::SqueezeNet => image,
@@ -65,15 +67,21 @@ pub fn test_candle_onnx() -> anyhow::Result<()> {
     let graph = model.graph.as_ref().unwrap();
     let mut inputs = std::collections::HashMap::new();
     inputs.insert(graph.input[0].name.to_string(), image.unsqueeze(0)?);
-    d!(graph.input.iter().map(|x| &x.name).collect::<Vec<_>>());
 
-    let mut outputs = candle_onnx::simple_eval(&model, inputs).unwrap();
-
-    let output = outputs.remove(&graph.output[0].name).unwrap();
+    for i in 0..10 {
+        let mut outputs = candle_onnx::simple_eval(&model, inputs.clone()).unwrap();
+        let output = outputs.remove(&graph.output[0].name).unwrap();
+    }
+    let start = Instant::now();
+    for i in 0..10 {
+        let mut outputs = candle_onnx::simple_eval(&model, inputs.clone()).unwrap();
+        let output = outputs.remove(&graph.output[0].name).unwrap();
+    }
+    d!(start.elapsed().as_millis() / 10);
 
     return Ok(());
 
-    d!(output.shape());
+    // d!(output.shape());
     // let prs = match args.which {
     //     Which::SqueezeNet => candle_nn::ops::softmax(&output, D::Minus1)?,
     //     Which::EfficientNet => output,

@@ -10,7 +10,13 @@ crate-type = ["cdylib"]
 android_logger = "0.14.1"
 anyhow = "1.0.89"
 axum = "0.7.6"
-# burn = { version = "0.14.0", features = ["vision", "wgpu", "dataset","ndarray"] }
+burn = { version = "0.14.0", features = [
+  "vision",
+  "wgpu",
+  "dataset",
+  "ndarray",
+  "candle",
+] }
 candle-core = { version = "*" }
 candle-examples = "0.7.0"
 candle-nn = "0.7.0"
@@ -25,5 +31,5 @@ serde = { version = "1.0.210", features = ["derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
 tract-onnx = "0.21.7"
 
-# [build-dependencies]
-# burn-import = "0.14.0"
+[build-dependencies]
+burn-import = "0.14.0"

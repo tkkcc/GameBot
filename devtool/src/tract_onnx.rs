@@ -106,29 +106,29 @@ pub fn test_tract_onnx() -> Result<(), Error> {
     let args = CliArgs {
         input_image: "/data/local/tmp/grace_hopper.jpg".into(),
         // weights: "/data/local/tmp/yolov8n-face.onnx".into(),
-        weights: "/data/local/tmp/ddddocr.onnx".into(),
+        // weights: "/data/local/tmp/ddddocr.onnx".into(),
+        weights: "/data/local/tmp/squeezenet1.1-7.onnx".into(),
     };
     let model = tract_onnx::onnx()
         .model_for_path(args.weights)?
-        .with_input_fact(0, f32::fact([1, 1, 64, 128]).into())
+        .with_input_fact(0, f32::fact([1, 3, 224, 224]).into())
         .unwrap()
         .into_optimized()
         .unwrap()
         .into_runnable()
         .unwrap();
     let raw_image = image::open(args.input_image).unwrap();
-    d!(141);
 
     // scale the image with black padding
     let width = raw_image.width();
     let height = raw_image.height();
-    let scale = 640.0 / width.max(height) as f32;
+    // let scale = 640.0 / width.max(height) as f32;
     // let new_width = (width as f32 * scale) as u32;
     // let new_height = (height as f32 * scale) as u32;
     let resized = image::imageops::resize(
         &raw_image.to_rgb8(),
-        128,
-        64,
+        224,
+        224,
         image::imageops::FilterType::Triangle,
     );
     // let mut padded = image::RgbImage::new(640, 640);
@@ -138,22 +138,21 @@ pub fn test_tract_onnx() -> Result<(), Error> {
     //     (640 - new_width as i64) / 2,
     //     (640 - new_height as i64) / 2,
     // );
-    let image: Tensor = tract_ndarray::Array4::from_shape_fn((1, 1, 64, 128), |(_, c, y, x)| {
-        resized.get_pixel(x as u32, y as u32)[c] as f32 / 255.0
+    let image: Tensor = tract_ndarray::Array4::from_shape_fn((1, 3, 224, 224), |(_, c, y, x)| {
+        (resized.get_pixel(x as u32, y as u32)[c] as f32 / 255.0 - 0.5) / 0.5
     })
     .into();
 
-    for i in 0..1 {
-        let forward = model.run(tvec![image.to_owned().into()]).unwrap();
+    let input = tvec![image.to_owned().into()];
+    for i in 0..10 {
+        let forward = model.run(input.clone()).unwrap();
         let results = forward[0].to_array_view::<f32>()?.view().t().into_owned();
     }
 
     let mut start = Instant::now();
     for i in 0..10 {
-        //run model
-        let forward = model.run(tvec![image.to_owned().into()]).unwrap();
-        let results = forward[0].to_array_view::<f32>()?.view().t().into_owned();
-        // d!(149, results.shape());
+        let forward = model.run(input.clone()).unwrap();
+        let results = forward[0].to_array_view::<f32>()?;
     }
     d!(start.elapsed().as_millis() / 10);
 

@@ -331,11 +331,11 @@ fn test_package() {
 }
 
 fn test_screenshot_after() {
-    // let shot = take_screenshot();
-    // let x = Instant::now();
-    // d!(x.elapsed());
-    // let y = take_screenshot_after(shot.timestamp, Duration::from_secs(1));
-    // d!(x.elapsed());
+    let shot = take_screenshot();
+    let x = Instant::now();
+    d!(x.elapsed());
+    let y = take_screenshot_after(shot.timestamp, Duration::from_secs(1));
+    d!(x.elapsed());
 
     thread::spawn(|| {
         wait(1);
@@ -363,8 +363,10 @@ gamebot::entry!(start);
 fn start() {
     // test_burn_onnx();
 
-    test_tract_onnx();
-    // test_candle_onnx();
+    // test_tract_onnx();
+
+    test_candle_onnx();
+
     // click_recent();
     // wait_millis(100);
     // click_recent();
@@ -372,13 +374,8 @@ fn start() {
     // test_ui();
 
     // test_axum();
-    // test_activity();
-    // test_current_activity();
-    // test_package()
-
-    // test_screenshot_after();
-
-    // click_recent();
-    // wait_millis(100);
-    // click_recent();
+    test_activity();
+    test_current_activity();
+    test_package();
+    test_screenshot_after();
 }

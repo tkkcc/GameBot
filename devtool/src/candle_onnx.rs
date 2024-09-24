@@ -68,9 +68,10 @@ pub fn test_candle_onnx() -> anyhow::Result<()> {
     d!(graph.input.iter().map(|x| &x.name).collect::<Vec<_>>());
 
     let mut outputs = candle_onnx::simple_eval(&model, inputs).unwrap();
-    return Ok(());
 
     let output = outputs.remove(&graph.output[0].name).unwrap();
+
+    return Ok(());
 
     d!(output.shape());
     // let prs = match args.which {

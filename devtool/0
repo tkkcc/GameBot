@@ -18,6 +18,7 @@ run() {
     ;;
   esac
   cargo ndk -t $target-linux-android build --release
+  du -sh ../target/i686-linux-android/release/*.so
   adb push ../target/$target-linux-android/release/libdevtool.so /data/local/tmp/libgamebot.so
   adb shell am force-stop gamebot.host
   adb shell am start -n gamebot.host/.MainActivity

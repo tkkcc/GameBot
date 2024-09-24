@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 android_logger = "0.14.1"
 anyhow = "1.0.89"
 axum = "0.7.6"
-burn = { version = "0.14.0", features = ["vision", "wgpu", "dataset","ndarray"] }
+# burn = { version = "0.14.0", features = ["vision", "wgpu", "dataset","ndarray"] }
 candle-core = { version = "*" }
 candle-examples = "0.7.0"
 candle-nn = "0.7.0"

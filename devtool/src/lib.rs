@@ -1,8 +1,7 @@
-mod burn_onnx;
 mod candle_onnx;
 // mod model;
-mod model;
-mod tract_onnx;
+// mod model;
+// mod tract_onnx;
 
 use std::{
     i64,
@@ -13,7 +12,7 @@ use std::{
 };
 
 use axum::{routing::get, Router};
-use burn_onnx::test_burn_onnx;
+// use burn_onnx::test_burn_onnx;
 use candle_onnx::test_candle_onnx;
 use gamebot::{
     api::*,
@@ -26,7 +25,7 @@ use gamebot::{
 use log::error;
 use serde::Serialize;
 use tokio::net::TcpListener;
-use tract_onnx::test_tract_onnx;
+// use tract_onnx::test_tract_onnx;
 
 fn operator_swipe() {
     d!(1);
@@ -362,12 +361,12 @@ fn test_group_find() {
 
 gamebot::entry!(start);
 fn start() {
-    test_burn_onnx();
+    // test_burn_onnx();
+    //
+    // test_tract_onnx();
 
-    test_tract_onnx();
-
-    test_candle_onnx();
-    return;
+    // test_candle_onnx();
+    // return;
 
     // click_recent();
     // wait_millis(100);

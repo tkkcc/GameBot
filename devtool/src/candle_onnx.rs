@@ -40,7 +40,29 @@ pub fn test_candle_onnx() -> anyhow::Result<()> {
         // model: None,
         which: Which::SqueezeNet,
     };
-    let image = candle_examples::imagenet::load_image224(args.image)?;
+
+    let res = 224;
+    let img = image::ImageReader::open(args.image)
+        .unwrap()
+        .decode()
+        .unwrap()
+        .resize_to_fill(
+            res as u32,
+            res as u32,
+            image::imageops::FilterType::Triangle,
+        );
+    let img = img.to_rgb8();
+    let data = img.into_raw();
+    let data = Tensor::from_vec(data, (res, res, 3), &Device::Cpu)?.permute((2, 0, 1))?;
+    let mean = Tensor::new(0.5, &Device::Cpu)?.reshape((3, 1, 1))?;
+    let std = Tensor::new(0.5, &Device::Cpu)?.reshape((3, 1, 1))?;
+    let img = (data.to_dtype(candle_core::DType::F32)? / 255.)?
+        .broadcast_sub(&mean)?
+        .broadcast_div(&std)?;
+    let image = img;
+
+    // let image = candle_examples::imagenet::load_image224(args.image)?;
+
     // let image = image.mean_keepdim(0)?.unsqueeze(0)?;
     // let image = image.interpolate2d(64, 128)?.squeeze(0)?;
 

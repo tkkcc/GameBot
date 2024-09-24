@@ -26,7 +26,9 @@ gamebot = { path = "../gamebot" }
 hf-hub = "0.3.2"
 image = "0.25.2"
 log = "0.4.22"
+ndarray = "0.16.1"
 openssl-sys = { version = "0.9.103", features = ["vendored"] }
+ort = "2.0.0-rc.6"
 serde = { version = "1.0.210", features = ["derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
 tract-onnx = "0.21.7"

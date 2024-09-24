@@ -1,4 +1,5 @@
 mod candle_onnx;
+mod ort_onnx;
 // mod model;
 // mod model;
 // mod tract_onnx;
@@ -23,6 +24,7 @@ use gamebot::{
     ui::{button, col, text, text_field, Element, UIContext, UI},
 };
 use log::error;
+use ort_onnx::test_ort_onnx;
 use serde::Serialize;
 use tokio::net::TcpListener;
 // use tract_onnx::test_tract_onnx;
@@ -366,6 +368,7 @@ fn start() {
     // test_tract_onnx();
 
     // test_candle_onnx();
+    test_ort_onnx();
     // return;
 
     // click_recent();
@@ -375,8 +378,8 @@ fn start() {
     // test_ui();
 
     // test_axum();
-    test_activity();
-    test_current_activity();
-    test_package();
-    test_screenshot_after();
+    // test_activity();
+    // test_current_activity();
+    // test_package();
+    // test_screenshot_after();
 }

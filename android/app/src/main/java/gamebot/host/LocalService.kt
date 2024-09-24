@@ -7,10 +7,13 @@ import UIEvent
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Context.ACTIVITY_SERVICE
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
@@ -44,13 +47,16 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import gamebot.host.presentation.CenterView
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -60,6 +66,8 @@ import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.ByteArrayOutputStream
 import kotlin.concurrent.thread
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 @Composable
 fun MemoryMonitor() {
@@ -124,17 +132,69 @@ class LocalService(
 //
 //    }
 
-    override fun test() {
-        thread {
-            Thread.sleep(1000)
+    fun testOcr(){
+        Log.e("gamebot", "135")
+//        MlKit.initialize(context)
+        val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/multilinetext.png")
+        val resizedBitmap: Bitmap = Bitmap.createScaledBitmap(
+            originalBitmap, 128, 64, false
+        )
+        val image = InputImage.fromBitmap(originalBitmap,0)
 
-            runBlocking(Dispatchers.Default) {
+//        val image = InputImage.fromFilePath(context, Uri.fromFile(File("/data/local/tmp/multilinetext.png"))
 
-                val channel = MutableStateFlow<Int>(1)
+        fun runOnce() {
+            runBlocking {
 
+                suspendCoroutine { cont ->
+
+                    val result = recognizer.process(image)
+                        .addOnSuccessListener { result ->
+                            cont.resume(Unit)
+//                        val resultText = result.text
+//                        for (block in result.textBlocks) {
+//                            val blockText = block.text
+//                            val blockCornerPoints = block.cornerPoints
+//                            val blockFrame = block.boundingBox
+//                            for (line in block.lines) {
+//                                val lineText = line.text
+//                                val lineCornerPoints = line.cornerPoints
+//                                val lineFrame = line.boundingBox
+//                                for (element in line.elements) {
+//                                    val elementText = element.text
+//                                    Log.e("gamebot", elementText)
+//                                    val elementCornerPoints = element.cornerPoints
+//                                    val elementFrame = element.boundingBox
+//                                }
+//                            }
+//                        }
+                        }
+                        .addOnFailureListener { e ->
+                            // Task failed with an exception
+                            // ...
+                        }
+                }
             }
 
-//            startPackage("gamebot.host")
+        }
+
+        runOnce()
+        val start = SystemClock.uptimeMillis()
+        Log.e("gamebot", "136")
+
+        for (i in 0..<2) {
+            runOnce()
+            Log.e("gamebot", i.toString())
+//            val result = recognizer.process(image)
+        }
+        Log.e("gamebot", ((SystemClock.uptimeMillis()-start) / 2).toString() )
+
+    }
+
+    override fun test() {
+        thread {
+            testOcr()
         }
 
         context.setContent {

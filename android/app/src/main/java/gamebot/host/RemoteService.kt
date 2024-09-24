@@ -15,6 +15,7 @@ import android.hardware.display.VirtualDisplay
 import android.hardware.input.IInputManager
 import android.media.Image
 import android.media.ImageReader
+import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.os.Handler
@@ -30,6 +31,10 @@ import android.view.MotionEvent.PointerCoords
 import android.view.MotionEvent.PointerProperties
 import android.view.SurfaceControlHidden
 import android.view.accessibility.AccessibilityNodeInfo
+import com.google.mlkit.common.MlKit
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import dev.rikka.tools.refine.Refine
 import gamebot.host.Host
 import gamebot.host.ILocalService
@@ -697,6 +702,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         initAll()
         initDisplayProjection()
         localService.test()
+//        testOcr()
 //        this.javaClass.declaredMethods.forEach {
 //            Log.e("", "790 ${it}")
 //        }

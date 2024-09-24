@@ -11,7 +11,8 @@ use burn::{
 use gamebot::d;
 use log::error;
 
-use crate::model::mnist::Model;
+// use crate::model::mnist::Model;
+use crate::model::ddddocr::Model;
 
 const IMAGE_INX: usize = 42; // <- Change this to test a different image
 
@@ -32,8 +33,8 @@ pub fn test_burn_onnx() {
 
     assert!(image_index < 10000, "Image index must be less than 10000");
 
-    type Backend = Wgpu<f32>;
-    // type Backend = NdArray<f32>;
+    // type Backend = Wgpu<f32>;
+    type Backend = NdArray<f32>;
 
     d!("45");
     // Get a default device for the backend
@@ -42,10 +43,10 @@ pub fn test_burn_onnx() {
     d!("46");
 
     // Create a new model and load the state
-    // let model: Model<Backend> = Model::default();
-    let model: Model<Backend> = Model::from_file("/data/local/tmp/mnist", &Default::default());
+    let model: Model<Backend> = Model::default();
+    // let model: Model<Backend> = Model::from_file("/data/local/tmp/mnist", &Default::default());
+    let model: Model<Backend> = Model::from_file("/data/local/tmp/common", &Default::default());
     d!("47");
-    return;
 
     // Load the MNIST dataset and get an item
     let dataset = MnistDataset::test();

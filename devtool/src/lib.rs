@@ -361,7 +361,6 @@ fn test_group_find() {
 
 gamebot::entry!(start);
 fn start() {
-
     test_burn_onnx();
 
     // test_tract_onnx();

@@ -4,6 +4,7 @@ use gamebot::d;
 use image::DynamicImage;
 use std::cmp::Ordering;
 use std::cmp::PartialOrd;
+use std::time::Instant;
 use tract_ndarray::s;
 use tract_onnx::prelude::*;
 
@@ -104,68 +105,85 @@ pub fn test_tract_onnx() -> Result<(), Error> {
     // let args = CliArgs::parse();
     let args = CliArgs {
         input_image: "/data/local/tmp/grace_hopper.jpg".into(),
-        weights: "/data/local/tmp/yolov8n-face.onnx".into(),
+        // weights: "/data/local/tmp/yolov8n-face.onnx".into(),
+        weights: "/data/local/tmp/ddddocr.onnx".into(),
     };
     let model = tract_onnx::onnx()
         .model_for_path(args.weights)?
-        .with_input_fact(0, f32::fact([1, 3, 640, 640]).into())?
-        .into_optimized()?
-        .into_runnable()?;
-    let raw_image = image::open(args.input_image)?;
+        .with_input_fact(0, f32::fact([1, 1, 64, 128]).into())
+        .unwrap()
+        .into_optimized()
+        .unwrap()
+        .into_runnable()
+        .unwrap();
+    let raw_image = image::open(args.input_image).unwrap();
+    d!(141);
 
     // scale the image with black padding
     let width = raw_image.width();
     let height = raw_image.height();
     let scale = 640.0 / width.max(height) as f32;
-    let new_width = (width as f32 * scale) as u32;
-    let new_height = (height as f32 * scale) as u32;
+    // let new_width = (width as f32 * scale) as u32;
+    // let new_height = (height as f32 * scale) as u32;
     let resized = image::imageops::resize(
         &raw_image.to_rgb8(),
-        new_width,
-        new_height,
+        128,
+        64,
         image::imageops::FilterType::Triangle,
     );
-    let mut padded = image::RgbImage::new(640, 640);
-    image::imageops::replace(
-        &mut padded,
-        &resized,
-        (640 - new_width as i64) / 2,
-        (640 - new_height as i64) / 2,
-    );
-    let image: Tensor = tract_ndarray::Array4::from_shape_fn((1, 3, 640, 640), |(_, c, y, x)| {
-        padded.get_pixel(x as u32, y as u32)[c] as f32 / 255.0
+    // let mut padded = image::RgbImage::new(640, 640);
+    // image::imageops::replace(
+    //     &mut padded,
+    //     &resized,
+    //     (640 - new_width as i64) / 2,
+    //     (640 - new_height as i64) / 2,
+    // );
+    let image: Tensor = tract_ndarray::Array4::from_shape_fn((1, 1, 64, 128), |(_, c, y, x)| {
+        resized.get_pixel(x as u32, y as u32)[c] as f32 / 255.0
     })
     .into();
 
-    //run model
-    //
-    let forward = model.run(tvec![image.to_owned().into()])?;
-    let results = forward[0].to_array_view::<f32>()?.view().t().into_owned();
-    let mut bbox_vec: Vec<Bbox> = vec![];
-    for i in 0..results.len_of(tract_ndarray::Axis(0)) {
-        let row = results.slice(s![i, .., ..]);
-        let confidence = row[[4, 0]];
-
-        if confidence >= 0.5 {
-            let x = row[[0, 0]];
-            let y = row[[1, 0]];
-            let w = row[[2, 0]];
-            let h = row[[3, 0]];
-            let x1 = x - w / 2.0;
-            let y1 = y - h / 2.0;
-            let x2 = x + w / 2.0;
-            let y2 = y + h / 2.0;
-            let bbox =
-                Bbox::new(x1, y1, x2, y2, confidence).apply_image_scale(&raw_image, 640.0, 640.0);
-            bbox_vec.push(bbox);
-        }
+    for i in 0..1 {
+        let forward = model.run(tvec![image.to_owned().into()]).unwrap();
+        let results = forward[0].to_array_view::<f32>()?.view().t().into_owned();
     }
-    // uncomment below to save preview face
-    let test_save = bbox_vec[0]
-        .crop_bbox(&raw_image)?
-        .save("/data/local/tmp/test_crop.png");
 
-    d!("bboxes: {:?}", bbox_vec);
+    let mut start = Instant::now();
+    for i in 0..10 {
+        //run model
+        let forward = model.run(tvec![image.to_owned().into()]).unwrap();
+        let results = forward[0].to_array_view::<f32>()?.view().t().into_owned();
+        // d!(149, results.shape());
+    }
+    d!(start.elapsed().as_millis() / 10);
 
-    Ok(())
+    return Ok(());
+
+    // let mut bbox_vec: Vec<Bbox> = vec![];
+    // for i in 0..results.len_of(tract_ndarray::Axis(0)) {
+    //     let row = results.slice(s![i, .., ..]);
+    //     let confidence = row[[4, 0]];
+    //
+    //     if confidence >= 0.5 {
+    //         let x = row[[0, 0]];
+    //         let y = row[[1, 0]];
+    //         let w = row[[2, 0]];
+    //         let h = row[[3, 0]];
+    //         let x1 = x - w / 2.0;
+    //         let y1 = y - h / 2.0;
+    //         let x2 = x + w / 2.0;
+    //         let y2 = y + h / 2.0;
+    //         let bbox =
+    //             Bbox::new(x1, y1, x2, y2, confidence).apply_image_scale(&raw_image, 640.0, 640.0);
+    //         bbox_vec.push(bbox);
+    //     }
+    // }
+    // // uncomment below to save preview face
+    // let test_save = bbox_vec[0]
+    //     .crop_bbox(&raw_image)?
+    //     .save("/data/local/tmp/test_crop.png");
+    //
+    // d!("bboxes: {:?}", bbox_vec);
+    //
+    // Ok(())
 }

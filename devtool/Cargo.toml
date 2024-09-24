@@ -25,5 +25,5 @@ serde = { version = "1.0.210", features = ["derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
 tract-onnx = "0.21.7"
 
-[build-dependencies]
-burn-import = "0.14.0"
+# [build-dependencies]
+# burn-import = "0.14.0"

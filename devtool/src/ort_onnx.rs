@@ -1,3 +1,7 @@
+use gamebot::{
+    api::{wait, wait_millis},
+    d,
+};
 use image::GenericImageView;
 use ndarray::{s, Array, Array4, Axis};
 use ort::{inputs, SessionOutputs};
@@ -30,20 +34,27 @@ pub fn test_ort_onnx() {
     //     input[[0, 2, y, x]] = (b as f32) / 255.;
     // }
 
-    let model = Session::builder()
-        .unwrap()
-        .with_optimization_level(GraphOptimizationLevel::Level3)
-        .unwrap()
-        .with_intra_threads(4)
-        .unwrap()
-        .commit_from_file("/data/local/tmp/squeezenet1.1-7.onnx")
-        .unwrap();
+    d!(24);
+    wait(2);
+    let model = Session::builder();
+    // if let Err(err) = model {
+    //     // d!(err);
+    // }
+    // .with_optimization_level(GraphOptimizationLevel::Level3)
+    // .unwrap()
+    // .with_intra_threads(4)
+    // .unwrap();
+    // .commit_from_file("/data/local/tmp/squeezenet1.1-7.onnx")
+    // .unwrap();
 
-    let outputs: SessionOutputs = model
-        .run(inputs!["images" => input.view()].unwrap())
-        .unwrap();
-    let output = outputs["output0"]
-        .try_extract_tensor::<f32>()
-        .unwrap()
-        .into_owned();
+    d!(25);
+    return;
+
+    // let outputs: SessionOutputs = model
+    //     .run(inputs!["images" => input.view()].unwrap())
+    //     .unwrap();
+    // let output = outputs["output0"]
+    //     .try_extract_tensor::<f32>()
+    //     .unwrap()
+    //     .into_owned();
 }

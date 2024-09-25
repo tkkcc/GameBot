@@ -18,10 +18,14 @@ run() {
     ;;
   esac
 
+  # export ORT_LIB_LOCATION=$HOME/bin/onnxruntime/build/Android
+  # export ORT_LIB_LOCATION=$HOME/bin/onnxruntime/build/Android
+  # export ORT_LIB_LOCATION=/home/bilabila/bin/onnxruntime/build/Android/Release/java/android/x86
+  # export ORT_LIB_LOCATION=$HOME/bin/onnxruntime/build/Android/Release/
   cargo ndk -t $target-linux-android build --release
   # cargo ndk -t $target-linux-android bloat --release -n 10 --crates
 
-  du -sh ../target/i686-linux-android/release/*.so
+  du -sh ../target/$target-linux-android/release/*.so
   adb push ../target/$target-linux-android/release/libdevtool.so /data/local/tmp/libgamebot.so
   adb shell am force-stop gamebot.host
   adb shell am start -n gamebot.host/.MainActivity

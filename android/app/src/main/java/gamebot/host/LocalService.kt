@@ -194,7 +194,7 @@ class LocalService(
 
     override fun test() {
         thread {
-            testOcr()
+//            testOcr()
         }
 
         context.setContent {

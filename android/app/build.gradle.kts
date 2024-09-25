@@ -94,6 +94,7 @@ androidComponents.onVariants { variant ->
 //        listOf( "x86","x86_64",)
     } else {
         listOf("x86", "x86_64", "arm64-v8a")
+        listOf("arm64-v8a")
 //        listOf("x86","x86_64",)
     }
     val source = Path(projectDir.absolutePath, "src", "main", "rust")
@@ -114,13 +115,16 @@ androidComponents.onVariants { variant ->
 //        if (variant.buildType == "release") {
 //            add("--release")
 //        }
+
     }
+
 
     val variantName =
         variant.name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
     val cargoTask = task<Exec>("cargo${variantName}") {
         workingDir(source)
-        commandLine(cmd)
+        commandLine(cmd).environment("ORT_LIB_LOCATION","/home/bilabila/bin/onnxruntime/build/Android")
+
     }
 
     project.afterEvaluate {

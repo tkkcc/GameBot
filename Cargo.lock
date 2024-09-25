@@ -1610,7 +1610,7 @@ dependencies = [
  "log",
  "ndarray 0.16.1",
  "openssl-sys",
- "ort",
+ "ort 2.0.0-rc.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "tokio",
  "tract-onnx",
@@ -3767,13 +3767,34 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 [[package]]
 name = "ort"
 version = "2.0.0-rc.6"
+dependencies = [
+ "half",
+ "ndarray 0.16.1",
+ "ort-sys 2.0.0-rc.6",
+ "tracing",
+]
+
+[[package]]
+name = "ort"
+version = "2.0.0-rc.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a5f95fe501e1cb81dec2f66ee3129025759b602817aa2c77ff421390c418cc34"
 dependencies = [
  "half",
  "ndarray 0.16.1",
- "ort-sys",
+ "ort-sys 2.0.0-rc.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "tracing",
+]
+
+[[package]]
+name = "ort-sys"
+version = "2.0.0-rc.6"
+dependencies = [
+ "flate2",
+ "pkg-config",
+ "sha2",
+ "tar",
+ "ureq",
 ]
 
 [[package]]
@@ -4668,6 +4689,8 @@ dependencies = [
  "linux-futex",
  "log",
  "log-panics",
+ "ort 2.0.0-rc.6",
+ "ort-sys 2.0.0-rc.6",
  "serde",
  "serde_json",
  "slotmap",

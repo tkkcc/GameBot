@@ -7,6 +7,10 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+# ort = { version = "2.0.0-rc.6" }
+ort = { path = "/home/bilabila/bin/ort/" }
+ort-sys = { path = "/home/bilabila/bin/ort/ort-sys/" }
+
 android_logger = "0.13.3"
 anyhow = "1.0.86"
 erased-serde = "0.4.5"

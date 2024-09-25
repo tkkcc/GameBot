@@ -44,14 +44,17 @@ extern "C" fn Java_RemoteService_startGuest(
     name: JString,
     host: JObject,
 ) {
-    let name: String = env.get_string(&name).unwrap().into();
-    if load_library(&name).is_err() {
-        return;
-    };
-    let func = (STORE.lock().unwrap()[&name]).before_start.clone();
-    func();
-    let func = (STORE.lock().unwrap()[&name]).start.clone();
-    func(env, host);
+    use ort::{GraphOptimizationLevel, Session};
+    let model = Session::builder();
+
+    // let name: String = env.get_string(&name).unwrap().into();
+    // if load_library(&name).is_err() {
+    //     return;
+    // };
+    // let func = (STORE.lock().unwrap()[&name]).before_start.clone();
+    // func();
+    // let func = (STORE.lock().unwrap()[&name]).start.clone();
+    // func(env, host);
 }
 
 #[no_mangle]

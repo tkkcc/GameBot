@@ -94,7 +94,7 @@ androidComponents.onVariants { variant ->
 //        listOf( "x86","x86_64",)
     } else {
         listOf("x86", "x86_64", "arm64-v8a")
-        listOf("arm64-v8a")
+//        listOf("arm64-v8a")
 //        listOf("x86","x86_64",)
     }
     val source = Path(projectDir.absolutePath, "src", "main", "rust")
@@ -184,5 +184,6 @@ dependencies {
     implementation("com.github.only52607:compose-floating-window:1.0")
     implementation("io.github.torrydo:floating-bubble-view:0.6.5")
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:latest.release")
 
 }

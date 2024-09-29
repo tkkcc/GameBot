@@ -1610,8 +1610,8 @@ dependencies = [
  "log",
  "ndarray 0.16.1",
  "openssl-sys",
- "ort 2.0.0-rc.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
+ "serde_json",
  "tokio",
  "tract-onnx",
 ]
@@ -3765,52 +3765,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
-name = "ort"
-version = "2.0.0-rc.6"
-dependencies = [
- "half",
- "ndarray 0.16.1",
- "ort-sys 2.0.0-rc.6",
- "tracing",
-]
-
-[[package]]
-name = "ort"
-version = "2.0.0-rc.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5f95fe501e1cb81dec2f66ee3129025759b602817aa2c77ff421390c418cc34"
-dependencies = [
- "half",
- "ndarray 0.16.1",
- "ort-sys 2.0.0-rc.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "tracing",
-]
-
-[[package]]
-name = "ort-sys"
-version = "2.0.0-rc.6"
-dependencies = [
- "flate2",
- "pkg-config",
- "sha2",
- "tar",
- "ureq",
-]
-
-[[package]]
-name = "ort-sys"
-version = "2.0.0-rc.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4174960a7b93a17564a05b26e05889f0dea9ee70e68db5841f27b40c0c9804e"
-dependencies = [
- "flate2",
- "pkg-config",
- "sha2",
- "tar",
- "ureq",
-]
-
-[[package]]
 name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4689,8 +4643,6 @@ dependencies = [
  "linux-futex",
  "log",
  "log-panics",
- "ort 2.0.0-rc.6",
- "ort-sys 2.0.0-rc.6",
  "serde",
  "serde_json",
  "slotmap",
@@ -4947,9 +4899,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.127"
+version = "1.0.128"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8043c06d9f82bd7271361ed64f415fe5e12a77fdb52e573e7f06a516dea329ad"
+checksum = "6ff5456707a1de34e7e37f2a6fd3d3f808c318259cbd01ab6377795054b483d8"
 dependencies = [
  "itoa",
  "memchr",
@@ -5122,17 +5074,6 @@ checksum = "ce305eb0b4296696835b71df73eb912e0f1ffd2556a501fcede6e0c50349191c"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "socks"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0c3dbbd9ae980613c6dd8e28a9407b50509d3803b57624d5dfe8315218cd58b"
-dependencies = [
- "byteorder",
- "libc",
- "winapi",
 ]
 
 [[package]]
@@ -6208,7 +6149,6 @@ dependencies = [
  "rustls-pki-types",
  "serde",
  "serde_json",
- "socks",
  "url",
  "webpki-roots",
 ]

@@ -1,5 +1,7 @@
+mod candle_ddddocr;
 mod candle_onnx;
-mod ort_onnx;
+mod tract_onnx;
+// mod ort_onnx;
 // mod model;
 // mod model;
 // mod tract_onnx;
@@ -13,6 +15,7 @@ use std::{
 };
 
 use axum::{routing::get, Router};
+use candle_ddddocr::test_ddddocr_candle;
 // use burn_onnx::test_burn_onnx;
 use candle_onnx::test_candle_onnx;
 use gamebot::{
@@ -24,9 +27,10 @@ use gamebot::{
     ui::{button, col, text, text_field, Element, UIContext, UI},
 };
 use log::error;
-use ort_onnx::test_ort_onnx;
+// use ort_onnx::test_ort_onnx;
 use serde::Serialize;
 use tokio::net::TcpListener;
+use tract_onnx::test_ddddocr_tract;
 // use tract_onnx::test_tract_onnx;
 
 fn operator_swipe() {
@@ -363,12 +367,14 @@ fn test_group_find() {
 
 gamebot::entry!(start);
 fn start() {
+    // test_ddddocr_candle().unwrap();
+    // test_ddddocr_tract().unwrap();
     // test_burn_onnx();
     //
     // test_tract_onnx();
 
     // test_candle_onnx();
-    test_ort_onnx();
+    // test_ort_onnx();
     // return;
 
     // click_recent();

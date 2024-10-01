@@ -27,6 +27,7 @@ use gamebot::{
     ui::{button, col, text, text_field, Element, UIContext, UI},
 };
 use log::error;
+use ncnn::{Mat, Net};
 // use ort_onnx::test_ort_onnx;
 use serde::Serialize;
 use tokio::net::TcpListener;
@@ -171,7 +172,7 @@ fn test_find() {
                 n.click();
             }
         }
-        break;
+        // break;
     }
     error!("{:?}", start.elapsed());
 }
@@ -372,6 +373,23 @@ fn test_ncnn() {
 gamebot::entry!(start);
 fn start() {
     d!(ncnn::version());
+
+    let mut opt = ncnn::Option::new();
+    d!(opt.get_num_threads());
+    // opt.set_num_threads(4);
+    // opt.set_vulkan_compute(true);
+
+    let mut net = Net::new();
+    net.set_option(&opt);
+    net.load_param("/data/local/tmp/rec.ncnn.param");
+    net.load_model("/data/local/tmp/rec.ncnn.bin");
+
+    let mut in0 = Mat::new_3d(48, 224, 3, None);
+    let mut out = Mat::new();
+    let mut ex = net.create_extractor();
+    ex.input("in0", &mut in0);
+    ex.extract("out0", &mut out);
+    d!("{}x{}x{}", out.c(), out.h(), out.w());
     // test_ddddocr_candle().unwrap();
     // test_ddddocr_tract().unwrap();
     // test_burn_onnx();

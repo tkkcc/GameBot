@@ -44,11 +44,17 @@ extern "C" fn Java_RemoteService_startGuest(
     name: JString,
     host: JObject,
 ) {
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_max_level(log::LevelFilter::Info)
+            .with_tag("gamebot"),
+    );
     // use ort::{GraphOptimizationLevel, Session};
     // let model = Session::builder();
 
     let name: String = env.get_string(&name).unwrap().into();
-    if load_library(&name).is_err() {
+    if let Err(err) = load_library(&name) {
+        log::error!("{:?}", err);
         return;
     };
     let func = (STORE.lock().unwrap()[&name]).before_start.clone();

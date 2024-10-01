@@ -54,6 +54,15 @@ fn download_link_static_lib() {
         .write_to_file(out_path.join("bindings.rs"))
         .expect("fail to write binding");
 
+    // dbg!(env::var("CARGO_NDK_SYSROOT_LIBS_PATH"));
+    // panic!();
+    // println!(
+    //     "cargo:rustc-link-search=native={}",
+    //     env::var("CARGO_NDK_SYSROOT_LIBS_PATH").unwrap()
+    // );
+    // println!("cargo:rustc-link-lib=static=c++");
+    // println!("cargo:rustc-link-lib=static=omp");
+
     println!("cargo:rustc-link-search=native={}", library_path);
     println!("cargo:rustc-link-lib=static=ncnn");
 }

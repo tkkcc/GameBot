@@ -307,7 +307,7 @@ class LocalService(
         override fun test() {
         thread {
 //            testpaddleocr()
-            testmlkitocr()
+//            testmlkitocr()
 //            testOnnxruntimeOcr()
 //            testOcr()
         }

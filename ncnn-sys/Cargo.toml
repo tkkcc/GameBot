@@ -1,0 +1,12 @@
+[package]
+name = "ncnn-sys"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[build-dependencies]
+bindgen = "0.70.1"
+cached-path = "0.6.1"
+data_downloader = { version = "0.2.0", features = ["zip"] }
+hex-literal = "0.4.1"

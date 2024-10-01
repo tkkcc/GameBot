@@ -365,8 +365,13 @@ fn test_group_find() {
     x.all_appear(0.5);
 }
 
+fn test_ncnn() {
+    ncnn::version();
+}
+
 gamebot::entry!(start);
 fn start() {
+    d!(ncnn::version());
     // test_ddddocr_candle().unwrap();
     // test_ddddocr_tract().unwrap();
     // test_burn_onnx();

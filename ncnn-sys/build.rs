@@ -12,7 +12,8 @@ fn download_and_link() {
     } else {
         ""
     };
-    let static_link = cfg!(feature = "static-link") || !cfg!(target_os = "android");
+    let static_link =
+        cfg!(feature = "static-link") || env::var("CARGO_CFG_TARGET_OS").unwrap() != "android";
     let link_suffix = if static_link { "" } else { "-shared" };
 
     let name = format!("ncnn-{version}-android{vulkan_suffix}{link_suffix}",);
@@ -64,20 +65,12 @@ fn download_and_link() {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("fail to write binding");
-    // dbg!(&library_path);
-    // panic!();
     println!("cargo:rustc-link-search=native={}", library_path);
 
-    if cfg!(feature = "dynamic-link") {
-        println!("cargo:rustc-link-lib=dylib=ncnn");
-    } else if cfg!(feature = "static-link") {
+    if static_link {
         println!("cargo:rustc-link-lib=static=ncnn");
     } else {
-        if cfg!(target_os = "android") {
-            println!("cargo:rustc-link-lib=dylib=ncnn");
-        } else {
-            println!("cargo:rustc-link-lib=static=ncnn");
-        }
+        println!("cargo:rustc-link-lib=dylib=ncnn");
     }
 }
 

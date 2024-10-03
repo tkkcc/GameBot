@@ -420,6 +420,16 @@ impl Mat {
     pub(crate) fn mut_ptr(&mut self) -> *mut ncnn_mat_t {
         &mut self.ptr
     }
+
+    // https://github.com/7rah/paddleocr-rust-ncnn/blob/acdfbcb71a71950d0ff169d7e8bcbdd329b4d7ad/src/helper.rs#L25
+    pub fn to_slice<T>(&self) -> &[T] {
+        unsafe {
+            core::slice::from_raw_parts(
+                self.data() as *const T,
+                (self.w() * self.h() * self.c() * self.d()) as usize,
+            )
+        }
+    }
 }
 
 impl Default for Mat {

@@ -1,0 +1,17 @@
+[package]
+name = "ort"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ort-sys = { path = "../ort-sys/" }
+tracing = "0.1.40"
+ndarray = { version = "0.16.1", optional = true }
+
+[dev-dependencies]
+image = "0.25.2"
+
+[features]
+default = ["ndarray", "xnnpack", "nnapi"]
+xnnpack = []
+nnapi = []

@@ -4,9 +4,9 @@ package gamebot.host
 import Component
 import LocalUIEvent
 import UIEvent
-import ai.onnxruntime.OnnxTensor
-import ai.onnxruntime.OrtEnvironment
-import ai.onnxruntime.OrtSession
+//import ai.onnxruntime.OnnxTensor
+//import ai.onnxruntime.OrtEnvironment
+//import ai.onnxruntime.OrtSession
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Context.ACTIVITY_SERVICE
@@ -199,110 +199,110 @@ class LocalService(
         Log.e("gamebot", ((SystemClock.uptimeMillis() - start) / 10).toString())
 
     }
-
-    fun testddddocr() {
-        val ortEnv = OrtEnvironment.getEnvironment()
-        Log.e("gamebot", "providers ${OrtEnvironment.getAvailableProviders()}")
-        val option = OrtSession.SessionOptions()
-//        option.addNnapi()
-//        option.addCPU(true)
-//        option.addXnnpack(mutableMapOf(
-//            "intra_op_num_threads" to "4"
-//        ))
-        val ortSession = ortEnv.createSession("/data/local/tmp/ddddocr.onnx", option)
-
-//        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/79.png")
-        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/longsingleline.png")
-        val resizedBitmap: Bitmap = Bitmap.createScaledBitmap(
-            originalBitmap, (originalBitmap.width * 64 / originalBitmap.height), 64, false
-        )
-        Log.e("gamebot", resizedBitmap.config.toString())
-        val byteBuffer =  ByteBuffer.allocate(resizedBitmap.byteCount)
-//        resizedBitmap.copyPixelsToBuffer(byteBuffer)
-        byteBuffer.position(0)
-//        val firstChannel = ByteBuffer.allocate(resizedBitmap.byteCount/4)
-//        firstChannel.put(byteBuffer)
-//        FloatBuffer.allocate()
-//        val image = InputImage.fromBitmap(originalBitmap, 0)
-//        val byteBuffer =
-//        val i0 = OnnxTensor.createTensor(ortEnv, firstChannel, longArrayOf(1,1,64, resizedBitmap.width.toLong()),OnnxJavaType.UINT8)
-        val i0 = OnnxTensor.createTensor(ortEnv, byteBuffer.asFloatBuffer(), longArrayOf(1,1,64, resizedBitmap.width.toLong()))
-        val input = mutableMapOf(ortSession.inputNames.first() to i0)
-        val out = ortSession.run(input)
-        Log.e("gamebot","start")
-        val start = SystemClock.uptimeMillis()
-        for (i in 0..<10) {
-            ortSession.run(input)
-        }
-        Log.e("gamebot","time ${(SystemClock.uptimeMillis()-start)/10 }ms")
-        out.use {
-            val output = it.get(0).value
-//            Log.e("gamebot", (output).size.toString())
 //
-        }
-
-
-
-        ortSession.close()
-    }
-
-    fun testpaddleocr() {
-        val ortEnv = OrtEnvironment.getEnvironment()
-        Log.e("gamebot", "providers ${OrtEnvironment.getAvailableProviders()}")
-        val option = OrtSession.SessionOptions()
-//        option.addXnnpack(emptyMap())
-//        option.addNnapi()
-//        option.addCPU(true)
-//        option.addXnnpack(mutableMapOf(
-//            "intra_op_num_threads" to "4"
-//        ))
-        val ortSession = ortEnv.createSession("/data/local/tmp/rec.onnx", option)
-
-//        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/79.png")
-        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/longsingleline.png")
-        val resizedBitmap: Bitmap = Bitmap.createScaledBitmap(
-            originalBitmap, (originalBitmap.width * 48 / originalBitmap.height), 48, false
-        )
-        Log.e("gamebot", resizedBitmap.config.toString())
-        val byteBuffer =  ByteBuffer.allocate(resizedBitmap.byteCount)
-
-//        resizedBitmap.copyPixelsToBuffer(byteBuffer)
-        byteBuffer.position(0)
-        val buf = ByteBuffer.allocate(resizedBitmap.byteCount*3)
-//        byteBuffer.position(0)
-//        buf.put(byteBuffer)
-//        byteBuffer.position(0)
-//        buf.put(byteBuffer)
-//        byteBuffer.position(0)
-//        buf.put(byteBuffer)
-//        buf.position(0)
-
-//        val firstChannel = ByteBuffer.allocate(resizedBitmap.byteCount/4)
-//        firstChannel.put(byteBuffer)
-//        FloatBuffer.allocate()
-//        val image = InputImage.fromBitmap(originalBitmap, 0)
-//        val byteBuffer =
-//        val i0 = OnnxTensor.createTensor(ortEnv, firstChannel, longArrayOf(1,1,64, resizedBitmap.width.toLong()),OnnxJavaType.UINT8)
-        val i0 = OnnxTensor.createTensor(ortEnv, buf.asFloatBuffer(), longArrayOf(1,3,48, resizedBitmap.width.toLong()))
-        val input = mutableMapOf(ortSession.inputNames.first() to i0)
-        val out = ortSession.run(input)
-        Log.e("gamebot","start")
-        val start = SystemClock.uptimeMillis()
-        for (i in 0..<10) {
-            ortSession.run(input)
-        }
-        Log.e("gamebot","time ${(SystemClock.uptimeMillis()-start)/10 }ms")
-        out.use {
-            val output = it.get(0).value
-//            Log.e("gamebot", (output).size.toString())
+//    fun testddddocr() {
+//        val ortEnv = OrtEnvironment.getEnvironment()
+//        Log.e("gamebot", "providers ${OrtEnvironment.getAvailableProviders()}")
+//        val option = OrtSession.SessionOptions()
+////        option.addNnapi()
+////        option.addCPU(true)
+////        option.addXnnpack(mutableMapOf(
+////            "intra_op_num_threads" to "4"
+////        ))
+//        val ortSession = ortEnv.createSession("/data/local/tmp/ddddocr.onnx", option)
 //
-        }
-
-
-
-        ortSession.close()
-    }
-
+////        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/79.png")
+//        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/longsingleline.png")
+//        val resizedBitmap: Bitmap = Bitmap.createScaledBitmap(
+//            originalBitmap, (originalBitmap.width * 64 / originalBitmap.height), 64, false
+//        )
+//        Log.e("gamebot", resizedBitmap.config.toString())
+//        val byteBuffer =  ByteBuffer.allocate(resizedBitmap.byteCount)
+////        resizedBitmap.copyPixelsToBuffer(byteBuffer)
+//        byteBuffer.position(0)
+////        val firstChannel = ByteBuffer.allocate(resizedBitmap.byteCount/4)
+////        firstChannel.put(byteBuffer)
+////        FloatBuffer.allocate()
+////        val image = InputImage.fromBitmap(originalBitmap, 0)
+////        val byteBuffer =
+////        val i0 = OnnxTensor.createTensor(ortEnv, firstChannel, longArrayOf(1,1,64, resizedBitmap.width.toLong()),OnnxJavaType.UINT8)
+//        val i0 = OnnxTensor.createTensor(ortEnv, byteBuffer.asFloatBuffer(), longArrayOf(1,1,64, resizedBitmap.width.toLong()))
+//        val input = mutableMapOf(ortSession.inputNames.first() to i0)
+//        val out = ortSession.run(input)
+//        Log.e("gamebot","start")
+//        val start = SystemClock.uptimeMillis()
+//        for (i in 0..<10) {
+//            ortSession.run(input)
+//        }
+//        Log.e("gamebot","time ${(SystemClock.uptimeMillis()-start)/10 }ms")
+//        out.use {
+//            val output = it.get(0).value
+////            Log.e("gamebot", (output).size.toString())
+////
+//        }
+//
+//
+//
+//        ortSession.close()
+//    }
+//
+//    fun testpaddleocr() {
+//        val ortEnv = OrtEnvironment.getEnvironment()
+//        Log.e("gamebot", "providers ${OrtEnvironment.getAvailableProviders()}")
+//        val option = OrtSession.SessionOptions()
+////        option.addXnnpack(emptyMap())
+////        option.addNnapi()
+////        option.addCPU(true)
+////        option.addXnnpack(mutableMapOf(
+////            "intra_op_num_threads" to "4"
+////        ))
+//        val ortSession = ortEnv.createSession("/data/local/tmp/rec.onnx", option)
+//
+////        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/79.png")
+//        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/longsingleline.png")
+//        val resizedBitmap: Bitmap = Bitmap.createScaledBitmap(
+//            originalBitmap, (originalBitmap.width * 48 / originalBitmap.height), 48, false
+//        )
+//        Log.e("gamebot", resizedBitmap.config.toString())
+//        val byteBuffer =  ByteBuffer.allocate(resizedBitmap.byteCount)
+//
+////        resizedBitmap.copyPixelsToBuffer(byteBuffer)
+//        byteBuffer.position(0)
+//        val buf = ByteBuffer.allocate(resizedBitmap.byteCount*3)
+////        byteBuffer.position(0)
+////        buf.put(byteBuffer)
+////        byteBuffer.position(0)
+////        buf.put(byteBuffer)
+////        byteBuffer.position(0)
+////        buf.put(byteBuffer)
+////        buf.position(0)
+//
+////        val firstChannel = ByteBuffer.allocate(resizedBitmap.byteCount/4)
+////        firstChannel.put(byteBuffer)
+////        FloatBuffer.allocate()
+////        val image = InputImage.fromBitmap(originalBitmap, 0)
+////        val byteBuffer =
+////        val i0 = OnnxTensor.createTensor(ortEnv, firstChannel, longArrayOf(1,1,64, resizedBitmap.width.toLong()),OnnxJavaType.UINT8)
+//        val i0 = OnnxTensor.createTensor(ortEnv, buf.asFloatBuffer(), longArrayOf(1,3,48, resizedBitmap.width.toLong()))
+//        val input = mutableMapOf(ortSession.inputNames.first() to i0)
+//        val out = ortSession.run(input)
+//        Log.e("gamebot","start")
+//        val start = SystemClock.uptimeMillis()
+//        for (i in 0..<10) {
+//            ortSession.run(input)
+//        }
+//        Log.e("gamebot","time ${(SystemClock.uptimeMillis()-start)/10 }ms")
+//        out.use {
+//            val output = it.get(0).value
+////            Log.e("gamebot", (output).size.toString())
+////
+//        }
+//
+//
+//
+//        ortSession.close()
+//    }
+//
 
         override fun test() {
         thread {

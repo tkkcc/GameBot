@@ -1,0 +1,17 @@
+[package]
+name = "ort-sys"
+version = "10.0.1-rc6"
+edition = "2021"
+
+[dependencies]
+
+[build-dependencies]
+bindgen = "0.70.1"
+cached-path = { version = "0.6.1", git = "https://github.com/tkkcc/rust-cached-path" }
+dirs = "5.0.1"
+hex-literal = "0.4.1"
+
+[features]
+# static-link = []
+# dynamic-link = []
+# vulkan = []

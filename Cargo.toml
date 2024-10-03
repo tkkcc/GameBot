@@ -4,7 +4,9 @@ members = [
   "devtool",
   "gamebot",
   "ncnn",
-  "ncnn-sys",
+  "ncnn-sys", 
+  # "ort",
+  "ort-sys",
 ]
 resolver = "2"
 

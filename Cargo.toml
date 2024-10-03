@@ -4,11 +4,18 @@ members = [
   "devtool",
   "gamebot",
   "ncnn",
-  "ncnn-sys", 
-  # "ort",
+  "ncnn-sys",
+  "ort",
   "ort-sys",
 ]
 resolver = "2"
+
+[workspace.dependencies]
+gamebot = { path = "gamebot" }
+ncnn = { path = "ncnn" }
+ncnn-sys = { path = "ncnn-sys" }
+ort = { path = "ort" }
+ort-sys = { path = "ort-sys" }
 
 [profile.release]
 opt-level = "s"

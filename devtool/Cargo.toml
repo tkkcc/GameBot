@@ -24,7 +24,7 @@ axum = "0.7.6"
 # candle-onnx = "0.7.0"
 # hf-hub = "0.3.2"
 clap = { version = "4.5.18", features = ["derive"] }
-gamebot = { path = "../gamebot" }
+gamebot = { workspace = true }
 image = "0.25.2"
 log = "0.4.22"
 # ndarray = "0.16.1"
@@ -37,8 +37,8 @@ tokio = { version = "1.40.0", features = ["full"] }
 # tract-onnx = "0.21.7"
 
 
-ort = { path = "../ort" }
-ncnn = { path = "../ncnn/" }
+ort = { workspace = true }
+ncnn = { workspace = true }
 ndarray = "0.16.1"
 
 [build-dependencies]

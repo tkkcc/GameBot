@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ort-sys = { path = "../ort-sys/" }
+ort-sys = { workspace = true }
 tracing = "0.1.40"
 ndarray = { version = "0.16.1", optional = true }
 

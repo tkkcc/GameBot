@@ -12,6 +12,7 @@ use std::{
     rc::Rc,
     thread,
     time::{Duration, Instant},
+    u64,
 };
 
 use axum::{routing::get, Router};
@@ -367,13 +368,6 @@ fn test_group_find() {
 }
 
 fn test_ncnn() {
-    ncnn::version();
-}
-
-gamebot::entry!(start);
-fn start() {
-    d!(ncnn::version());
-
     let mut opt = ncnn::Option::new();
     d!(opt.get_num_threads());
     // opt.set_num_threads(4);
@@ -384,12 +378,48 @@ fn start() {
     net.load_param("/data/local/tmp/rec.ncnn.param");
     net.load_model("/data/local/tmp/rec.ncnn.bin");
 
-    let mut in0 = Mat::new_3d(48, 224, 3, None);
+    let i0 = image::ImageReader::open("/data/local/tmp/longsingleline.png")
+        .unwrap()
+        .decode()
+        .unwrap();
+    let resized = image::imageops::resize(
+        &i0.to_rgb8(),
+        i0.width() * 48 / i0.height(),
+        48,
+        image::imageops::FilterType::Triangle,
+    );
+    let mut in0 = Mat::from_pixels(
+        resized.into_raw().as_slice(),
+        ncnn::MatPixelType::RGB,
+        (i0.width() * 48 / i0.height()) as _,
+        48,
+        None,
+    )
+    .unwrap();
+
+    let m = 255.0 / 2.0;
+    in0.substract_mean_normalize(&[m, m, m], &[m, m, m]);
+
+    // let in0 = Mat::new_3d(48, 224, 3, None);
     let mut out = Mat::new();
     let mut ex = net.create_extractor();
-    ex.input("in0", &mut in0);
+    ex.input("in0", &in0);
     ex.extract("out0", &mut out);
     d!("{}x{}x{}", out.c(), out.h(), out.w());
+    // TODO: get out value from out
+
+    let start = Instant::now();
+    for i in 0..10 {
+        let mut ex = net.create_extractor();
+        ex.input("in0", &in0);
+        ex.extract("out0", &mut out);
+    }
+    d!(start.elapsed().as_millis() / 10);
+}
+
+gamebot::entry!(start);
+fn start() {
+    test_ncnn();
 
     // test_ddddocr_candle().unwrap();
     // test_ddddocr_tract().unwrap();

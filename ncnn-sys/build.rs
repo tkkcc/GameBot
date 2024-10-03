@@ -5,9 +5,17 @@
 use core::panic;
 use std::{env, path::PathBuf};
 
-fn download_link_static_lib() {
+fn download_and_link() {
     let version = "20240820";
-    let name = format!("ncnn-{version}-android-shared");
+    let vulkan_suffix = if cfg!(feature = "vulkan") {
+        "-vulkan"
+    } else {
+        ""
+    };
+    let static_link = cfg!(feature = "static-link") || !cfg!(target_os = "android");
+    let link_suffix = if static_link { "" } else { "-shared" };
+
+    let name = format!("ncnn-{version}-android{vulkan_suffix}{link_suffix}",);
     let url = &format!("https://github.com/Tencent/ncnn/releases/download/{version}/{name}.zip");
 
     let cache_dir = dirs::cache_dir().unwrap().join("rust_cached_path");
@@ -46,7 +54,6 @@ fn download_link_static_lib() {
     let bindings = bindgen::Builder::default()
         .header(header_path)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-        .allowlist_type("regex")
         .allowlist_function("ncnn.*")
         .allowlist_var("NCNN.*")
         .allowlist_type("ncnn.*")
@@ -57,28 +64,23 @@ fn download_link_static_lib() {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("fail to write binding");
-
-    // dbg!(env::var("CARGO_NDK_SYSROOT_LIBS_PATH"));
+    // dbg!(&library_path);
     // panic!();
-    // println!(
-    //     "cargo:rustc-link-search=native={}",
-    //     env::var("CARGO_NDK_SYSROOT_LIBS_PATH").unwrap()
-    // );
-    // println!("cargo:rustc-link-lib=static=c++");
-    // println!("cargo:rustc-link-lib=static=omp");
-
     println!("cargo:rustc-link-search=native={}", library_path);
-    // dbg!(library_path);
-    // dbg!(env::var("OUT_DIR").unwrap());
-    // panic!();
-    // if cfg!(feature = "dynamic-link") {
-    println!("cargo:rustc-link-lib=dylib=ncnn");
-    // } else {
-    //     println!("cargo:rustc-link-lib=static=ncnn");
-    //     panic!();
-    // }
+
+    if cfg!(feature = "dynamic-link") {
+        println!("cargo:rustc-link-lib=dylib=ncnn");
+    } else if cfg!(feature = "static-link") {
+        println!("cargo:rustc-link-lib=static=ncnn");
+    } else {
+        if cfg!(target_os = "android") {
+            println!("cargo:rustc-link-lib=dylib=ncnn");
+        } else {
+            println!("cargo:rustc-link-lib=static=ncnn");
+        }
+    }
 }
 
 fn main() {
-    download_link_static_lib();
+    download_and_link();
 }

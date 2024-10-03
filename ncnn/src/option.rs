@@ -6,7 +6,9 @@ pub struct Option {
 }
 
 impl Option {
+
     pub fn new() -> Option {
+        
         let ptr;
         unsafe {
             ptr = ncnn_option_create();

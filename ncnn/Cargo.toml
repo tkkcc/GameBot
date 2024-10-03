@@ -7,3 +7,8 @@ edition = "2021"
 ncnn-sys = { path = "../ncnn-sys/" }
 anyhow = "1.0.89"
 libc = "0.2.159"
+
+[features]
+static-link = ["ncnn-sys/static-link"]
+dynamic-link = ["ncnn-sys/dynamic-link"]
+vulkan = ["ncnn-sys/vulkan"]

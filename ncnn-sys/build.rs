@@ -5,18 +5,22 @@
 use core::panic;
 use std::{env, path::PathBuf};
 
-use cached_path::cached_path_with_options;
-
 fn download_link_static_lib() {
     let version = "20240820";
-    let url = &format!(
-        "https://github.com/Tencent/ncnn/releases/download/{version}/ncnn-{version}-android.zip"
-    );
-    let mut path = cached_path_with_options(url, &cached_path::Options::default().extract())
+    let name = format!("ncnn-{version}-android-shared");
+    let url = &format!("https://github.com/Tencent/ncnn/releases/download/{version}/{name}.zip");
+
+    let cache_dir = dirs::cache_dir().unwrap().join("rust_cached_path");
+    std::fs::create_dir_all(&cache_dir).unwrap();
+    let cache = cached_path::CacheBuilder::new()
+        .dir(cache_dir)
+        .freshness_lifetime(u64::MAX)
+        .build()
+        .unwrap();
+    let mut path = cache
+        .cached_path_with_options(url, &cached_path::Options::default().extract())
         .unwrap_or_else(|_| panic!("fail to download ncnn library: {url}"));
 
-    // dbg!(env::var("CARGO_CFG_TARGET_ARCH"));
-    // panic!();
     let target_arch = {
         let arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
         match arch.as_str() {
@@ -27,7 +31,7 @@ fn download_link_static_lib() {
         }
     };
 
-    path.extend([&format!("ncnn-{version}-android"), &target_arch]);
+    path.extend([&name, &target_arch]);
 
     let header_path = path
         .join("include")
@@ -64,7 +68,15 @@ fn download_link_static_lib() {
     // println!("cargo:rustc-link-lib=static=omp");
 
     println!("cargo:rustc-link-search=native={}", library_path);
-    println!("cargo:rustc-link-lib=static=ncnn");
+    // dbg!(library_path);
+    // dbg!(env::var("OUT_DIR").unwrap());
+    // panic!();
+    // if cfg!(feature = "dynamic-link") {
+    println!("cargo:rustc-link-lib=dylib=ncnn");
+    // } else {
+    //     println!("cargo:rustc-link-lib=static=ncnn");
+    //     panic!();
+    // }
 }
 
 fn main() {

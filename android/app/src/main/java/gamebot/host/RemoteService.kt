@@ -71,6 +71,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     //    val native = Native()
     companion object {
         init {
+            System.getProperties().forEach {
+                Log.e("gamebot", "${it.key} : ${it.value}")
+            }
             System.loadLibrary("rust")
         }
     }

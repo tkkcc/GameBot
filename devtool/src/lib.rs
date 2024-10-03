@@ -1,6 +1,6 @@
-mod candle_ddddocr;
-mod candle_onnx;
-mod tract_onnx;
+// mod candle_ddddocr;
+// mod candle_onnx;
+// mod tract_onnx;
 // mod ort_onnx;
 // mod model;
 // mod model;
@@ -15,9 +15,9 @@ use std::{
 };
 
 use axum::{routing::get, Router};
-use candle_ddddocr::test_ddddocr_candle;
+// use candle_ddddocr::test_ddddocr_candle;
 // use burn_onnx::test_burn_onnx;
-use candle_onnx::test_candle_onnx;
+// use candle_onnx::test_candle_onnx;
 use gamebot::{
     api::*,
     color::{ColorPoint, ColorPointGroup, ColorPointGroupIn, Region},
@@ -31,7 +31,7 @@ use ncnn::{Mat, Net};
 // use ort_onnx::test_ort_onnx;
 use serde::Serialize;
 use tokio::net::TcpListener;
-use tract_onnx::test_ddddocr_tract;
+// use tract_onnx::test_ddddocr_tract;
 // use tract_onnx::test_tract_onnx;
 
 fn operator_swipe() {
@@ -390,6 +390,7 @@ fn start() {
     ex.input("in0", &mut in0);
     ex.extract("out0", &mut out);
     d!("{}x{}x{}", out.c(), out.h(), out.w());
+
     // test_ddddocr_candle().unwrap();
     // test_ddddocr_tract().unwrap();
     // test_burn_onnx();

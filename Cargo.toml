@@ -1,10 +1,15 @@
 [workspace]
-members = ["./android/app/src/main/rust/", "devtool", "gamebot", "ncnn", "ncnn-sys"]
+members = [
+  "android/app/src/main/rust/",
+  "devtool",
+  "gamebot",
+  "ncnn",
+  "ncnn-sys",
+]
 resolver = "2"
 
 [profile.release]
 opt-level = "s"
-# strip = true
-# lto = true
+strip = true
+lto = true
 # codegen-units = 1
-# panic = "abort"

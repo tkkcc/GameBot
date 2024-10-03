@@ -9,4 +9,7 @@ edition = "2021"
 bindgen = "0.70.1"
 cached-path = "0.6.1"
 data_downloader = { version = "0.2.0", features = ["zip"] }
+dirs = "5.0.1"
 hex-literal = "0.4.1"
+
+[features]

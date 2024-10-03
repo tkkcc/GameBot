@@ -23,8 +23,9 @@ run() {
   # export ORT_LIB_LOCATION=/home/bilabila/bin/onnxruntime/build/Android/Release/java/android/x86
   # export ORT_LIB_LOCATION=$HOME/bin/onnxruntime/build/Android/Release/
 
+  export RUSTFLAGS="-Clink-args=-Wl,-rpath,\$ORIGIN"
+
   cargo ndk -t $target-linux-android --bindgen build --release
-  # cargo ndk -t $target-linux-android bloat --release -n 10 --crates
 
   du -sh ../target/$target-linux-android/release/*.so
   adb push ../target/$target-linux-android/release/libdevtool.so /data/local/tmp/libgamebot.so

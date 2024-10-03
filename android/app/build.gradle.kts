@@ -123,8 +123,10 @@ androidComponents.onVariants { variant ->
         variant.name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
     val cargoTask = task<Exec>("cargo${variantName}") {
         workingDir(source)
-        commandLine(cmd).environment("ORT_LIB_LOCATION","/home/bilabila/bin/onnxruntime/build/Android")
 
+        commandLine(cmd)
+//            .environment("RUSTFLAGS", "-Clink-args=-Wl,-rpath,/data/local/tmp")
+//            .environment("ORT_LIB_LOCATION","/home/bilabila/bin/onnxruntime/build/Android")
     }
 
     project.afterEvaluate {

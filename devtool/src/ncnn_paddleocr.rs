@@ -175,6 +175,14 @@ pub fn test_ncnn_paddleocr_multiline() {
     ex.extract("out0", &mut out);
     d!("{}x{}x{}", out.c(), out.h(), out.w());
 
+    let start = Instant::now();
+    for i in 0..10 {
+        let mut ex = net.create_extractor();
+        ex.input("in0", &in0);
+        ex.extract("out0", &mut out);
+    }
+    d!(start.elapsed().as_millis() / 10);
+
     let x = out.to_slice::<f32>();
     let x = image::GrayImage::from_vec(
         out.w() as _,

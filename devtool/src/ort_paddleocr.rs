@@ -1,6 +1,7 @@
 use std::{num::NonZero, path::PathBuf, time::Instant};
 
 use gamebot::d;
+use image::{GenericImage, Rgb};
 use ort::{inputs, NNAPIExecutionProvider, Session, SessionOutputs, XNNPACKExecutionProvider};
 
 pub fn test_ort_paddleocr() {
@@ -83,6 +84,57 @@ pub fn test_ort_paddleocr() {
             .map(|i| charset[i - 1])
             .collect();
         d!(ans);
+    }
+    d!(start.elapsed().as_millis() / 10);
+}
+
+pub fn test_ort_paddleocr_multiline() {
+    // let i0 = image::ImageReader::open("/data/local/tmp/longsingleline.png")
+    let mut i0 = image::ImageReader::open("/data/local/tmp/multiline.png")
+        .unwrap()
+        .decode()
+        .unwrap()
+        .to_rgb8();
+
+    let (h, w) = (i0.height(), i0.width());
+    let nh = (h + 31) / 32 * 32;
+    let nw = (w + 31) / 32 * 32;
+    if nh != h || nw != w {
+        let mut pad: image::RgbImage = image::RgbImage::from_pixel(nw, nh, Rgb([0, 0, 0]));
+        pad.copy_from(&i0, 0, 0).unwrap();
+        i0 = pad;
+    }
+
+    let mut input = ndarray::Array4::from_shape_fn((1, 3, nh as _, nw as _), |(_, c, y, x)| {
+        (i0.get_pixel(x as u32, y as u32)[c] as f32 / 255.0 - 0.5) / 0.5
+    });
+
+    let model = Session::builder()
+        .unwrap()
+        .with_optimization_level(ort::GraphOptimizationLevel::Level3)
+        .unwrap()
+        // .with_execution_providers([XNNPACKExecutionProvider::default()
+        //     .with_intra_op_num_threads(std::thread::available_parallelism().unwrap())
+        //     .build()])
+        // .unwrap()
+        .with_intra_threads(std::thread::available_parallelism().unwrap().into())
+        .unwrap()
+        .commit_from_file("/data/local/tmp/det.onnx")
+        .unwrap();
+
+    let outputs: SessionOutputs = model
+        .run(inputs![model.inputs[0].name.to_owned() => input.view()].unwrap())
+        .unwrap();
+    let output = &outputs[model.outputs[0].name.to_owned()];
+    let (shape, data) = output.try_extract_raw_tensor::<f32>().unwrap();
+
+    let start = Instant::now();
+    for i in 0..10 {
+        let outputs: SessionOutputs = model
+            .run(inputs![model.inputs[0].name.to_string() => input.view()].unwrap())
+            .unwrap();
+        let output = &outputs[model.outputs[0].name.to_owned()];
+        // let out = output.try_extract_raw_tensor::<f32>().unwrap();
     }
     d!(start.elapsed().as_millis() / 10);
 }

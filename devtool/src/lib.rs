@@ -37,7 +37,7 @@ use ncnn::{Mat, Net};
 use ncnn_ddddocr::test_ncnn_ddddocr;
 use ncnn_paddleocr::test_ncnn_paddleocr_multiline;
 use ort_ddddocr::test_ort_ddddocr;
-use ort_paddleocr::test_ort_paddleocr;
+use ort_paddleocr::{test_ort_paddleocr, test_ort_paddleocr_multiline};
 // use ort_onnx::test_ort_onnx;
 use serde::Serialize;
 use tokio::net::TcpListener;
@@ -378,8 +378,8 @@ fn test_group_find() {
 
 gamebot::entry!(start);
 fn start() {
-    test_ncnn_paddleocr_multiline();
-    // test_ort_paddleocr();
+    // test_ncnn_paddleocr_multiline();
+    test_ort_paddleocr_multiline();
     // test_ort_ddddocr();
     // test_ncnn_ddddocr();
     // test_ncnn();

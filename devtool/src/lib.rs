@@ -33,9 +33,9 @@ use gamebot::{
     node::NodeSelector,
     ui::{button, col, text, text_field, Element, UIContext, UI},
 };
-use log::error;
 use ncnn::{Mat, Net};
 use ncnn_ddddocr::test_ncnn_ddddocr;
+use ncnn_paddleocr::test_ncnn_paddleocr_multiline;
 use ort_ddddocr::test_ort_ddddocr;
 use ort_paddleocr::test_ort_paddleocr;
 // use ort_onnx::test_ort_onnx;
@@ -184,7 +184,7 @@ fn test_find() {
         }
         // break;
     }
-    error!("{:?}", start.elapsed());
+    log::error!("{:?}", start.elapsed());
 }
 
 fn test_ui() {
@@ -378,6 +378,7 @@ fn test_group_find() {
 
 gamebot::entry!(start);
 fn start() {
+    test_ncnn_paddleocr_multiline();
     // test_ort_paddleocr();
     // test_ort_ddddocr();
     // test_ncnn_ddddocr();

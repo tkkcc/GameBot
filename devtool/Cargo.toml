@@ -22,3 +22,4 @@ ndarray = { workspace = true }
 
 ort = { workspace = true }
 ncnn = { workspace = true }
+imageproc = "0.25.0"

@@ -7,41 +7,18 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-# ort = { version = "2.0.0-rc.6" }
-android_logger = "0.14.1"
-anyhow = "1.0.89"
-axum = "0.7.6"
-# burn = { version = "0.14.0", features = [
-#   "vision",
-#   "wgpu",
-#   "dataset",
-#   "ndarray",
-#   "candle",
-# ] }
-# candle-core = { version = "*" }
-# candle-examples = "0.7.0"
-# candle-nn = "0.7.0"
-# candle-onnx = "0.7.0"
-# hf-hub = "0.3.2"
-clap = { version = "4.5.18", features = ["derive"] }
+android_logger = { workspace = true }
+anyhow = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true }
 gamebot = { workspace = true }
-image = "0.25.2"
-log = "0.4.22"
-# ndarray = "0.16.1"
-# openssl-sys = { version = "0.9.103", features = ["vendored"] }
-# ort = { path = "/home/bilabila/bin/ort/" }
-# ort-sys = { path = "/home/bilabila/bin/ort/ort-sys/" }
-serde = { version = "1.0.210", features = ["derive"] }
-serde_json = "1.0.128"
-tokio = { version = "1.40.0", features = ["full"] }
-# tract-onnx = "0.21.7"
+image = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+ndarray = { workspace = true }
 
 
 ort = { workspace = true }
 ncnn = { workspace = true }
-ndarray = "0.16.1"
-
-[build-dependencies]
-dirs = "5.0.1"
-# burn-import = "0.14.0"
-#

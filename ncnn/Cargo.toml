@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ncnn-sys = { workspace = true}
-anyhow = "1.0.89"
-libc = "0.2.159"
+ncnn-sys = { workspace = true }
+anyhow = { workspace = true }
+libc = { workspace = true }
 
 [features]
 static-link = ["ncnn-sys/static-link"]

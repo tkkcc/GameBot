@@ -1,15 +1,15 @@
 [package]
 name = "ort-sys"
-version = "10.0.1-rc6"
+version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.70.1"
-cached-path = { version = "0.6.1", git = "https://github.com/tkkcc/rust-cached-path" }
-dirs = "5.0.1"
-hex-literal = "0.4.1"
+bindgen = { workspace = true }
+cached-path = { workspace = true }
+dirs = { workspace = true }
+hex-literal = { workspace = true }
 
 [features]
 # static-link = []

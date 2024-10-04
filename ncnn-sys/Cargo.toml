@@ -6,10 +6,11 @@ edition = "2021"
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.70.1"
-cached-path = "0.6.1"
-dirs = "5.0.1"
-hex-literal = "0.4.1"
+bindgen = { workspace = true }
+cached-path = { workspace = true }
+dirs = { workspace = true }
+hex-literal = { workspace = true }
+
 
 [features]
 static-link = []

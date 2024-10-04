@@ -391,28 +391,6 @@ dependencies = [
 [[package]]
 name = "cached-path"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "097968e38f1319207f057d0f4d76452e4f4f847a5de61c5215379f297fa034f3"
-dependencies = [
- "flate2",
- "fs2",
- "glob",
- "indicatif",
- "log",
- "rand",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "tar",
- "tempfile",
- "thiserror",
- "zip",
-]
-
-[[package]]
-name = "cached-path"
-version = "0.6.1"
 source = "git+https://github.com/tkkcc/rust-cached-path#a881fa79b7ac4374fc71d7fa332bfc5efc095655"
 dependencies = [
  "flate2",
@@ -666,7 +644,6 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
- "dirs",
  "gamebot",
  "image",
  "log",
@@ -931,7 +908,7 @@ dependencies = [
 name = "gamebot"
 version = "0.1.0"
 dependencies = [
- "android_logger 0.13.3",
+ "android_logger 0.14.1",
  "anyhow",
  "image",
  "jni",
@@ -939,6 +916,9 @@ dependencies = [
  "linux-futex",
  "log",
  "log-panics",
+ "ncnn",
+ "ndarray",
+ "ort",
  "serde",
  "serde_json",
  "slotmap",
@@ -1574,7 +1554,7 @@ name = "ncnn-sys"
 version = "0.1.0"
 dependencies = [
  "bindgen",
- "cached-path 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cached-path",
  "dirs",
  "hex-literal",
 ]
@@ -1767,10 +1747,10 @@ dependencies = [
 
 [[package]]
 name = "ort-sys"
-version = "10.0.1-rc6"
+version = "0.1.0"
 dependencies = [
  "bindgen",
- "cached-path 0.6.1 (git+https://github.com/tkkcc/rust-cached-path)",
+ "cached-path",
  "dirs",
  "hex-literal",
 ]

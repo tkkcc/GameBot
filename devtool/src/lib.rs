@@ -9,7 +9,6 @@
 mod ncnn_ddddocr;
 mod ncnn_paddleocr;
 mod ort_ddddocr;
-mod ort_onnx;
 mod ort_paddleocr;
 
 use std::{
@@ -38,7 +37,6 @@ use log::error;
 use ncnn::{Mat, Net};
 use ncnn_ddddocr::test_ncnn_ddddocr;
 use ort_ddddocr::test_ort_ddddocr;
-use ort_onnx::test_ort_onnx;
 use ort_paddleocr::test_ort_paddleocr;
 // use ort_onnx::test_ort_onnx;
 use serde::Serialize;
@@ -381,7 +379,7 @@ fn test_group_find() {
 gamebot::entry!(start);
 fn start() {
     // test_ort_paddleocr();
-    test_ort_ddddocr();
+    // test_ort_ddddocr();
     // test_ncnn_ddddocr();
     // test_ncnn();
 

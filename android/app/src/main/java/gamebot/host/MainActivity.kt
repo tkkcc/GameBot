@@ -43,6 +43,7 @@ import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ipc.RootService
 import dev.rikka.tools.refine.Refine
 import gamebot.host.RemoteRun.Companion.TAG
+import gamebot.host.loader.Git
 import gamebot.host.overlay.Overlay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -89,6 +90,11 @@ class MainActivity : ComponentActivity() {
 
             val path = File(cacheDir, "repo")
             path.mkdirs()
+            d("git clone start: $path")
+//            Git.clone("http://www.modelscope.cn/bilabila/test1.git", path.absolutePath)
+//            Git.clone("https://e.coding.net/bilabila/gamekeeper/star_rail_cn.git", path.absolutePath)
+            d("git clone finish: $path")
+
 //            val out = test(path.absolutePath)
 //            Log.e("", out)
 
@@ -113,11 +119,9 @@ class MainActivity : ComponentActivity() {
                             }
 //                            startService(Intent(context, OverlayService::class.java))
                             if (floatingWindow.showing) {
-
                                 floatingWindow.hide()
                             } else {
                                 floatingWindow.show()
-
                             }
                         }) {
                             Text("tap")

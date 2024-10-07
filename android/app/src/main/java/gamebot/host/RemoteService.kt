@@ -41,6 +41,7 @@ import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
 import gamebot.host.RemoteRun.Companion.CACHE_DIR
 import gamebot.host.RemoteRun.Companion.TAG
+import gamebot.host.d
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -62,6 +63,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.nio.ByteBuffer
+import kotlin.concurrent.thread
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
@@ -77,6 +79,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             System.loadLibrary("rust")
         }
     }
+
+    external fun gitClone(url:String, path:String)
 
 
     lateinit var localService: ILocalService
@@ -713,7 +717,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //        Nodeshot::class.declaredMembers.forEach {
 //            Log.e("", "791 ${it}")
 //        }
-
+        thread {
+            d("git clone start")
+//            gitClone("https://www.modelscope.cn/bilabila/test1.git", "/data/local/tmp/repo")
+            gitClone("http://www.modelscope.cn/bilabila/test1.git", "/data/local/tmp/repo")
+            d("git clone end")
+        }
 
         Log.e("", "rust call finish")
     }

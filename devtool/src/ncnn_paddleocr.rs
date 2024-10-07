@@ -133,8 +133,8 @@ pub fn test_ncnn_paddleocr_multiline() {
         .map(|x| x.chars().nth(0).unwrap())
         .collect();
 
-    let mut i0 = image::ImageReader::open("/data/local/tmp/multiline.png")
-        // let mut i0 = image::ImageReader::open("/data/local/tmp/79.png")
+    // let mut i0 = image::ImageReader::open("/data/local/tmp/multiline.png")
+    let mut i0 = image::ImageReader::open("/data/local/tmp/79.png")
         .unwrap()
         .decode()
         .unwrap()

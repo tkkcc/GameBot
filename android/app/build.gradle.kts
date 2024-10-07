@@ -59,7 +59,7 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1,DEPENDENCIES,INDEX.LIST}"
             excludes += "/META-INF/io.netty.versions.properties"
-
+//            merges += "plugin.properties"
         }
     }
 }
@@ -138,7 +138,7 @@ androidComponents.onVariants { variant ->
 
 
 dependencies {
-    coreLibraryDesugaring(libs.desugar)
+//    coreLibraryDesugaring(libs.desugar)
     implementation(libs.jgit)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -187,5 +187,6 @@ dependencies {
     implementation("io.github.torrydo:floating-bubble-view:0.6.5")
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 //    implementation("com.microsoft.onnxruntime:onnxruntime-android:latest.release")
+//    implementation("org.eclipse.jgit:org.eclipse.jgit.lfs:4.3.0.201604071810-r")
 
 }

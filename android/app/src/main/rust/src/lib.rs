@@ -4,6 +4,7 @@ use std::sync::Mutex;
 
 use jni::objects::JObject;
 use jni::objects::JString;
+use jni::strings::JavaStr;
 use jni::{objects::JClass, JNIEnv};
 
 static STORE: LazyLock<Mutex<HashMap<String, Guest>>> =
@@ -71,4 +72,23 @@ extern "C" fn Java_RemoteService_stopGuest(
     if let Some(func) = STORE.lock().unwrap().get(&name).map(|x| x.stop.clone()) {
         func(env, host);
     }
+}
+
+#[no_mangle]
+extern "C" fn Java_RemoteService_gitClone(mut env: JNIEnv, _: JClass, url: JString, path: JString) {
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_max_level(log::LevelFilter::Info)
+            .with_tag("gamebot"),
+    );
+    use git2::Repository;
+    let url: String = JavaStr::from_env(&env, &url).unwrap().into();
+    let path: String = JavaStr::from_env(&env, &path).unwrap().into();
+    let repo = match Repository::clone(&url, &path) {
+        Ok(repo) => repo,
+        Err(e) => {
+            log::error!("{:?}", e);
+            panic!("failed to clone: {}", e)
+        }
+    };
 }

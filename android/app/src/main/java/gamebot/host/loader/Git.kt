@@ -6,16 +6,18 @@ import java.io.File
 
 object Git {
 
-    fun clone(url: String, path: String, branch: String? = null): Result<Unit> = runCatching {
+    fun clone(url: String, path: String, branch: String? = null): Result<Unit>  {
         val dir = File(path)
         dir.deleteRecursively()
         val cmd =
-            Git.cloneRepository().setURI(url).setDirectory(dir).setCloneAllBranches(false)
+            Git.cloneRepository().setURI(url).setDirectory(dir)
+                .setCloneAllBranches(false)
                 .setCloneSubmodules(true)
         branch?.let {
             cmd.setBranch(branch)
         }
         cmd.call()
+        return Result.success(Unit)
     }
 
     fun count(path: String): Result<Int> = runCatching {

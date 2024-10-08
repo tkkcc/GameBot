@@ -73,18 +73,6 @@ checksum = "5ecc8056bf6ab9892dcd53216c83d1597487d7dacac16c8df6b877d127df9937"
 
 [[package]]
 name = "android_logger"
-version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c494134f746c14dc653a35a4ea5aca24ac368529da5370ecf41fe0341c35772f"
-dependencies = [
- "android_log-sys",
- "env_logger",
- "log",
- "once_cell",
-]
-
-[[package]]
-name = "android_logger"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05b07e8e73d720a1f2e4b6014766e6039fd2e96a4fa44e2a78d0e1fa2ff49826"
@@ -416,6 +404,28 @@ dependencies = [
 [[package]]
 name = "cached-path"
 version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "097968e38f1319207f057d0f4d76452e4f4f847a5de61c5215379f297fa034f3"
+dependencies = [
+ "flate2",
+ "fs2",
+ "glob",
+ "indicatif",
+ "log",
+ "rand",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tar",
+ "tempfile",
+ "thiserror",
+ "zip",
+]
+
+[[package]]
+name = "cached-path"
+version = "0.6.1"
 source = "git+https://github.com/tkkcc/rust-cached-path#a881fa79b7ac4374fc71d7fa332bfc5efc095655"
 dependencies = [
  "flate2",
@@ -665,7 +675,7 @@ dependencies = [
 name = "devtool"
 version = "0.1.0"
 dependencies = [
- "android_logger 0.14.1",
+ "android_logger",
  "anyhow",
  "axum",
  "clap",
@@ -739,16 +749,6 @@ name = "env_filter"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f2c92ceda6ceec50f43169f9ee8424fe2db276791afde7b2cd8bc084cb376ab"
-dependencies = [
- "log",
- "regex",
-]
-
-[[package]]
-name = "env_logger"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cd405aab171cb85d6735e5c8d9db038c17d3ca007a4d2c25f337935c3d90580"
 dependencies = [
  "log",
  "regex",
@@ -934,7 +934,7 @@ dependencies = [
 name = "gamebot"
 version = "0.1.0"
 dependencies = [
- "android_logger 0.14.1",
+ "android_logger",
  "anyhow",
  "image",
  "jni",
@@ -1658,7 +1658,7 @@ name = "ncnn-sys"
 version = "0.1.0"
 dependencies = [
  "bindgen",
- "cached-path",
+ "cached-path 0.6.1 (git+https://github.com/tkkcc/rust-cached-path)",
  "dirs",
  "hex-literal",
 ]
@@ -1880,7 +1880,7 @@ name = "ort-sys"
 version = "0.1.0"
 dependencies = [
  "bindgen",
- "cached-path",
+ "cached-path 0.6.1 (git+https://github.com/tkkcc/rust-cached-path)",
  "dirs",
  "hex-literal",
 ]
@@ -2292,8 +2292,9 @@ dependencies = [
 name = "rust"
 version = "0.1.0"
 dependencies = [
- "android_logger 0.13.3",
+ "android_logger",
  "anyhow",
+ "cached-path 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "git2",
  "jni",
  "libloading",

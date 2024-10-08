@@ -15,8 +15,9 @@ import android.hardware.display.VirtualDisplay
 import android.hardware.input.IInputManager
 import android.media.Image
 import android.media.ImageReader
-import android.net.Uri
 import android.os.Binder
+import android.os.Binder.clearCallingIdentity
+import android.os.Binder.getCallingUid
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
@@ -31,10 +32,6 @@ import android.view.MotionEvent.PointerCoords
 import android.view.MotionEvent.PointerProperties
 import android.view.SurfaceControlHidden
 import android.view.accessibility.AccessibilityNodeInfo
-import com.google.mlkit.common.MlKit
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import dev.rikka.tools.refine.Refine
 import gamebot.host.Host
 import gamebot.host.ILocalService
@@ -50,7 +47,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -68,9 +64,11 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
-class RemoteService(val context: Context) : IRemoteService.Stub() {
+interface ProgressListener {
+    fun onUpdate(percent: Float, bytesPerSecond: Float)
+}
 
-    //    val native = Native()
+class RemoteService(val context: Context) : IRemoteService.Stub() {
     companion object {
         init {
             System.getProperties().forEach {
@@ -80,7 +78,18 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
-    external fun gitClone(url:String, path:String)
+    init {
+        initLogger()
+    }
+
+    external fun gitClone(
+        url: String,
+        branch: String,
+        path: String,
+        progressListener: ProgressListener?=null
+    ): Int
+
+    external fun initLogger()
 
 
     lateinit var localService: ILocalService
@@ -182,7 +191,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
                 withTimeoutOrNull(timeout) {
                     nodeshotStateFlow.onEach {
 //                        Log.e("gamebot", "nodeshot state flow $it")
-                    }. first { it > timestamp }
+                    }.first { it > timestamp }
                 }
             }.join()
         }
@@ -594,7 +603,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     fun initDisplayProjection() {
         uiAutomation.setOnAccessibilityEventListener {
 //            Log.e("", "741, new accessibility event")
-           runBlocking(Dispatchers.Default) {
+            runBlocking(Dispatchers.Default) {
                 requestUpdateNodeshot.receive()
             }
             updateNodeshot()
@@ -613,7 +622,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         imageReader.setOnImageAvailableListener({
 //            Log.e("", "new screenshot available")
 
-           runBlocking(Dispatchers.Default) {
+            runBlocking(Dispatchers.Default) {
                 requestUpdateScreenshot.receive()
             }
 //            Log.e("", "update screenshot from callback")
@@ -719,8 +728,20 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //        }
         thread {
             d("git clone start")
-//            gitClone("https://www.modelscope.cn/bilabila/test1.git", "/data/local/tmp/repo")
-            gitClone("http://www.modelscope.cn/bilabila/test1.git", "/data/local/tmp/repo")
+            gitClone(
+//                "https://www.modelscope.cn/bilabila/test1.git",
+//                "master",
+//                "https://www.modelscope.cn/bilabila/android_webview.git",
+                "https://gitlink.org.cn/algorithms10/android_webview.git",
+                "main",
+                "/data/local/tmp/repo",
+                object: ProgressListener {
+                    override fun onUpdate(percent: Float, bytesPerSecond: Float) {
+                        d(percent, bytesPerSecond)
+                    }
+                }
+            )
+//            gitClone("http://www.modelscope.cn/bilabila/test1.git", "/data/local/tmp/repo")
             d("git clone end")
         }
 

@@ -40,9 +40,13 @@ dirs = "5.0.1"
 hex-literal = "0.4.1"
 libc = "0.2.159"
 tracing = "0.1.40"
+git2 = { version = "0.19.0", default-features = false, features = [] }
+
+[profile.dev]
+opt-level = "s"
 
 [profile.release]
 opt-level = "s"
-# strip = true
-# lto = true
-# codegen-units = 1
+strip = true
+lto = true
+codegen-units = 1

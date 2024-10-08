@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-run() {
-  set -e
+set -e
+
+# ndk abi to rust target
+current_target() {
   arch=$(adb shell getprop ro.product.cpu.abi)
   case $arch in
   x86)
@@ -17,23 +19,29 @@ run() {
     target=armv7
     ;;
   esac
+  echo $target
+}
 
-  # export ORT_LIB_LOCATION=$HOME/bin/onnxruntime/build/Android
-  # export ORT_LIB_LOCATION=$HOME/bin/onnxruntime/build/Android
-  # export ORT_LIB_LOCATION=/home/bilabila/bin/onnxruntime/build/Android/Release/java/android/x86
-  # export ORT_LIB_LOCATION=$HOME/bin/onnxruntime/build/Android/Release/
+run() {
+  local target=$(current_target)
+  local profile=${1:-dev}
 
   export RUSTFLAGS="-Clink-args=-Wl,-rpath,\$ORIGIN"
 
-  cargo ndk -t $target-linux-android --bindgen build --release
+  cargo ndk -t $target-linux-android --bindgen build --profile $profile
 
-  du -sh ../target/$target-linux-android/release/*.so
-  adb push ../target/$target-linux-android/release/libdevtool.so /data/local/tmp/libgamebot.so
+  if [[ $profile == dev ]];then
+    profile=debug
+  fi
+
+  du -sh ../target/$target-linux-android/$profile/*.so
+  adb push ../target/$target-linux-android/$profile/libdevtool.so /data/local/tmp/libgamebot.so
   adb shell am force-stop gamebot.host
   adb shell am start -n gamebot.host/.MainActivity
 }
+
 dev() {
-  cargo watch -w . -w ../gamebot -s "$0 run"
+  cargo watch -w . -w ../gamebot -s "$0 run $@"
 }
 
 "$@"

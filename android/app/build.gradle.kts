@@ -112,9 +112,9 @@ androidComponents.onVariants { variant ->
 
 
         add("build")
-//        if (variant.buildType == "release") {
-//            add("--release")
-//        }
+        if (variant.buildType == "release") {
+            add("--release")
+        }
 
     }
 

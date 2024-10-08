@@ -378,7 +378,7 @@ fn test_group_find() {
 
 gamebot::entry!(start);
 fn start() {
-    test_ncnn_paddleocr_multiline();
+    // test_ncnn_paddleocr_multiline();
     // test_ort_paddleocr_multiline();
     // test_ort_ddddocr();
     // test_ncnn_ddddocr();

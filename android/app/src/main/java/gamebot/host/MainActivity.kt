@@ -90,10 +90,10 @@ class MainActivity : ComponentActivity() {
 
             val path = File(cacheDir, "repo")
             path.mkdirs()
-            d("git clone start: $path")
+//            d("git clone start: $path")
 //            Git.clone("http://www.modelscope.cn/bilabila/test1.git", path.absolutePath)
 //            Git.clone("https://e.coding.net/bilabila/gamekeeper/star_rail_cn.git", path.absolutePath)
-            d("git clone finish: $path")
+//            d("git clone finish: $path")
 
 //            val out = test(path.absolutePath)
 //            Log.e("", out)

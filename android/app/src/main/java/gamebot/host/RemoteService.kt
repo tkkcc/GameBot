@@ -733,7 +733,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //                "master",
 //                "https://www.modelscope.cn/bilabila/android_webview.git",
                 "https://gitlink.org.cn/algorithms10/android_webview.git",
-                "main",
+                "master",
                 "/data/local/tmp/repo",
                 object: ProgressListener {
                     override fun onUpdate(percent: Float, bytesPerSecond: Float) {

@@ -404,28 +404,6 @@ dependencies = [
 [[package]]
 name = "cached-path"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "097968e38f1319207f057d0f4d76452e4f4f847a5de61c5215379f297fa034f3"
-dependencies = [
- "flate2",
- "fs2",
- "glob",
- "indicatif",
- "log",
- "rand",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "tar",
- "tempfile",
- "thiserror",
- "zip",
-]
-
-[[package]]
-name = "cached-path"
-version = "0.6.1"
 source = "git+https://github.com/tkkcc/rust-cached-path#a881fa79b7ac4374fc71d7fa332bfc5efc095655"
 dependencies = [
  "flate2",
@@ -1001,6 +979,8 @@ dependencies = [
  "libc",
  "libgit2-sys",
  "log",
+ "openssl-probe",
+ "openssl-sys",
  "url",
 ]
 
@@ -1447,6 +1427,7 @@ dependencies = [
  "cc",
  "libc",
  "libz-sys",
+ "openssl-sys",
  "pkg-config",
 ]
 
@@ -1658,7 +1639,7 @@ name = "ncnn-sys"
 version = "0.1.0"
 dependencies = [
  "bindgen",
- "cached-path 0.6.1 (git+https://github.com/tkkcc/rust-cached-path)",
+ "cached-path",
  "dirs",
  "hex-literal",
 ]
@@ -1817,9 +1798,9 @@ dependencies = [
 
 [[package]]
 name = "openssl"
-version = "0.10.66"
+version = "0.10.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9529f4786b70a3e8c61e11179af17ab6188ad8d0ded78c5529441ed39d4bd9c1"
+checksum = "bac25ee399abb46215765b1cb35bc0212377e58a061560d8b29b024fd0430e7c"
 dependencies = [
  "bitflags 2.6.0",
  "cfg-if",
@@ -1848,13 +1829,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
-name = "openssl-sys"
-version = "0.9.103"
+name = "openssl-src"
+version = "111.28.2+1.1.1w"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f9e8deee91df40a943c71b917e5874b951d32a802526c85721ce3b776c929d6"
+checksum = "bb1830e20a48a975ca898ca8c1d036a36c3c6c5cb7dabc1c216706587857920f"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "openssl-sys"
+version = "0.9.92"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db7e971c2c2bba161b2d2fdf37080177eff520b3bc044787c7f1f5f9e78d869b"
 dependencies = [
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]
@@ -1880,7 +1871,7 @@ name = "ort-sys"
 version = "0.1.0"
 dependencies = [
  "bindgen",
- "cached-path 0.6.1 (git+https://github.com/tkkcc/rust-cached-path)",
+ "cached-path",
  "dirs",
  "hex-literal",
 ]
@@ -2294,11 +2285,11 @@ version = "0.1.0"
 dependencies = [
  "android_logger",
  "anyhow",
- "cached-path 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "git2",
  "jni",
  "libloading",
  "log",
+ "openssl-sys",
 ]
 
 [[package]]

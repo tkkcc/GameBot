@@ -9,8 +9,13 @@ crate-type = ["cdylib"]
 [dependencies]
 android_logger = { workspace = true }
 anyhow = { workspace = true }
-git2 = { workspace = true }
 jni = { workspace = true }
 log = { workspace = true }
 libloading = { workspace = true }
-cached-path = { version = "0.6.1", default-features = false, features = [] }
+# cached-path = { version = "0.6.1", default-features = false, features = [] }
+
+openssl-sys = "=0.9.92" # https://github.com/sfackler/rust-openssl/issues/2163
+git2 = { version = "0.19.0", default-features = false, features = [
+  "https",
+  "vendored-openssl",
+] }

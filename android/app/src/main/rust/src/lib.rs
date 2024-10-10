@@ -88,31 +88,31 @@ fn recreate_dir(path: impl AsRef<Path>) -> io::Result<()> {
     Ok(())
 }
 
-#[no_mangle]
-extern "C" fn Java_RemoteService_fetchWithCache<'a>(
-    mut env: JNIEnv<'a>,
-    _: JClass,
-    url: JString,
-    path: JString,
-    progress_listener: JObject,
-) -> JString<'a> {
-    let url: String = JavaStr::from_env(&env, &url).unwrap().into();
-    let path: String = JavaStr::from_env(&env, &path).unwrap().into();
-
-    let cache_dir = PathBuf::from("/data/local/tmp/cache");
-    std::fs::create_dir_all(&cache_dir).unwrap();
-    let cache = cached_path::CacheBuilder::new()
-        .dir(cache_dir)
-        .freshness_lifetime(u64::MAX)
-        .build()
-        .unwrap();
-    let path = cache
-        .cached_path(&url)
-        .unwrap_or_else(|_| panic!("fail to fetch: {url}"));
-
-    let ans = env.new_string(path.to_str().unwrap()).unwrap();
-    return ans;
-}
+// #[no_mangle]
+// extern "C" fn Java_RemoteService_fetchWithCache<'a>(
+//     mut env: JNIEnv<'a>,
+//     _: JClass,
+//     url: JString,
+//     path: JString,
+//     progress_listener: JObject,
+// ) -> JString<'a> {
+//     let url: String = JavaStr::from_env(&env, &url).unwrap().into();
+//     let path: String = JavaStr::from_env(&env, &path).unwrap().into();
+//
+//     let cache_dir = PathBuf::from("/data/local/tmp/cache");
+//     std::fs::create_dir_all(&cache_dir).unwrap();
+//     let cache = cached_path::CacheBuilder::new()
+//         .dir(cache_dir)
+//         .freshness_lifetime(u64::MAX)
+//         .build()
+//         .unwrap();
+//     let path = cache
+//         .cached_path(&url)
+//         .unwrap_or_else(|_| panic!("fail to fetch: {url}"));
+//
+//     let ans = env.new_string(path.to_str().unwrap()).unwrap();
+//     return ans;
+// }
 
 #[no_mangle]
 extern "C" fn Java_RemoteService_gitClone(
@@ -124,10 +124,6 @@ extern "C" fn Java_RemoteService_gitClone(
     progress_listener: JObject,
 ) -> jint {
     let url: String = JavaStr::from_env(&env, &url).unwrap().into();
-    let url = url.trim_start();
-    let url = url.strip_prefix("https://").unwrap_or(url);
-    let url = format!("http://{url}");
-    error!("{}", url);
 
     let path: String = JavaStr::from_env(&env, &path).unwrap().into();
     let path = PathBuf::from(path);
@@ -137,6 +133,7 @@ extern "C" fn Java_RemoteService_gitClone(
 
     let branch: String = JavaStr::from_env(&env, &branch).unwrap().into();
 
+    // only fetch one branch, one depth
     let mut builder = git2::build::RepoBuilder::new();
     builder.remote_create(|repo, name, url| {
         let refspec = format!("+refs/heads/{0}:refs/remotes/origin/{0}", &branch);
@@ -145,6 +142,7 @@ extern "C" fn Java_RemoteService_gitClone(
     let mut fetch_option = git2::FetchOptions::new();
     fetch_option.depth(1);
 
+    // pass progress to kotlin
     if !progress_listener.is_null() {
         fetch_option.remote_callbacks({
             let mut cb = git2::RemoteCallbacks::new();
@@ -162,15 +160,24 @@ extern "C" fn Java_RemoteService_gitClone(
                     (bytes - prev_bytes) as f32 / (time - prev_time).as_secs_f32();
                 prev_time = time;
                 prev_bytes = bytes;
-                env.call_method(
+
+                match env.call_method(
                     &progress_listener,
                     "onUpdate",
-                    "(ff)V",
+                    "(FF)V",
                     &[object_percent.into(), bytes_per_second.into()],
-                );
+                ) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        error!("{}", err);
+                        panic!("184");
+                    }
+                }
 
                 true
             });
+
+            cb.certificate_check(|_, _| Ok(git2::CertificateCheckStatus::CertificateOk));
             cb
         });
     }

@@ -1,11 +1,15 @@
 import android.os.SystemClock
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.compression.ContentEncoding
+import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.prepareGet
 import io.ktor.http.contentLength
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -41,11 +45,16 @@ fun ByteArray.toHexString(): String {
 }
 
 fun downloadFile(url: String, path: String, scope: CoroutineScope, progressListener: ProgressListener? = null): Job {
-    val client = HttpClient()
+    val client = HttpClient{
+        install(HttpCookies)
+        install(ContentEncoding)
+
+        install(Logging)
+    }
     val file = File(path)
     file.delete()
 
-    return scope.launch {
+    return scope.launch(Dispatchers.IO) {
         client.prepareGet(url).execute { httpResponse ->
             val channel: ByteReadChannel = httpResponse.body()
             val total: Long = httpResponse.contentLength() ?: Long.MAX_VALUE

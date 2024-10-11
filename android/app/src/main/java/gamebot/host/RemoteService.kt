@@ -720,7 +720,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             System.loadLibrary("host")
         } else {
 //            val url = "https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
-            val url = "https://ghp.ci/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
+            val url = "https://gh2.bilabila.cloudns.biz/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
+//            val url = "https://ghp.ci/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
             val path = File(cacheDir, "libhost.so").absolutePath
             d(path)
             val sha256 = "12ea51130a9206cee98bf34a6649d20b5bdddd68f348044ea1dd62fc53d6bc94"
@@ -731,10 +732,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
                 }
             })
             runBlocking {
-                delay(10000)
-                job.cancelAndJoin()
+                job.join()
+//                delay(10000)
+//                job.cancelAndJoin()
             }
-            checkSHA256(path, sha256)
+            d("download finish")
+            d(checkSHA256(path, sha256))
         }
 
 

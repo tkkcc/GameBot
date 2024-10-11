@@ -1,22 +1,22 @@
 package gamebot.host
 
 //import CallbackMsg
-import Component
-import LocalUIEvent
-import UIEvent
 //import ai.onnxruntime.OnnxTensor
 //import ai.onnxruntime.OrtEnvironment
 //import ai.onnxruntime.OrtSession
+//import com.google.mlkit.vision.common.InputImage
+//import com.google.mlkit.vision.text.TextRecognition
+//import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+import Component
+import LocalUIEvent
+import UIEvent
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Context.ACTIVITY_SERVICE
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
-import android.os.SystemClock
 import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
@@ -50,9 +50,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-//import com.google.mlkit.vision.common.InputImage
-//import com.google.mlkit.vision.text.TextRecognition
-//import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+import com.ketch.Ketch
 import gamebot.host.presentation.CenterView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -67,10 +65,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.ByteArrayOutputStream
-import java.nio.ByteBuffer
+import java.io.File
 import kotlin.concurrent.thread
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 @Composable
 fun MemoryMonitor() {
@@ -304,8 +300,20 @@ class LocalService(
 //    }
 //
 
-        override fun test() {
+    override fun test() {
         thread {
+            val ketch = Ketch.builder().build(context)
+            val id = ketch.download(
+                "https://gh2.bilabila.cloudns.biz/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk",
+                File(cacheDir(), "tmp.apk").absolutePath
+            )
+            runBlocking {
+
+                ketch.observeDownloadById(id).collect {
+                    d("local download", it.progress, it.speedInBytePerMs*1000)
+                }
+
+            }
 //            testpaddleocr()
 //            testmlkitocr()
 //            testOnnxruntimeOcr()

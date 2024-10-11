@@ -210,7 +210,11 @@ dependencies {
 
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.android)
+    implementation("org.slf4j:slf4j-android:1.7.36")
+    implementation("io.ktor:ktor-client-logging:3.0.0")
+    implementation("io.ktor:ktor-client-encoding:3.0.0")
+
 //    implementation(libs.ktor.client.okhttp)
-//    implementation("com.github.khushpanchal:Ketch:2.0.2") // Use latest available version
+    implementation("com.github.khushpanchal:Ketch:2.0.2") // Use latest available version
 
 }

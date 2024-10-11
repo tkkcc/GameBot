@@ -59,7 +59,6 @@ import java.io.File
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
-import kotlin.reflect.jvm.jvmName
 
 
 class MainActivity : ComponentActivity() {
@@ -381,7 +380,7 @@ class MainActivity : ComponentActivity() {
             }
             val userServiceArgs = UserServiceArgs(
                 ComponentName(
-                    BuildConfig.APPLICATION_ID, RemoteService::class.jvmName
+                    BuildConfig.APPLICATION_ID, RemoteService::class.java.name
                 )
             ).daemon(false).processNameSuffix("service").debuggable(BuildConfig.DEBUG)
                 .version(BuildConfig.VERSION_CODE)

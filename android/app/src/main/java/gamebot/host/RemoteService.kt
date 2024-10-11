@@ -1,4 +1,5 @@
 //import kotlin.Pair
+//import kotlinx.coroutines.time.sample
 import android.app.ActivityManager
 import android.app.UiAutomation
 import android.app.UiAutomationConnection
@@ -16,15 +17,12 @@ import android.hardware.input.IInputManager
 import android.media.Image
 import android.media.ImageReader
 import android.os.Binder
-import android.os.Binder.clearCallingIdentity
-import android.os.Binder.getCallingUid
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.IBinder
 import android.os.ServiceManager
 import android.os.SystemClock
-import android.util.Log
 import android.view.IWindowManager
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -33,16 +31,17 @@ import android.view.MotionEvent.PointerProperties
 import android.view.SurfaceControlHidden
 import android.view.accessibility.AccessibilityNodeInfo
 import dev.rikka.tools.refine.Refine
+import gamebot.host.BuildConfig
 import gamebot.host.Host
 import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
-import gamebot.host.RemoteRun.Companion.CACHE_DIR
-import gamebot.host.RemoteRun.Companion.TAG
 import gamebot.host.d
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
@@ -65,28 +64,24 @@ import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
 interface ProgressListener {
-    fun onUpdate(percent: Float, bytesPerSecond: Float)
+    fun onUpdate(percent: Float, bytePerSecond: Float)
 }
 
 class RemoteService(val context: Context) : IRemoteService.Stub() {
-    companion object {
-        init {
-            System.getProperties().forEach {
-                Log.e("gamebot", "${it.key} : ${it.value}")
-            }
-            System.loadLibrary("rust")
-        }
-    }
-
-    init {
-        initLogger()
-    }
+//    companion object {
+//        init {
+//            System.getProperties().forEach {
+//                d("${it.key} : ${it.value}")
+//            }
+//            System.loadLibrary("rust")
+//        }
+//    }
 
     external fun gitClone(
         url: String,
         branch: String,
         path: String,
-        progressListener: ProgressListener?=null
+        progressListener: ProgressListener? = null
     ): Int
 
     external fun initLogger()
@@ -108,7 +103,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     private val hostMap = mutableMapOf<String, Host>()
 
     override fun destroy() {
-        Log.e("", "destroy in remote service")
+        d("destroy in remote service")
         exitProcess(0)
     }
 
@@ -121,7 +116,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         // we won't remove key from hostMap
         // because host is stored on Guest OnceLock
         return hostMap.getOrPut(name, {
-//            Log.e("", "create host")
+//                 d( "create host")
 //            val used = hostMap.values.map { it.token }.toSet()
 //            var i = used.size
 //            for (j in used.indices) {
@@ -184,13 +179,13 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     fun waitNodeshotAfter(timestamp: Long, timeout: Long, scope: CoroutineScope) {
         requestUpdateNodeshot.trySend(Unit)
-//        Log.e("", "waitNodeshotAfter scope $timestamp $timeout ${scope.isActive}")
+//            d("waitNodeshotAfter scope $timestamp $timeout ${scope.isActive}")
         runBlocking {
             scope.launch {
-//                Log.e("", "waitNodeshotAfter $timestamp $timeout")
+//                      d( "waitNodeshotAfter $timestamp $timeout")
                 withTimeoutOrNull(timeout) {
                     nodeshotStateFlow.onEach {
-//                        Log.e("gamebot", "nodeshot state flow $it")
+//                               d( "nodeshot state flow $it")
                     }.first { it > timestamp }
                 }
             }.join()
@@ -288,22 +283,22 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
     fun connectUiAutomation() {
-        Log.e("137", "connectUiAutomation")
+        d("connectUiAutomation")
         uiAutomationThread.start()
 
         uiAutomationConnection = UiAutomationConnection()
         uiAutomationHidden = UiAutomationHidden(uiAutomationThread.looper, uiAutomationConnection)
 
-        Log.d(TAG, "UiAutomation connect")
+        d("UiAutomation connect")
 
         uiAutomationHidden.connect(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
 
-        Log.d(TAG, "UiAutomation connect 172")
+        d("UiAutomation connect 172")
 
         uiAutomation = Refine.unsafeCast(uiAutomationHidden)
     }
 
-    var cacheDir: String = CACHE_DIR
+    lateinit var cacheDir: String
 
 //    fun fetchScreenNode(): List<AccessibilityNodeInfo> {
 //        val root = uiAutomation.rootInActiveWindow
@@ -382,12 +377,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         if (Build.VERSION.SDK_INT >= 25) {
             // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/nougat-mr1-dev/services/core/java/com/android/server/wm/WindowManagerService.java
             windowManager.setForcedDisplayDensityForUser(0, density, 0)
-            Log.d(TAG, "setForcedDisplayDensityForUser success")
+            d("setForcedDisplayDensityForUser success")
         } else {
             // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/nougat-dev/services/core/java/com/android/server/wm/WindowManagerService.java
 
             windowManager.setForcedDisplayDensity(0, density)
-            Log.d(TAG, "setForcedDisplayDensity success")
+            d("setForcedDisplayDensity success")
         }
     }
 
@@ -444,25 +439,25 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     fun updateScreenshotByUiAutomation() {
 
         val startTime = SystemClock.uptimeMillis()
-        //        Log.d(
-        //            TAG, "callinguid? ${Binder.getCallingUid()} ${Binder.getCallingPid()} " +
+        //              d(
+        //           "callinguid? ${Binder.getCallingUid()} ${Binder.getCallingPid()} " +
         //                    "${android.os.Process.SYSTEM_UID}"
         //        )
 
         val size = getOverrideDisplaySize()
         val physical = getPhysicalDisplaySize()
-        //        Log.d(TAG, "$size $physical ${size==physical} ${size.equals(physical)}")
+        //              d( "$size $physical ${size==physical} ${size.equals(physical)}")
         val startTime2 = SystemClock.uptimeMillis()
 
-//        Log.e("", "size, ${size}, physical ${physical}")
+//              d( "size, ${size}, physical ${physical}")
         // android >= 9.0 时，takeScreenshot尊重overrideDisplaySize
         var bitmap: Bitmap = if (Build.VERSION.SDK_INT >= 28 || size == physical) {
-//            Log.d(TAG, "screenshot using outer api")
+//                   d( "screenshot using outer api")
             uiAutomation.takeScreenshot()
         } else {
             // android < 9.0时，takeScreenshot存在黑边，要控制尺寸并裁剪
 
-            //            Log.d(TAG, "before0 ${size} ${physical}")
+            //                  d( "before0 ${size} ${physical}")
 
             var width = size.x
             var height = size.y
@@ -477,9 +472,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 
             uiAutomationConnection.takeScreenshot(width, height).let { image ->
-                //                Log.d(TAG, "${getRotation()} ${Surface.ROTATION_90} ")
+                //                      d( "${getRotation()} ${Surface.ROTATION_90} ")
                 //                val nowTime = System.currentTimeMillis()
-                //                Log.d(TAG, "after ${image.width} ${image.height} ${nowTime - startTime}")
+                //                      d("after ${image.width} ${image.height} ${nowTime - startTime}")
 
                 val angle = getRotation() * -90f
                 val matrix = Matrix().apply {
@@ -506,7 +501,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 
         if (Build.VERSION.SDK_INT >= 26 && bitmap.config == Bitmap.Config.HARDWARE) {
-            Log.e("", "hardware bitmap")
+            d("hardware bitmap")
             val swBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
             bitmap.recycle()
             swBitmap.setHasAlpha(false)
@@ -519,8 +514,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         uiAutomationScreenshotBuffer.position(0)
         bitmap.copyPixelsToBuffer(uiAutomationScreenshotBuffer)
 
-        Log.d(
-            TAG,
+        d(
             "screenshot time ${SystemClock.uptimeMillis() - startTime}ms ${SystemClock.uptimeMillis() - startTime2}ms"
         )
 
@@ -528,7 +522,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         dst.parentFile?.mkdirs()
         FileOutputStream(dst).use { stream ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 25, stream)
-            Log.d(TAG, "save to file $dst")
+            d("save to file $dst")
             bitmap.recycle()
         }
 
@@ -553,7 +547,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         val rowPadding: Int = rowStride - pixelStride * img.width
 
 
-        Log.e("", "bitmap size ${img.width + rowPadding / pixelStride} x ${img.height}")
+        d("bitmap size ${img.width + rowPadding / pixelStride} x ${img.height}")
 
 
         val byteArray = ByteArray(100000)
@@ -568,7 +562,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         dst.parentFile?.mkdirs()
         FileOutputStream(dst).use { stream ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 25, stream)
-            Log.d(TAG, "save to file $dst")
+            d("save to file $dst")
             bitmap.recycle()
         }
     }
@@ -602,7 +596,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     fun initDisplayProjection() {
         uiAutomation.setOnAccessibilityEventListener {
-//            Log.e("", "741, new accessibility event")
+//                 d( "741, new accessibility event")
             runBlocking(Dispatchers.Default) {
                 requestUpdateNodeshot.receive()
             }
@@ -620,12 +614,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         imageReader =
             ImageReader.newInstance(screenSize.x, screenSize.y, PixelFormat.RGBA_8888, 2)
         imageReader.setOnImageAvailableListener({
-//            Log.e("", "new screenshot available")
+//                   d( "new screenshot available")
 
             runBlocking(Dispatchers.Default) {
                 requestUpdateScreenshot.receive()
             }
-//            Log.e("", "update screenshot from callback")
+//                   d("update screenshot from callback")
             updateScreenshot()
         }, Handler(imageReaderThread.looper))
 
@@ -641,7 +635,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             )
 //            virtualDisplay.resize()
         }.onFailure {
-            Log.e("", "496", it)
+            d("496", it)
 //            throw NotImplementedError()
             val secure =
                 Build.VERSION.SDK_INT < Build.VERSION_CODES.R || (Build.VERSION.SDK_INT == Build.VERSION_CODES.R && "S" != Build.VERSION.CODENAME)
@@ -661,7 +655,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
                 )
                 SurfaceControlHidden.setDisplayLayerStack(display, 0)
             } catch (e: Exception) {
-                Log.e("", "497", e)
+                d("497", e)
             } finally {
                 SurfaceControlHidden.closeTransaction()
             }
@@ -669,11 +663,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
     fun initAll() {
+
+//        initLogger()
+
         // we can connect to app's database in shell uid?
         // no, it's hang
 
-        // for android >=13, after clear uid, it's just shell / root uid
-        val token = clearCallingIdentity()
         activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         packageManager = context.packageManager
 
@@ -702,7 +697,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //        Binder.restoreCallingIdentity(token)
 
 //        click(0,0)
-        Log.e("137", "after init , uid = ${getCallingUid()}")
+        d("after init , uid = ${getCallingUid()}")
     }
 
 
@@ -710,42 +705,73 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         localService = ILocalService.Stub.asInterface(binder)
     }
 
+    lateinit var scope: CoroutineScope
+
     @OptIn(ExperimentalSerializationApi::class)
     override fun start() {
+        scope = CoroutineScope(Dispatchers.Default)
 
-        Log.e("", "start in remote service, uid = ${getCallingUid()}")
+        d("start in remote service, uid = ${getCallingUid()}")
+        // for android >=13, after clear uid, it's just shell / root uid
+        val token = clearCallingIdentity()
+        cacheDir = localService.cacheDir()
+
+        if (BuildConfig.DEBUG) {
+            System.loadLibrary("host")
+        } else {
+//            val url = "https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
+            val url = "https://ghp.ci/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
+            val path = File(cacheDir, "libhost.so").absolutePath
+            d(path)
+            val sha256 = "12ea51130a9206cee98bf34a6649d20b5bdddd68f348044ea1dd62fc53d6bc94"
+//            runBlocking {
+            val job = downloadFile(url, path, scope, object :ProgressListener{
+                override fun onUpdate(percent: Float, bytePerSecond: Float) {
+                    d(percent, bytePerSecond/1000/1000)
+                }
+            })
+            runBlocking {
+                delay(10000)
+                job.cancelAndJoin()
+            }
+            checkSHA256(path, sha256)
+        }
+
+
+        // setup logger in libhost
+//        initLogger()
 
         initAll()
         initDisplayProjection()
         localService.test()
 //        testOcr()
 //        this.javaClass.declaredMethods.forEach {
-//            Log.e("", "790 ${it}")
+//                  d("790 ${it}")
 //        }
 //
 //        Nodeshot::class.declaredMembers.forEach {
-//            Log.e("", "791 ${it}")
+//                   d( "791 ${it}")
 //        }
-        thread {
-            d("git clone start")
-            gitClone(
-//                "https://www.modelscope.cn/bilabila/test1.git",
+//        thread {
+//            d("git clone start")
+//            gitClone(
+////                "https://www.modelscope.cn/bilabila/test1.git",
+////                "master",
+////                "https://www.modelscope.cn/bilabila/android_webview.git",
+//                "https://gitlink.org.cn/algorithms10/android_webview.git",
 //                "master",
-//                "https://www.modelscope.cn/bilabila/android_webview.git",
-                "https://gitlink.org.cn/algorithms10/android_webview.git",
-                "master",
-                "/data/local/tmp/repo",
-                object: ProgressListener {
-                    override fun onUpdate(percent: Float, bytesPerSecond: Float) {
-                        d(percent, bytesPerSecond)
-                    }
-                }
-            )
-//            gitClone("http://www.modelscope.cn/bilabila/test1.git", "/data/local/tmp/repo")
-            d("git clone end")
-        }
+//                "/data/local/tmp/repo",
+//                object : ProgressListener {
+//                    override fun onUpdate(percent: Float, bytePerSecond: Float) {
+//                        d(percent, bytePerSecond)
+//                    }
+//                }
+//            )
+////            gitClone("http://www.modelscope.cn/bilabila/test1.git", "/data/local/tmp/repo")
+//            d("git clone end")
+//        }
 
-        Log.e("", "rust call finish")
+        d("rust call finish")
     }
 
 

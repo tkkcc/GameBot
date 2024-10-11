@@ -50,9 +50,9 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+//import com.google.mlkit.vision.common.InputImage
+//import com.google.mlkit.vision.text.TextRecognition
+//import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import gamebot.host.presentation.CenterView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -135,70 +135,70 @@ class LocalService(
 //
 //    }
 
-    fun testmlkitocr() {
-        Log.e("gamebot", "135")
-//        MlKit.initialize(context)
-        val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
-//        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/multilinetext.png")
+//    fun testmlkitocr() {
+//        Log.e("gamebot", "135")
+////        MlKit.initialize(context)
+//        val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+////        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/multilinetext.png")
+////        val resizedBitmap: Bitmap = Bitmap.createScaledBitmap(
+////            originalBitmap, 128, 64, false
+////        )
+//
+//        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/longsingleline.png")
 //        val resizedBitmap: Bitmap = Bitmap.createScaledBitmap(
-//            originalBitmap, 128, 64, false
+//            originalBitmap, (originalBitmap.width * 48 / originalBitmap.height), 48, false
 //        )
-
-        val originalBitmap = BitmapFactory.decodeFile("/data/local/tmp/longsingleline.png")
-        val resizedBitmap: Bitmap = Bitmap.createScaledBitmap(
-            originalBitmap, (originalBitmap.width * 48 / originalBitmap.height), 48, false
-        )
-
-        val image = InputImage.fromBitmap(resizedBitmap, 0)
-
-//        val image = InputImage.fromFilePath(context, Uri.fromFile(File("/data/local/tmp/multilinetext.png"))
-
-        fun runOnce() {
-            runBlocking {
-
-                suspendCoroutine { cont ->
-
-                    val result = recognizer.process(image)
-                        .addOnSuccessListener { result ->
-                            cont.resume(Unit)
-//                        val resultText = result.text
-//                        for (block in result.textBlocks) {
-//                            val blockText = block.text
-//                            val blockCornerPoints = block.cornerPoints
-//                            val blockFrame = block.boundingBox
-//                            for (line in block.lines) {
-//                                val lineText = line.text
-//                                val lineCornerPoints = line.cornerPoints
-//                                val lineFrame = line.boundingBox
-//                                for (element in line.elements) {
-//                                    val elementText = element.text
-//                                    Log.e("gamebot", elementText)
-//                                    val elementCornerPoints = element.cornerPoints
-//                                    val elementFrame = element.boundingBox
-//                                }
-//                            }
+//
+//        val image = InputImage.fromBitmap(resizedBitmap, 0)
+//
+////        val image = InputImage.fromFilePath(context, Uri.fromFile(File("/data/local/tmp/multilinetext.png"))
+//
+//        fun runOnce() {
+//            runBlocking {
+//
+//                suspendCoroutine { cont ->
+//
+//                    val result = recognizer.process(image)
+//                        .addOnSuccessListener { result ->
+//                            cont.resume(Unit)
+////                        val resultText = result.text
+////                        for (block in result.textBlocks) {
+////                            val blockText = block.text
+////                            val blockCornerPoints = block.cornerPoints
+////                            val blockFrame = block.boundingBox
+////                            for (line in block.lines) {
+////                                val lineText = line.text
+////                                val lineCornerPoints = line.cornerPoints
+////                                val lineFrame = line.boundingBox
+////                                for (element in line.elements) {
+////                                    val elementText = element.text
+////                                    Log.e("gamebot", elementText)
+////                                    val elementCornerPoints = element.cornerPoints
+////                                    val elementFrame = element.boundingBox
+////                                }
+////                            }
+////                        }
 //                        }
-                        }
-                        .addOnFailureListener { e ->
-                            // Task failed with an exception
-                            // ...
-                        }
-                }
-            }
-
-        }
-
-        runOnce()
-        val start = SystemClock.uptimeMillis()
-
-        for (i in 0..<10) {
-            runOnce()
-//            Log.e("gamebot", i.toString())
-//            val result = recognizer.process(image)
-        }
-        Log.e("gamebot", ((SystemClock.uptimeMillis() - start) / 10).toString())
-
-    }
+//                        .addOnFailureListener { e ->
+//                            // Task failed with an exception
+//                            // ...
+//                        }
+//                }
+//            }
+//
+//        }
+//
+//        runOnce()
+//        val start = SystemClock.uptimeMillis()
+//
+//        for (i in 0..<10) {
+//            runOnce()
+////            Log.e("gamebot", i.toString())
+////            val result = recognizer.process(image)
+//        }
+//        Log.e("gamebot", ((SystemClock.uptimeMillis() - start) / 10).toString())
+//
+//    }
 //
 //    fun testddddocr() {
 //        val ortEnv = OrtEnvironment.getEnvironment()
@@ -498,6 +498,10 @@ class LocalService(
 
         windowManager.addView(textView, params)
         return textView
+    }
+
+    override fun cacheDir(): String {
+        return context.cacheDir.absolutePath
     }
 
 

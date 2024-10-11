@@ -14,7 +14,7 @@ interface ILocalService {
     ParcelFileDescriptor waitConfigUIEvent(int token) ;
     void clearConfigUI(int token);
     void sendEmptyConfigUIEvent(int token);
-
+    String cacheDir();
 //    void startPackage(in String packageName);
 //    void startActivity(in String packageName, in String className);
 }

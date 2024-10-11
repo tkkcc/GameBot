@@ -1,6 +1,12 @@
+@file:OptIn(ExperimentalPathApi::class)
+
+import com.android.tools.r8.internal.rf
 import java.util.Locale
+import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.Path
 import kotlin.io.path.absolutePathString
+import kotlin.io.path.deleteExisting
+import kotlin.io.path.deleteRecursively
 
 plugins {
     alias(libs.plugins.android.application)
@@ -89,6 +95,15 @@ ksp {
 
 
 androidComponents.onVariants { variant ->
+    val src = Path(projectDir.absolutePath, "..", "..","host")
+    val dst = Path(projectDir.absolutePath, "src", "main", "jniLibs")
+
+    // skip build and bundle library on release
+    if (variant.buildType == "release") {
+        dst.deleteRecursively()
+        return@onVariants
+    }
+
     val target = if (variant.buildType == "release") {
         listOf("x86", "x86_64", "arm64-v8a")
 //        listOf( "x86","x86_64",)
@@ -97,12 +112,11 @@ androidComponents.onVariants { variant ->
 //        listOf("arm64-v8a")
 //        listOf("x86","x86_64",)
     }
-    val source = Path(projectDir.absolutePath, "src", "main", "rust")
 
 
     val cmd = mutableListOf("cargo", "ndk").apply {
         add("-o")
-        add(Path(projectDir.absolutePath, "src", "main", "jniLibs").absolutePathString())
+        add(dst.absolutePathString())
         add("-p")
         add(android.defaultConfig.minSdkVersion!!.apiLevel.toString())
         target.forEach {
@@ -122,11 +136,11 @@ androidComponents.onVariants { variant ->
     val variantName =
         variant.name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
     val cargoTask = task<Exec>("cargo${variantName}") {
-        workingDir(source)
+        workingDir(src)
 
-        commandLine(cmd)
-//            .environment("RUSTFLAGS", "-Clink-args=-Wl,-rpath,/data/local/tmp")
-//            .environment("ORT_LIB_LOCATION","/home/bilabila/bin/onnxruntime/build/Android")
+
+            commandLine(cmd)
+
     }
 
     project.afterEvaluate {
@@ -158,10 +172,11 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
 
-    implementation(libs.ktor.server.core)
-    implementation(libs.ktor.server.netty)
-    implementation(libs.ktor.server.negotiation)
-    implementation(libs.ktor.server.json)
+//    implementation(libs.ktor.server.core)
+//    implementation(libs.ktor.server.netty)
+//    implementation(libs.ktor.server.negotiation)
+//    implementation(libs.ktor.server.json)
+
     implementation(libs.lyricist)
 //    ksp(libs.lyricist.processor)
     implementation(libs.shizuku)
@@ -185,8 +200,17 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("com.github.only52607:compose-floating-window:1.0")
     implementation("io.github.torrydo:floating-bubble-view:0.6.5")
-    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+//    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 //    implementation("com.microsoft.onnxruntime:onnxruntime-android:latest.release")
 //    implementation("org.eclipse.jgit:org.eclipse.jgit.lfs:4.3.0.201604071810-r")
+
+
+//    implementation("io.ktor:ktor-client-core:3.2.2")
+//    implementation("io.ktor:ktor-client-cio:3.2.2")
+
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.android)
+//    implementation(libs.ktor.client.okhttp)
+//    implementation("com.github.khushpanchal:Ketch:2.0.2") // Use latest available version
 
 }

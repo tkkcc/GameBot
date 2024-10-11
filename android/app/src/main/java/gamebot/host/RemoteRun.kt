@@ -22,7 +22,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.Keep
-import gamebot.host.debug.DebugServer
+//import gamebot.host.debug.DebugServer
 import gamebot.host.domain.Runner
 import dalvik.system.DexClassLoader
 import dev.rikka.tools.refine.Refine
@@ -72,7 +72,7 @@ class RemoteRun(val context: Context) : IRemoteRun.Stub() {
     }
 
 
-    private lateinit var debugServer: DebugServer
+//    private lateinit var debugServer: DebugServer
     private lateinit var taskThread: Thread
     private lateinit var uiAutomationHidden: UiAutomationHidden
     private lateinit var uiAutomationConnection: UiAutomationConnection
@@ -509,12 +509,12 @@ class RemoteRun(val context: Context) : IRemoteRun.Stub() {
         localRun.showTask()
 
 //        testUIAutomation()
-        debugServer = DebugServer(this)
-        debugServer.start()
+//        debugServer = DebugServer(this)
+//        debugServer.start()
     }
 
     override fun stop() {
-        debugServer.stop()
+//        debugServer.stop()
     }
 
     override fun runTask(type: String) {

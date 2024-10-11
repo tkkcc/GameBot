@@ -1,5 +1,5 @@
 [versions]
-agp = "8.6.0"
+agp = "8.7.0"
 composeWebview = "0.33.6"
 desugar = "2.1.1"
 kotlin = "2.0.20"
@@ -17,7 +17,7 @@ jgit = 	"3.7.1.201504261725-r"
 refine = "4.3.0"
 shizuku = "13.1.4"
 libsuVersion = "5.2.2"
-ktor = "2.3.12"
+ktor = "3.0.0"
 hilt = "2.46.1"
 room = "2.6.1"
 ksp = "2.0.20-1.0.24"
@@ -63,6 +63,11 @@ ktor-server-core = { group = "io.ktor", name = "ktor-server-core", version.ref =
 ktor-server-netty = { group = "io.ktor", name = "ktor-server-netty", version.ref = "ktor" }
 ktor-server-negotiation = { group = "io.ktor", name = "ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-server-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
+
+
 lyricist = { module = "cafe.adriel.lyricist:lyricist", version.ref = "lyricist" }
 lyricist-processor = { module = "cafe.adriel.lyricist:lyricist-processor", version.ref = "lyricist" }
 room-common = { group = "androidx.room", name = "room-common", version.ref = "room" }

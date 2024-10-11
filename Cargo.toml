@@ -1,8 +1,8 @@
 [workspace]
 members = [
-  "android/app/src/main/rust/",
-  "devtool",
+  "host",
   "gamebot",
+  "devtool",
   "ncnn",
   "ncnn-sys",
   "ort",

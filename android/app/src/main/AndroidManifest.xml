@@ -1,21 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="29" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-        tools:ignore="ScopedStorage" />
-    <uses-permission android:name="android.permission.WAKE_LOCK"
-        tools:node="replace" />
+
+<!--    <uses-permission-->
+<!--        android:name="android.permission.READ_EXTERNAL_STORAGE"-->
+<!--        android:maxSdkVersion="32" />-->
+<!--    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />-->
+
+    <!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>-->
+    <!--    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"-->
+    <!--        android:maxSdkVersion="29" />-->
+    <!--    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"-->
+    <!--        tools:ignore="ScopedStorage" />-->
+    <!--    <uses-permission android:name="android.permission.WAKE_LOCK"-->
+    <!--        tools:node="replace" />-->
+
+
     <application
 
         android:allowBackup="true"
@@ -33,9 +37,9 @@
 
 
         <activity
-            android:configChanges="uiMode|density|orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
-
             android:name=".MainActivity"
+
+            android:configChanges="uiMode|density|orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"
             android:exported="true"
             android:theme="@style/Theme.GameBot">
             <intent-filter>
@@ -47,9 +51,9 @@
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
             android:authorities="${applicationId}.shizuku"
-            android:multiprocess="false"
             android:enabled="true"
             android:exported="true"
+            android:multiprocess="false"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
     </application>

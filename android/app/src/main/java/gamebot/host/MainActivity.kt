@@ -39,23 +39,23 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+//import com.downloader.Error
+//import com.downloader.OnDownloadListener
+//import com.downloader.PRDownloader
+//import com.ketch.Ketch
 import com.topjohnwu.superuser.Shell
 import com.topjohnwu.superuser.ipc.RootService
 import dev.rikka.tools.refine.Refine
 import gamebot.host.RemoteRun.Companion.TAG
-import gamebot.host.loader.Git
 import gamebot.host.overlay.Overlay
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import rikka.shizuku.Shizuku
 import rikka.shizuku.Shizuku.OnRequestPermissionResultListener
 import rikka.shizuku.Shizuku.UserServiceArgs
-import java.io.File
 import kotlin.concurrent.thread
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -87,8 +87,50 @@ class MainActivity : ComponentActivity() {
         thread {
 //             Log.e("", "isTestThreadAlive()"+isTestThreadAlive())
 
-            val path = File(cacheDir, "repo")
-            path.mkdirs()
+//            val path = File(cacheDir, "repo")
+//            path.mkdirs()
+
+            val url = "https://gh2.bilabila.cloudns.biz/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
+            val dir = cacheDir.absolutePath
+            val fileName = "libhost.so"
+
+
+//            d(cacheDir)
+//            val ketch = Ketch.builder().build(this)
+//            val id = ketch.download(
+//                url, dir, fileName
+//            )
+//            runBlocking(Dispatchers.Default) {
+//
+//                ketch.observeDownloadById(id).flowOn(Dispatchers.IO).collect {
+//                    d("local download", it.progress, it.speedInBytePerMs * 1000)
+//                }
+//
+//            }
+
+//            PRDownloader.initialize(getApplicationContext());
+//
+//            val downloadId = PRDownloader.download(url, dir, fileName)
+//                .build()
+//                .setOnProgressListener {
+//                    d(it)
+//                }
+//                .start(object : OnDownloadListener{
+//                    override fun onDownloadComplete() {
+//                        d("download finish")
+////                        TODO("Not yet implemented")
+//                    }
+//
+//                    override fun onError(error: Error?) {
+////                        TODO("Not yet implemented")
+//                    }
+//                })
+
+//            testpaddleocr()
+//            testmlkitocr()
+//            testOnnxruntimeOcr()
+//            testOcr()
+//            }
 //            d("git clone start: $path")
 //            Git.clone("http://www.modelscope.cn/bilabila/test1.git", path.absolutePath)
 //            Git.clone("https://e.coding.net/bilabila/gamekeeper/star_rail_cn.git", path.absolutePath)
@@ -411,7 +453,7 @@ class MainActivity : ComponentActivity() {
 }
 
 // transfer over 1M via AIDL
-fun sendLargeData(byteArray: ByteArray):ParcelFileDescriptor {
+fun sendLargeData(byteArray: ByteArray): ParcelFileDescriptor {
 
     val memoryFile = MemoryFile(null, byteArray.size)
     memoryFile.writeBytes(byteArray, 0, 0, byteArray.size)

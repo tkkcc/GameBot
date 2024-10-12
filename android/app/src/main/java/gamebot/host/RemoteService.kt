@@ -714,7 +714,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         d("start in remote service, uid = ${getCallingUid()}")
         // for android >=13, after clear uid, it's just shell / root uid
         val token = clearCallingIdentity()
-        cacheDir = localService.cacheDir()
+        cacheDir = "/data/local/tmp/gamebot"
+        File(cacheDir).mkdirs()
 
         if (BuildConfig.DEBUG) {
             System.loadLibrary("host")

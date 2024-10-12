@@ -50,13 +50,14 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.ketch.Ketch
+//import com.ketch.Ketch
 import gamebot.host.presentation.CenterView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -131,7 +132,7 @@ class LocalService(
 //
 //    }
 
-//    fun testmlkitocr() {
+    //    fun testmlkitocr() {
 //        Log.e("gamebot", "135")
 ////        MlKit.initialize(context)
 //        val recognizer = TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
@@ -299,26 +300,9 @@ class LocalService(
 //        ortSession.close()
 //    }
 //
-
+    lateinit var t0: Thread
     override fun test() {
-        thread {
-            val ketch = Ketch.builder().build(context)
-            val id = ketch.download(
-                "https://gh2.bilabila.cloudns.biz/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk",
-                File(cacheDir(), "tmp.apk").absolutePath
-            )
-            runBlocking {
 
-                ketch.observeDownloadById(id).collect {
-                    d("local download", it.progress, it.speedInBytePerMs*1000)
-                }
-
-            }
-//            testpaddleocr()
-//            testmlkitocr()
-//            testOnnxruntimeOcr()
-//            testOcr()
-        }
 
         context.setContent {
             val context = LocalContext.current

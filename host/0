@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -e
+
+# ndk abi to rust target
+abi2target() {
+  local abi=$1
+  case $abi in
+  x86)
+    target=i686-linux-android
+    ;;
+  x86_64)
+    target=x86_64-linux-android
+    ;;
+  arm64-v8a)
+    target=aarch64-linux-android
+    ;;
+  armeabi-v7a)
+    target=armv7-linux-androideabi
+    ;;
+  esac
+  echo $target
+}
+
+release() {
+  local profile=release
+  for abi in x86 x86_64 arm64-v8a armeabi-v7a; do
+    cargo ndk -t $abi --bindgen build --profile $profile
+    local target=$(abi2target $abi)
+    local lib=../target/$target/$profile/libhost.so
+    du -sh $lib
+
+    local lib_with_suffix=${lib%/*}/libhost_$abi.so
+    cp $lib $lib_with_suffix
+    gh release upload v0.0.1 $lib_with_suffix
+  done
+}
+
+"$@"

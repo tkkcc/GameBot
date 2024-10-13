@@ -1057,7 +1057,6 @@ name = "host"
 version = "0.1.0"
 dependencies = [
  "android_logger",
- "anyhow",
  "git2",
  "jni",
  "libloading",

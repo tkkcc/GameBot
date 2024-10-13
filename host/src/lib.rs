@@ -88,32 +88,6 @@ fn recreate_dir(path: impl AsRef<Path>) -> io::Result<()> {
     Ok(())
 }
 
-// #[no_mangle]
-// extern "C" fn Java_RemoteService_fetchWithCache<'a>(
-//     mut env: JNIEnv<'a>,
-//     _: JClass,
-//     url: JString,
-//     path: JString,
-//     progress_listener: JObject,
-// ) -> JString<'a> {
-//     let url: String = JavaStr::from_env(&env, &url).unwrap().into();
-//     let path: String = JavaStr::from_env(&env, &path).unwrap().into();
-//
-//     let cache_dir = PathBuf::from("/data/local/tmp/cache");
-//     std::fs::create_dir_all(&cache_dir).unwrap();
-//     let cache = cached_path::CacheBuilder::new()
-//         .dir(cache_dir)
-//         .freshness_lifetime(u64::MAX)
-//         .build()
-//         .unwrap();
-//     let path = cache
-//         .cached_path(&url)
-//         .unwrap_or_else(|_| panic!("fail to fetch: {url}"));
-//
-//     let ans = env.new_string(path.to_str().unwrap()).unwrap();
-//     return ans;
-// }
-
 #[no_mangle]
 extern "C" fn Java_RemoteService_gitClone(
     mut env: JNIEnv,

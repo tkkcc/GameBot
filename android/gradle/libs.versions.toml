@@ -65,7 +65,7 @@ ktor-server-negotiation = { group = "io.ktor", name = "ktor-server-content-negot
 ktor-server-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
-ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
+#ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
 
 
 lyricist = { module = "cafe.adriel.lyricist:lyricist", version.ref = "lyricist" }

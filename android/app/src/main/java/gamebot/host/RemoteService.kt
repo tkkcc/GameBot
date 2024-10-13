@@ -39,9 +39,9 @@ import gamebot.host.d
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
@@ -58,7 +58,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.nio.ByteBuffer
-import kotlin.concurrent.thread
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
@@ -707,6 +706,33 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     lateinit var scope: CoroutineScope
 
+
+    val downloadJob = mutableMapOf<String, Job>()
+
+    override fun startDownload(url: String, path: String): Int {
+        val job = downloadFile(url, path, scope, object : ProgressListener {
+            override fun onUpdate(percent: Float, bytePerSecond: Float) {
+                localService.updateDownload(path, percent, bytePerSecond)
+                d(percent, bytePerSecond / 1000 / 1000)
+            }
+        })
+        downloadJob.put(path, job)
+        runBlocking {
+            try {
+                job.await()
+            } catch (e: Throwable) {
+                return@runBlocking 1
+            }
+        }
+        return 0
+    }
+
+    override fun stopDownload(path: String) {
+        runBlocking {
+            downloadJob.get(path)?.cancelAndJoin()
+        }
+    }
+
     @OptIn(ExperimentalSerializationApi::class)
     override fun start() {
         scope = CoroutineScope(Dispatchers.Default)
@@ -720,25 +746,25 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         if (BuildConfig.DEBUG) {
             System.loadLibrary("host")
         } else {
-//            val url = "https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
-            val url = "https://gh2.bilabila.cloudns.biz/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
-//            val url = "https://ghp.ci/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
-            val path = File(cacheDir, "libhost.so").absolutePath
-            d(path)
-            val sha256 = "12ea51130a9206cee98bf34a6649d20b5bdddd68f348044ea1dd62fc53d6bc94"
+////            val url = "https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
+//            val url = "https://gh2.bilabila.cloudns.biz/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
+////            val url = "https://ghp.ci/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
+//            val path = File(cacheDir, "libhost.so").absolutePath
+//            d(path)
+//            val sha256 = "12ea51130a9206cee98bf34a6649d20b5bdddd68f348044ea1dd62fc53d6bc94"
+////            runBlocking {
+//            val job = downloadFile(url, path, scope, object :ProgressListener{
+//                override fun onUpdate(percent: Float, bytePerSecond: Float) {
+//                    d(percent, bytePerSecond/1000/1000)
+//                }
+//            })
 //            runBlocking {
-            val job = downloadFile(url, path, scope, object :ProgressListener{
-                override fun onUpdate(percent: Float, bytePerSecond: Float) {
-                    d(percent, bytePerSecond/1000/1000)
-                }
-            })
-            runBlocking {
-                job.join()
-//                delay(10000)
-//                job.cancelAndJoin()
-            }
-            d("download finish")
-            d(checkSHA256(path, sha256))
+//                job.join()
+////                delay(10000)
+////                job.cancelAndJoin()
+//            }
+//            d("download finish")
+//            d(checkSHA256(path, sha256))
         }
 
 

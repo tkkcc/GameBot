@@ -90,9 +90,9 @@ class MainActivity : ComponentActivity() {
 //            val path = File(cacheDir, "repo")
 //            path.mkdirs()
 
-            val url = "https://gh2.bilabila.cloudns.biz/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
-            val dir = cacheDir.absolutePath
-            val fileName = "libhost.so"
+//            val url = "https://gh2.bilabila.cloudns.biz/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
+//            val dir = cacheDir.absolutePath
+//            val fileName = "libhost.so"
 
 
 //            d(cacheDir)
@@ -144,34 +144,34 @@ class MainActivity : ComponentActivity() {
 
         }
 
-        val text = mutableStateOf("...")
+//        val text = mutableStateOf("...")
 
-        val view = ComposeView(this)
-        lateinit var floatingWindow: ComposeFloatingWindow
-        setContentView(view)
-        view.setContent {
-            val context = LocalContext.current
-            MaterialTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Column(modifier = Modifier.padding(innerPadding)) {
-                        TextButton(onClick = {
-                            thread {
-                                text.value = "running..."
-                            }
-//                            startService(Intent(context, OverlayService::class.java))
-                            if (floatingWindow.showing) {
-                                floatingWindow.hide()
-                            } else {
-                                floatingWindow.show()
-                            }
-                        }) {
-                            Text("tap")
-                        }
-                        Text(text = text.value)
-                    }
-                }
-            }
-        }
+//        val view = ComposeView(this)
+//        lateinit var floatingWindow: ComposeFloatingWindow
+//        setContentView(view)
+//        view.setContent {
+//            val context = LocalContext.current
+//            MaterialTheme {
+//                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+//                    Column(modifier = Modifier.padding(innerPadding)) {
+//                        TextButton(onClick = {
+//                            thread {
+//                                text.value = "running..."
+//                            }
+////                            startService(Intent(context, OverlayService::class.java))
+//                            if (floatingWindow.showing) {
+//                                floatingWindow.hide()
+//                            } else {
+//                                floatingWindow.show()
+//                            }
+//                        }) {
+//                            Text("tap")
+//                        }
+//                        Text(text = text.value)
+//                    }
+//                }
+//            }
+//        }
 
 //        startService(Intent(this, OverlayService::class.java))
 

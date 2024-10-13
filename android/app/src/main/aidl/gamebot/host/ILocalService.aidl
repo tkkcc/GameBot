@@ -15,6 +15,8 @@ interface ILocalService {
     void clearConfigUI(int token);
     void sendEmptyConfigUIEvent(int token);
     String cacheDir();
+    void updateDownload(in String path, in float progress, in float bytePerSecond);
+
 //    void startPackage(in String packageName);
 //    void startActivity(in String packageName, in String className);
 }

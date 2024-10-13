@@ -10,9 +10,12 @@ import io.ktor.client.utils.EmptyContent
 import io.ktor.http.contentLength
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readRemaining
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.io.readByteArray
 import java.io.File
@@ -50,16 +53,16 @@ fun downloadFile(
     path: String,
     scope: CoroutineScope,
     progressListener: ProgressListener? = null
-): Job {
+): Deferred<Unit> {
     val client = HttpClient {
-        install(createClientPlugin("fix") {
-            on(Send) { request ->
-                d(request.body)
-//                request.setBody(EmptyContent)
-//                request.headers.remove("Accept-Charset")
-                this.proceed(request)
-            }
-        })
+//        install(createClientPlugin("fix") {
+//            on(Send) { request ->
+//                d(request.body)
+////                request.setBody(EmptyContent)
+////                request.headers.remove("Accept-Charset")
+//                this.proceed(request)
+//            }
+//        })
 //        install(HttpCookies)
 //        install(ContentEncoding)
 //        install(Logging)
@@ -67,50 +70,56 @@ fun downloadFile(
     val file = File(path)
     file.delete()
 
-    return scope.launch(Dispatchers.IO) {
-        client.prepareGet(url).execute { httpResponse ->
-//            d(httpResponse.body<String>())
-            val channel: ByteReadChannel = httpResponse.body()
+    return scope.async(Dispatchers.IO) {
+//        try {
 
-//            return@execute
-            val total: Long = httpResponse.contentLength() ?: Long.MAX_VALUE
-            var prev_time = SystemClock.uptimeMillis()
-            var prev_byte = 0
-            var byte = 0
-//            d("download 1")
-            while (!channel.isClosedForRead) {
-//                d("download 2")
 
-                val packet = channel.readRemaining(DEFAULT_BUFFER_SIZE.toLong())
+            client.prepareGet(url).execute { httpResponse ->
+    //            d(httpResponse.body<String>())
+                val channel: ByteReadChannel = httpResponse.body()
 
-                while (!packet.exhausted()) {
-//                    d("download 3")
+    //            return@execute
+                val total: Long = httpResponse.contentLength() ?: Long.MAX_VALUE
+                var prev_time = SystemClock.uptimeMillis()
+                var prev_byte = 0
+                var byte = 0
+    //            d("download 1")
+                while (!channel.isClosedForRead) {
+    //                d("download 2")
 
-                    val byteArray = packet.readByteArray()
-//                    d("download 4")
+                    val packet = channel.readRemaining(DEFAULT_BUFFER_SIZE.toLong())
 
-                    file.appendBytes(byteArray)
-//                    d("download 5")
+                    while (!packet.exhausted()) {
+    //                    d("download 3")
 
-                    byte += byteArray.size
-                    val time = SystemClock.uptimeMillis()
-                    if (progressListener != null && (time - prev_time) > 1000) {
-                        progressListener.onUpdate(
-                            byte.toFloat() / total.toFloat(),
-                            (byte - prev_byte).toFloat() * 1000 / (time - prev_time).toFloat()
-                        )
+                        val byteArray = packet.readByteArray()
+    //                    d("download 4")
 
-                        prev_byte = byte
-                        prev_time = time
+                        file.appendBytes(byteArray)
+    //                    d("download 5")
+
+                        byte += byteArray.size
+                        val time = SystemClock.uptimeMillis()
+                        if (progressListener != null && (time - prev_time) > 1000) {
+                            progressListener.onUpdate(
+                                byte.toFloat() / total.toFloat(),
+                                (byte - prev_byte).toFloat() * 1000 / (time - prev_time).toFloat()
+                            )
+
+                            prev_byte = byte
+                            prev_time = time
+                        }
+
                     }
+    //                d("download 19")
 
                 }
-//                d("download 19")
+    //            d("download 20")
 
             }
-//            d("download 20")
-
-        }
-
+//        } catch (e: CancellationException){
+//            throw e
+//        } catch (e: Throwable) {
+//        }
     }
 }

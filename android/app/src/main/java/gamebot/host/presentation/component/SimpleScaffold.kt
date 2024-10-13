@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -27,7 +28,8 @@ import androidx.navigation.NavController
 @Composable
 fun SimpleScaffold(
     navController: NavController,
-    title: String = "",
+    title: String,
+    showBackButton :Boolean=true,
     scrollable: Boolean = true,
     content: @Composable() (ColumnScope.() -> Unit)
 ) {
@@ -44,7 +46,7 @@ fun SimpleScaffold(
                 )
             },
             navigationIcon = {
-                NoRippleIconButton(onClick = { navController.navigateUp() }) {
+                IconButton(onClick = { navController.navigateUp() }) {
                     Icon(
                         Icons.AutoMirrored.Default.ArrowBack,
                         contentDescription = "back", // TODO

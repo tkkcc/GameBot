@@ -12,11 +12,12 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import kotlin.reflect.KClass
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun SimpleNavHost(
-    navController: NavHostController, startDestination: String, builder: NavGraphBuilder.() -> Unit
+    navController: NavHostController, startDestination: Any, builder: NavGraphBuilder.() -> Unit
 ) {
     // right animation speed for fadeIn and fadeOut
     // TODO: cursor/keyboard/dropdown disappearing lagging

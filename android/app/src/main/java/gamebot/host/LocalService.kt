@@ -7,8 +7,8 @@ package gamebot.host
 //import com.google.mlkit.vision.common.InputImage
 //import com.google.mlkit.vision.text.TextRecognition
 //import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+//import com.ketch.Ketch
 import Component
-import LocalUIEvent
 import UIEvent
 import android.app.ActivityManager
 import android.content.Context
@@ -17,7 +17,6 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
-import android.util.Log
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.EditText
@@ -25,17 +24,14 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
@@ -50,15 +46,10 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-//import com.ketch.Ketch
-import gamebot.host.presentation.CenterView
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.builtins.ListSerializer
@@ -66,8 +57,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.ByteArrayOutputStream
-import java.io.File
-import kotlin.concurrent.thread
 
 @Composable
 fun MemoryMonitor() {
@@ -300,56 +289,72 @@ class LocalService(
 //        ortSession.close()
 //    }
 //
-    lateinit var t0: Thread
+
+
+    override fun updateDownload(path:String, progress: Float, bytePerSecond: Float) {
+        mainViewModel.updateDownload(path, progress, bytePerSecond)
+    }
+    val mainViewModel by lazy {
+        MainViewModel(
+            context.cacheDir.absolutePath,
+            remoteService::startDownload,
+            remoteService::stopDownload
+        )
+    }
+
     override fun test() {
-
-
         context.setContent {
-            val context = LocalContext.current
-            val scope = rememberCoroutineScope()
-            CenterView {
-                Button({
-                    (context as MainActivity).restart()
-//                    context.startActivity(Intent(context, MainActivity::class.java))
-//                    context.stopService(Intent(context, LocalService::class.java))
-//                    exitProcess(0)
-                }) {
-                    Text("restart")
-                }
-//                MemoryMonitor()
-                var isRunning by remember { mutableStateOf(false) }
-//                var pluginRunningState =
-                Text(isRunning.toString())
-                Button({
-                    scope.launch(Dispatchers.Default) {
-                        isRunning = true
-                        Log.e("", "start guest")
-                        remoteService.startGuest("devtool")
-                        Log.e("", "start guest done")
-                        isRunning = false
-                    }
-                }) {
-                    Text("start devtool")
-                }
-                Button({
-                    scope.launch(Dispatchers.Default) {
-                        Log.e("", "stop guest")
-                        remoteService.stopGuest("devtool")
-//                        startPackage("gamebot.host")
-                    }
-                }) {
-                    Text("stop devtool")
-                }
-
-                configUIList.getOrPut(0, { ConfigUI() }).apply {
-                    CompositionLocalProvider(LocalUIEvent provides { id, value ->
-                        event.value.trySend(UIEvent.Callback(id, value))
-                    }) {
-                        layout.value.Render()
-                    }
-                }
-            }
+            MainUI(
+                mainViewModel
+            )
         }
+
+//        context.setContent {
+//            val context = LocalContext.current
+//            val scope = rememberCoroutineScope()
+//            CenterView {
+//                Button({
+//                    (context as MainActivity).restart()
+////                    context.startActivity(Intent(context, MainActivity::class.java))
+////                    context.stopService(Intent(context, LocalService::class.java))
+////                    exitProcess(0)
+//                }) {
+//                    Text("restart")
+//                }
+////                MemoryMonitor()
+//                var isRunning by remember { mutableStateOf(false) }
+////                var pluginRunningState =
+//                Text(isRunning.toString())
+//                Button({
+//                    scope.launch(Dispatchers.Default) {
+//                        isRunning = true
+//                        Log.e("", "start guest")
+//                        remoteService.startGuest("devtool")
+//                        Log.e("", "start guest done")
+//                        isRunning = false
+//                    }
+//                }) {
+//                    Text("start devtool")
+//                }
+//                Button({
+//                    scope.launch(Dispatchers.Default) {
+//                        Log.e("", "stop guest")
+//                        remoteService.stopGuest("devtool")
+////                        startPackage("gamebot.host")
+//                    }
+//                }) {
+//                    Text("stop devtool")
+//                }
+//
+//                configUIList.getOrPut(0, { ConfigUI() }).apply {
+//                    CompositionLocalProvider(LocalUIEvent provides { id, value ->
+//                        event.value.trySend(UIEvent.Callback(id, value))
+//                    }) {
+//                        layout.value.Render()
+//                    }
+//                }
+//            }
+//        }
     }
 
 

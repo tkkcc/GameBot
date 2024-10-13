@@ -24,42 +24,42 @@ fun NavigationView(
 ) {
     val navController = rememberNavController()
 
-    SimpleNavHost(
-        navController = navController, startDestination = Screen.Main.toString()
-    ) {
-        composable(Screen.Main.toString()) {
-            MainScreen(
-                navController,
-//                viewModel(factory = MainViewModel.factory(container))
-            )
-        }
-        composable(Screen.Debug.toString()) {
-            DebugScreen(
-                navController, viewModel(factory = DebugViewModel.factory(container))
-            )
-        }
-        composable(
-            Screen.Detail.toString() + "/{id}",
-            arguments = listOf(navArgument(name = "id") { type = NavType.LongType })
-        ) {
-            DetailScreen(
-                navController, viewModel(factory = DetailViewModel.factory(container))
-            )
-        }
-//        composable(
-//            Screen.Schedule.toString() + "/{id}",
-//            arguments = listOf(navArgument(name = "id") { type = NavType.LongType })
-//        ) {
-////            ScheduleScreen(
-////                navController, viewModel(factory = ScheduleViewModel.factory(container))
-////            )
+//    SimpleNavHost(
+//        navController = navController, startDestination = Screen.Main.toString()
+//    ) {
+//        composable(Screen.Main.toString()) {
+//            MainScreen(
+//                navController,
+////                viewModel(factory = MainViewModel.factory(container))
+//            )
+//        }
+//        composable(Screen.Debug.toString()) {
 //            DebugScreen(
 //                navController, viewModel(factory = DebugViewModel.factory(container))
 //            )
 //        }
-
-        scheduleGraph(navController, container)
-
-
-    }
+//        composable(
+//            Screen.Detail.toString() + "/{id}",
+//            arguments = listOf(navArgument(name = "id") { type = NavType.LongType })
+//        ) {
+//            DetailScreen(
+//                navController, viewModel(factory = DetailViewModel.factory(container))
+//            )
+//        }
+////        composable(
+////            Screen.Schedule.toString() + "/{id}",
+////            arguments = listOf(navArgument(name = "id") { type = NavType.LongType })
+////        ) {
+//////            ScheduleScreen(
+//////                navController, viewModel(factory = ScheduleViewModel.factory(container))
+//////            )
+////            DebugScreen(
+////                navController, viewModel(factory = DebugViewModel.factory(container))
+////            )
+////        }
+//
+//        scheduleGraph(navController, container)
+//
+//
+//    }
 }

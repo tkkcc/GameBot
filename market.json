@@ -1,0 +1,17 @@
+{
+  "host": {
+    "min_version": "0.0.1"
+  },
+  "guest": [
+    {
+      "name": "devtool",
+      "repo": "https://github.com/tkkcc/gamebot_devtool_release",
+      "desc": "debug server for gamebot"
+    },
+    {
+      "name": "gallery",
+      "repo": "https://github.com/tkkcc/gamebot_gallery_release",
+      "desc": "examples with gamebot"
+    }
+  ]
+}

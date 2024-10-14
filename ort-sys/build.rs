@@ -48,7 +48,6 @@ fn download_and_link() {
         .allowlist_type("ONNX.*")
         .allowlist_function("Ort.*")
         .allowlist_var("ORT.*")
-        // .size_t_is_usize(true)
         .rustified_enum(".*")
         .generate()
         .expect("Unable to generate bindings");

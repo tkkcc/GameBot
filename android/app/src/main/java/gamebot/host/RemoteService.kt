@@ -713,7 +713,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         val job = downloadFile(url, path, scope, object : ProgressListener {
             override fun onUpdate(percent: Float, bytePerSecond: Float) {
                 localService.updateDownload(path, percent, bytePerSecond)
-                d(percent, bytePerSecond / 1000 / 1000)
+//                d(percent, bytePerSecond / 1000 / 1000)
             }
         })
         downloadJob.put(path, job)
@@ -729,7 +729,11 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     override fun stopDownload(path: String) {
         runBlocking {
-            downloadJob.get(path)?.cancelAndJoin()
+            try {
+                downloadJob[path]?.cancelAndJoin()
+            } catch (e: Throwable) {
+                d("stopDownload exception", e)
+            }
         }
     }
 
@@ -746,6 +750,8 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         if (BuildConfig.DEBUG) {
             System.loadLibrary("host")
         } else {
+//            System.load("/data/local/tmp/libhost.so")
+
 ////            val url = "https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
 //            val url = "https://gh2.bilabila.cloudns.biz/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
 ////            val url = "https://ghp.ci/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
@@ -774,6 +780,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         initAll()
         initDisplayProjection()
         localService.test()
+
 //        testOcr()
 //        this.javaClass.declaredMethods.forEach {
 //                  d("790 ${it}")

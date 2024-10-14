@@ -1,23 +1,20 @@
 import android.os.SystemClock
-import gamebot.host.d
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.plugins.api.Send
-import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.request.prepareGet
-import io.ktor.client.request.setBody
-import io.ktor.client.utils.EmptyContent
 import io.ktor.http.contentLength
 import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.readRemaining
-import kotlinx.coroutines.CancellationException
+import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
-import kotlinx.io.readByteArray
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.ResponseBody
+import okio.IOException
 import java.io.File
 import java.io.FileInputStream
 import java.security.DigestInputStream
@@ -48,78 +45,106 @@ fun ByteArray.toHexString(): String {
     return joinToString("") { String.format("%02x", it) }
 }
 
-fun downloadFile(
+fun downloadFile2(
     url: String,
     path: String,
     scope: CoroutineScope,
     progressListener: ProgressListener? = null
 ): Deferred<Unit> {
-    val client = HttpClient {
-//        install(createClientPlugin("fix") {
-//            on(Send) { request ->
-//                d(request.body)
-////                request.setBody(EmptyContent)
-////                request.headers.remove("Accept-Charset")
-//                this.proceed(request)
-//            }
-//        })
-//        install(HttpCookies)
-//        install(ContentEncoding)
-//        install(Logging)
-    }
-    val file = File(path)
-    file.delete()
+    val request = Request.Builder()
+        .url(url)
+        .build()
 
-    return scope.async(Dispatchers.IO) {
-//        try {
+    val client = OkHttpClient.Builder()
+        .build()
 
+    suspend fun writeResponseBodyToStorage(body: ResponseBody, path: File) =
+        withContext(Dispatchers.IO) {
 
-            client.prepareGet(url).execute { httpResponse ->
-    //            d(httpResponse.body<String>())
-                val channel: ByteReadChannel = httpResponse.body()
+            val total = body.contentLength()
+            var byte: Long = 0
+            var prev_byte: Long = 0
+            var prev_time = SystemClock.uptimeMillis()
 
-    //            return@execute
-                val total: Long = httpResponse.contentLength() ?: Long.MAX_VALUE
-                var prev_time = SystemClock.uptimeMillis()
-                var prev_byte = 0
-                var byte = 0
-    //            d("download 1")
-                while (!channel.isClosedForRead) {
-    //                d("download 2")
+            body.byteStream().use { inputStream ->
+                path.outputStream().use { outputStream ->
+                    val buffer = ByteArray(4 * 1024)
+                    while (true) {
+                        val byteRead = inputStream.read(buffer)
 
-                    val packet = channel.readRemaining(DEFAULT_BUFFER_SIZE.toLong())
+                        if (byteRead < 0) {
+                            break
+                        }
+                        outputStream.write(buffer, 0, byteRead)
+                        byte += byteRead
+                        progressListener?.let {
+                            val time = SystemClock.uptimeMillis()
 
-                    while (!packet.exhausted()) {
-    //                    d("download 3")
-
-                        val byteArray = packet.readByteArray()
-    //                    d("download 4")
-
-                        file.appendBytes(byteArray)
-    //                    d("download 5")
-
-                        byte += byteArray.size
-                        val time = SystemClock.uptimeMillis()
-                        if (progressListener != null && (time - prev_time) > 1000) {
+                            if (time - prev_time < 1000) {
+                                return@let
+                            }
                             progressListener.onUpdate(
                                 byte.toFloat() / total.toFloat(),
                                 (byte - prev_byte).toFloat() * 1000 / (time - prev_time).toFloat()
                             )
-
                             prev_byte = byte
                             prev_time = time
                         }
-
                     }
-    //                d("download 19")
-
+                    outputStream.flush()
                 }
-    //            d("download 20")
-
             }
-//        } catch (e: CancellationException){
-//            throw e
-//        } catch (e: Throwable) {
-//        }
+        }
+
+
+    return scope.async(Dispatchers.IO) {
+        client.newCall(request).execute().use {
+            if (it.isSuccessful) {
+                writeResponseBodyToStorage(it.body!!, File(path))
+            } else
+                throw IOException("unexpected code " + it)
+        }
+    }
+
+}
+
+fun downloadFile(
+    url: String,
+    path: String,
+    scope: CoroutineScope,
+    progressListener: ProgressListener? = null
+): Deferred<Unit> = scope.async(Dispatchers.IO) {
+    val client = HttpClient()
+    File(path).outputStream().use { file ->
+        val buffer = ByteArray(4 * 1024)
+        client.prepareGet(url).execute { httpResponse ->
+            val channel: ByteReadChannel = httpResponse.body()
+            val total: Long = httpResponse.contentLength() ?: Long.MAX_VALUE
+            var prev_time = SystemClock.uptimeMillis()
+            var prev_byte = 0
+            var byte = 0
+            var bytePerSecond = 0f
+            while (true) {
+                val size = channel.readAvailable(buffer)
+                if (size < 0) {
+                    break
+                }
+                file.write(buffer, 0, size)
+                byte += size;
+                val time = SystemClock.uptimeMillis()
+                progressListener?.let {
+                    if (time - prev_time > 1000) {
+                        bytePerSecond =
+                            (byte - prev_byte).toFloat() * 1000 / (time - prev_time).toFloat()
+                        prev_byte = byte
+                        prev_time = time
+                    }
+                    progressListener.onUpdate(
+                        byte.toFloat() / total.toFloat(),
+                        bytePerSecond
+                    )
+                }
+            }
+        }
     }
 }

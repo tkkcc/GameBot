@@ -403,6 +403,6 @@ fn start() {
     // test_axum();
     // test_activity();
     // test_current_activity();
-    // test_package();
+    test_package();
     // test_screenshot_after();
 }

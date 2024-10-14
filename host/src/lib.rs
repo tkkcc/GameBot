@@ -28,7 +28,8 @@ fn load_library(name: &str) -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     unsafe {
-        let lib = libloading::Library::new("/data/local/tmp/libgamebot.so")?;
+        let lib = format!("/data/local/tmp/gamebot/guest/{name}/libguest.so");
+        let lib = libloading::Library::new(lib)?;
         let lib = Box::leak(Box::new(lib));
         let before_start: libloading::Symbol<extern "C" fn()> = lib.get(b"before_start")?;
         let start: libloading::Symbol<extern "C" fn(JNIEnv, JObject)> = lib.get(b"start")?;
@@ -55,6 +56,7 @@ extern "C" fn Java_RemoteService_startGuest(
     let name: String = env.get_string(&name).unwrap().into();
     if let Err(err) = load_library(&name) {
         error!("{:?}", err);
+        return;
     };
     let func = (STORE.lock().unwrap()[&name]).before_start.clone();
     func();

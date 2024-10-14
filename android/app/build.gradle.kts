@@ -168,6 +168,7 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
+
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
@@ -217,5 +218,6 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
 //    implementation("com.github.khushpanchal:Ketch:2.0.2") // Use latest available version
 //    implementation("com.github.amitshekhariitbhu:PRDownloader:1.0.1")
+//    implementation("com.akuleshov7:ktoml-core:0.5.1")
 
 }

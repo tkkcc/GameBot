@@ -87,6 +87,15 @@ data class ConfigUI(
 class LocalService(
     val context: ComponentActivity,
 ) : ILocalService.Stub() {
+    companion object {
+        lateinit var localCache: String
+    }
+
+    init {
+        localCache = context.cacheDir.absolutePath
+    }
+
+
 //    val configUI: MutableState<Component> = mutableStateOf(Component.Column())
 //    var configUIEvent = mutableStateOf(Channel<UIEvent>())
 
@@ -291,14 +300,15 @@ class LocalService(
 //
 
 
-    override fun updateDownload(path:String, progress: Float, bytePerSecond: Float) {
+    override fun updateDownload(path: String, progress: Float, bytePerSecond: Float) {
         mainViewModel.updateDownload(path, progress, bytePerSecond)
     }
+
     val mainViewModel by lazy {
         MainViewModel(
-            context.cacheDir.absolutePath,
-            remoteService::startDownload,
-            remoteService::stopDownload
+            remoteService
+//            remoteService::startDownload,
+//            remoteService::stopDownload
         )
     }
 

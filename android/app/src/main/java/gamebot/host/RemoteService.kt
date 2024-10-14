@@ -42,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,7 +69,15 @@ interface ProgressListener {
     fun onUpdate(percent: Float, bytePerSecond: Float)
 }
 
+
 class RemoteService(val context: Context) : IRemoteService.Stub() {
+    companion object {
+        val remoteCache = "/data/local/tmp/gamebot"
+
+        init {
+            File(remoteCache).mkdirs()
+        }
+    }
 //    companion object {
 //        init {
 //            System.getProperties().forEach {
@@ -710,13 +719,35 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     val downloadJob = mutableMapOf<String, Job>()
 
-    override fun startDownload(url: String, path: String, sha256sum: String): String {
-        val job = downloadFile(url, path, sha256sum, scope, object : ProgressListener {
-            override fun onUpdate(percent: Float, bytePerSecond: Float) {
-                localService.updateDownload(path, percent, bytePerSecond)
-//                d(percent, bytePerSecond / 1000 / 1000)
+    override fun startDownload(
+        url: String,
+        path: String,
+        sha256sum: String,
+        isRepo: Boolean
+    ): String {
+        val job = if (isRepo) {
+            val branch = Build.SUPPORTED_ABIS[0]
+            scope.async {
+                gitClone(
+                    url,
+                    branch,
+                    path,
+                    object : ProgressListener {
+                        override fun onUpdate(percent: Float, bytePerSecond: Float) {
+                            localService.updateDownload(path, percent, bytePerSecond)
+                            d(percent, bytePerSecond / 1000 / 1000)
+                        }
+                    }
+                )
             }
-        })
+        } else {
+            downloadFile(url, path, sha256sum, scope, object : ProgressListener {
+                override fun onUpdate(percent: Float, bytePerSecond: Float) {
+                    localService.updateDownload(path, percent, bytePerSecond)
+//                d(percent, bytePerSecond / 1000 / 1000)
+                }
+            })
+        }
 
         downloadJob.put(path, job)
 
@@ -750,11 +781,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         d("start in remote service, uid = ${getCallingUid()}")
         // for android >=13, after clear uid, it's just shell / root uid
         val token = clearCallingIdentity()
-        cacheDir = "/data/local/tmp/gamebot"
-        File(cacheDir).mkdirs()
+//        cacheDir = "/data/local/tmp/gamebot"
+//        File(cacheDir).mkdirs()
 
         if (BuildConfig.DEBUG) {
             System.loadLibrary("host")
+            initLogger()
         } else {
 //            System.load("/data/local/tmp/libhost.so")
 

@@ -2,6 +2,7 @@ package gamebot.host
 
 //import gamebot.host.presentation.main.MainState
 //import gamebot.host.presentation.main.MainViewModel
+import RemoteService.Companion.remoteCache
 import android.os.Build
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
@@ -34,6 +35,8 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import fetchWithCache
+import gamebot.host.LocalService.Companion.localCache
 import gamebot.host.presentation.component.Section
 import gamebot.host.presentation.component.SectionContent
 import gamebot.host.presentation.component.SectionRow
@@ -41,14 +44,14 @@ import gamebot.host.presentation.component.SectionTextField
 import gamebot.host.presentation.component.SimpleNavHost
 import gamebot.host.presentation.component.SimpleScaffold
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
@@ -60,18 +63,27 @@ import java.io.File
 data class MainState(
     val afterBootstrap: Boolean = false,
     val githubMirror: String = "",
-    @Transient val guestList: List<Guest> = emptyList(),
+    val guestList: List<Guest> = emptyList(),
     @Transient val downloadList: List<Download> = emptyList()
 )
 
+@Serializable
+data class Market(
+    val host: HostInfo, val guest: List<Guest>
+)
+
+@Serializable
+data class HostInfo(
+    @SerialName("min_version") val minVersion: String
+)
 
 @Serializable
 data class Guest(
     val name: String,
-    val description: String,
-    val tag: List<String>,
-    val icon: String,
-    val repo: String
+    val repo: String,
+    val desc: String = "",
+    val tag: List<String> = emptyList(),
+    val icon: String = "",
 )
 
 @Serializable
@@ -81,99 +93,149 @@ sealed class DownloadState {
     data object Completed : DownloadState()
 }
 
-@Serializable
+//@Serializable
 data class Download(
-    val url: String,
-    val path: String,
-    val sha256sum: String,
-    val state: DownloadState
+    val url: String, val path: String, val sha256sum: String,
+    val isRepo: Boolean,
+    val state: DownloadState,
+    val postProcess: (Result<Unit>) -> Unit
 
-//    val isStopped: Boolean = false,
-//    val progress: Float = 0f,
-//    val bytePerSecond: Float = 0f
-) {
-}
+)
 
 
 @OptIn(ExperimentalSerializationApi::class)
 class MainViewModel(
-    cacheDir: String,
-    val startDownloadJob: (String, String, String) -> String,
-    val stopDownloadJob: (String) -> Unit
+    val remoteService: IRemoteService
+//    val startDownloadJob: (String, String, String, Boolean) -> String,
+//    val stopDownloadJob: (String) -> Unit
 ) : ViewModel() {
-    val scope = CoroutineScope(Dispatchers.Default)
+    val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     private val _uiState = MutableStateFlow(MainState())
     val uiState = _uiState.asStateFlow()
-    private val stateFile = File(cacheDir + "/main_ui_state.json")
+    private val stateFile = File(localCache + "/state.json")
 
     init {
-        d(92, stateFile, stateFile.exists())
+        // load state from disk
         if (stateFile.exists()) {
             try {
                 val state: MainState = Json.decodeFromStream(stateFile.inputStream())
-
                 _uiState.update { state }
             } catch (e: Throwable) {
                 d("fail to load ui state", e)
             }
-
         }
 
-        val state = _uiState.value
-        if (!state.afterBootstrap) {
-            scope.launch {
-                val abi = Build.SUPPORTED_ABIS[0]
-                val url =
-                    state.githubMirror + "https://github.com/tkkcc/GameBot/releases/download/v0.0.1/libhost_$abi.so"
-                val path = "/data/local/tmp/libhost.so"
-                val sha256sum = """
+        scope.launch {
+            bootstrap()
+        }
+    }
+
+
+    suspend fun bootstrap() {
+        // bootstrap: download libhost.so
+        if (_uiState.value.afterBootstrap) {
+            pullMarket()
+            return
+        }
+
+        val abi = Build.SUPPORTED_ABIS[0]
+        val url =
+            "https://github.com/tkkcc/GameBot/releases/download/v0.0.1/libhost_$abi.so"
+        val path = remoteCache + "/libhost.so"
+        val sha256sum = """
                 cafeb190c6692e475a09e5cf3710daadf28322018d93cb5f4f92d37d1638b0a3  libhost_arm64-v8a.so
                 784740995471fc485a4d060c080665a7970d82dc79c4373b5f6da22189133ee0  libhost_armeabi-v7a.so
                 55a060f0933585aff175e2c338b4057da0856ced3d32006a9d10e2ab3caed9eb  libhost_x86.so
                 2d892f15266fda8ba0e16a7687c35b011df68bd333affb78b751f0e16b86b3bd  libhost_x86_64.so
             """.trimIndent().let {
-                    for (line in it.split("\n")) {
-                        val (hash, name) = line.split("  ")
-                        d(hash, name)
-                        if (name == url.split("/").last()) {
-                            return@let hash
-                        }
-                    }
-                    throw Exception("unsupported abi $abi")
+            for (line in it.split("\n")) {
+                val (hash, name) = line.split("  ")
+                if (name == url.split("/").last()) {
+                    return@let hash
                 }
+            }
+            throw Exception("unsupported abi $abi")
+        }
 
-                val ret = startDownload(url, path, sha256sum).await()
-
-                if (ret.isSuccess) {
-                    _uiState.update {
-                        it.copy(afterBootstrap = true)
-                    }
+        startDownload(url, path, sha256sum, isRepo = false, { res ->
+            res.onSuccess {
+                _uiState.update {
+                    it.copy(afterBootstrap = true)
+                }
+                scope.launch {
                     saveState()
+                    pullMarket()
                 }
+            }
+        })
+
+    }
+
+
+    suspend fun pullMarket() {
+        // download market.toml
+        val url =
+            "https://raw.githubusercontent.com/tkkcc/GameBot/refs/heads/master/market.json"
+        val cache = localCache + "/http_cache"
+        val market = try {
+            val byteArray = fetchWithCache(mirroredUrl(url), cache)
+            val market: Market =
+                Json { ignoreUnknownKeys = true }.decodeFromStream(byteArray.inputStream())
+            market
+        } catch (e: Throwable) {
+            // TODO notify user: show info on homeui
+            return
+        }
+        _uiState.update {
+            it.copy(guestList = market.guest)
+        }
+        saveState()
+    }
+
+
+    suspend fun saveState() {
+        scope.launch {
+            try {
+                Json.encodeToStream(_uiState.value, stateFile.outputStream())
+            } catch (e: Exception) {
+                d("fail to save ui state", e)
             }
         }
     }
 
-    fun saveState() {
-        try {
-            Json.encodeToStream(_uiState.value, stateFile.outputStream())
-        } catch (e: Exception) {
-            d("fail to save ui state", e)
+
+    fun mirroredUrl(url: String): String {
+        d("mirroredUrl before: $url")
+        var mirroredUrl = url
+        val mirror = _uiState.value.githubMirror
+        if (mirror.isNotEmpty() && (url.startsWith("https://github.com") || url.startsWith("https://raw.githubusercontent.com") || url.startsWith(
+                "https://gist.github.com"
+            ) || url.startsWith("https://gist.githubusercontent.com"))
+        ) {
+            mirroredUrl = "http://$mirror/$url"
         }
+        return mirroredUrl
     }
 
 
-    fun startDownload(url: String, path: String, sha256sum: String): Deferred<Result<Unit>> =
-        scope.async {
-//        scope.launch {
+    fun startDownload(
+        url: String,
+        path: String,
+        sha256sum: String,
+        isRepo: Boolean,
+        postProcess: (Result<Unit>) -> Unit
+    ) =
+        scope.launch {
             _uiState.update {
                 val x = it.downloadList.toMutableList()
                 val download = Download(
-                    url = url,
-                    path = path,
-                    sha256sum = sha256sum,
-                    state = DownloadState.Started(0f, 0f)
+                    url,
+                    path,
+                    sha256sum,
+                    isRepo,
+                    state = DownloadState.Started(0f, 0f),
+                    postProcess
                 )
                 val index = x.indexOfFirst { it.path == path }
 
@@ -187,7 +249,7 @@ class MainViewModel(
                 )
             }
 
-            val ret = startDownloadJob(url, path, sha256sum)
+            val ret = remoteService.startDownload(mirroredUrl(url), path, sha256sum, isRepo)
 
             _uiState.update {
                 val x = it.downloadList.toMutableList()
@@ -206,11 +268,14 @@ class MainViewModel(
                 )
             }
             if (ret.isNotEmpty()) {
-                return@async Result.failure(Exception(ret))
+                postProcess(Result.failure(Exception(ret)))
+//                return@async Result.failure(Exception(ret))
+            } else {
+                postProcess(Result.success(Unit))
+//                Result.failure(Exception(ret))
             }
-            Result.success(Unit)
+//            Result.success(Unit)
         }
-//    }
 
     fun updateDownload(path: String, progress: Float, bytePerSecond: Float) {
         _uiState.update {
@@ -227,14 +292,30 @@ class MainViewModel(
 
 
     fun stopDownload(path: String) {
-        stopDownloadJob(path)
+        remoteService.stopDownload(path)
     }
 
     fun updateGithubMirror(mirror: String) {
         _uiState.update {
             it.copy(githubMirror = mirror)
         }
-        saveState()
+        scope.launch {
+            saveState()
+        }
+    }
+
+    fun startGuest(guest: Guest) {
+        startDownload(
+            guest.repo,
+            remoteCache + "/guest/${guest.name}",
+            "",
+            isRepo = true,
+            postProcess = {
+                it.onSuccess {
+                    remoteService.startGuest(guest.name)
+                }
+            }
+        )
     }
 }
 
@@ -242,25 +323,25 @@ class MainViewModel(
 @Composable
 fun HomeUI(navController: NavController, viewModel: MainViewModel) {
     val state = viewModel.uiState.collectAsStateWithLifecycle()
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Home") }, actions = {
-                IconButton(onClick = {
-                    navController.navigate(Screen.Download)
-                }) {
-                    Icon(Icons.Default.Download, "download")
-                }
-            })
-        },
+    Scaffold(topBar = {
+        TopAppBar(title = { Text("Home") }, actions = {
+            IconButton(onClick = {
+                navController.navigate(Screen.Download)
+            }) {
+                Icon(Icons.Default.Download, "download")
+            }
+        })
+    }
 
-        ) { padding ->
+    ) { padding ->
 
         LazyColumn(modifier = Modifier.padding(padding)) {
             items(state.value.guestList, key = { it.name }) {
                 SectionRow({
-                    navController.navigate(Screen.Guest(name = it.name))
+                    viewModel.startGuest(it)
+//                    navController.navigate(Screen.Guest(name = it.name))
                 }) {
-                    SectionContent(it.name, it.description, it.icon)
+                    SectionContent(it.name, it.desc, it.icon)
                 }
             }
         }
@@ -275,8 +356,7 @@ fun DownloadUI(
     viewModel: MainViewModel,
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle()
-    SimpleScaffold(
-        navController,
+    SimpleScaffold(navController,
         title = "Download",
         hideBackButton = !state.value.afterBootstrap,
         scrollable = false,
@@ -294,7 +374,13 @@ fun DownloadUI(
                     SectionContent(name, it.state.toString())
                     IconButton(onClick = {
                         if (it.state is DownloadState.Stopped) {
-                            viewModel.startDownload(it.url, it.path, it.sha256sum)
+                            viewModel.startDownload(
+                                it.url,
+                                it.path,
+                                it.sha256sum,
+                                it.isRepo,
+                                it.postProcess
+                            )
                         } else if (it.state is DownloadState.Started) {
                             viewModel.stopDownload(it.path)
                         }
@@ -429,17 +515,12 @@ fun ProxyUI(navController: NavController, viewModel: MainViewModel) {
 //        Text(
 //            modifier = Modifier.padding(horizontal = 32.dp)
 //        )
-        Section(
-            buildAnnotatedString {
-                append("If download fail, try set a proxy. Input your own, or choose a public host")
-            }
-        ) {
-            SectionTextField(
-                state.value.githubMirror,
-                placeholder = "no proxy",
-                onValueChange = {
-                    viewModel.updateGithubMirror(it)
-                })
+        Section(buildAnnotatedString {
+            append("If download fail, try set a proxy. Input your own, or choose a public host")
+        }) {
+            SectionTextField(state.value.githubMirror, placeholder = "no proxy", onValueChange = {
+                viewModel.updateGithubMirror(it)
+            })
         }
         val title = buildAnnotatedString {
             append("public on ")

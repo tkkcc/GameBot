@@ -2,7 +2,12 @@ import android.os.SystemClock
 import gamebot.host.d
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.cache.HttpCache
+import io.ktor.client.plugins.cache.storage.FileStorage
+import io.ktor.client.request.get
 import io.ktor.client.request.prepareGet
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsBytes
 import io.ktor.http.contentLength
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
@@ -10,7 +15,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -112,14 +116,18 @@ fun downloadFile2(
 fun downloadFile(
     url: String,
     path: String,
-    sha256sum:String,
+    sha256sum: String,
     scope: CoroutineScope,
     progressListener: ProgressListener? = null
 ): Deferred<Unit> = scope.async(Dispatchers.IO) {
     val client = HttpClient()
+    File(path).parentFile?.mkdirs()
     File(path).outputStream().use { file ->
         val buffer = ByteArray(4 * 1024)
         client.prepareGet(url).execute { httpResponse ->
+            if (httpResponse.status.value !in 200..299) {
+                throw Exception("HTTP ${httpResponse.status.value}")
+            }
             val channel: ByteReadChannel = httpResponse.body()
             val total: Long = httpResponse.contentLength() ?: Long.MAX_VALUE
             var prev_time = SystemClock.uptimeMillis()
@@ -149,7 +157,24 @@ fun downloadFile(
             }
         }
     }
-    if (sha256sum.isNotEmpty() && !checkSHA256(path, sha256sum)){
+    if (sha256sum.isNotEmpty() && !checkSHA256(path, sha256sum)) {
         throw Exception("sha256sum wrong")
     }
+}
+
+suspend fun fetchWithCache(url: String, cacheDir: String): ByteArray {
+//    d(cacheDir)
+    val client = HttpClient {
+        install(HttpCache) {
+            val cache = File(cacheDir)
+            cache.mkdirs()
+            publicStorage(FileStorage(cache))
+        }
+    }
+    val response: HttpResponse = client.get(url)
+//    d(response.status)
+    if (response.status.value !in 200..299) {
+        throw Exception("HTTP ${response.status.value}")
+    }
+    return response.bodyAsBytes()
 }

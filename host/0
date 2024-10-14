@@ -29,11 +29,162 @@ release() {
     local target=$(abi2target $abi)
     local lib=../target/$target/$profile/libhost.so
     du -sh $lib
+    sha256sum $lib
 
     local lib_with_suffix=${lib%/*}/libhost_$abi.so
     cp $lib $lib_with_suffix
-    gh release upload v0.0.1 $lib_with_suffix
+    # gh release upload v0.0.1 $lib_with_suffix
   done
+}
+
+test_ghproxy() {
+  local list=(
+    101.32.202.184:10086
+    101.43.36.238:4080
+    111.229.117.180:2068
+    111.229.21.57:12345
+    119.28.4.250
+    124.156.150.245:10086
+    124.156.158.242:4000
+    124.223.88.224:12345
+    13.230.117.137:8008
+    130.162.130.196
+    136.243.215.211:12345
+    138.2.123.193:8090
+    138.2.54.229:12580
+    138.2.69.119:30001
+    139.196.123.118:12345
+    140.238.17.136:9980
+    140.238.33.157:3000
+    141.147.170.49
+    150.138.79.19:12345
+    152.67.215.236:12345
+    152.67.215.57:8081
+    152.67.219.235:8989
+    152.70.36.140:88
+    152.70.94.22:9080
+    154.23.187.126
+    155.248.180.127:3000
+    158.101.152.90:8123
+    158.180.92.175:8000
+    16.163.43.131:880
+    212.50.233.214:8888
+    38.207.160.46:6699
+    42.193.4.156:8880
+    43.129.191.251:8088
+    43.132.131.30:9999
+    43.132.227.252:9090
+    43.133.162.210:9000
+    43.154.105.8:8888
+    43.154.123.246
+    43.154.99.97:1112
+    43.163.230.97:800
+    45.149.156.201:7080
+    47.109.58.212:8082
+    47.236.114.62:18080
+    47.245.88.61
+    47.75.211.166:5080
+    47.95.0.182:2333
+    51.195.241.253:8080
+    74.48.108.189:10088
+    8.210.13.120
+    8.210.153.246:9000
+    8.210.207.225:8888
+    82.157.146.148:9001
+    94.74.100.230:9010
+    a.whereisdoge.work
+    admin.whereisdoge.work
+    autodiscover.whereisdoge.work
+    blog.whereisdoge.work
+    c0b0109d9439de57fe3c.ljw.ink
+    cdn.moran233.xyz
+    cf.ghproxy.cc
+    cloud.whereisdoge.work
+    cpanel.whereisdoge.work
+    cpcalendars.whereisdoge.work
+    cpcontacts.whereisdoge.work
+    dev.xvzhenduo.topgh-proxy
+    free.cn.eu.org
+    g.blfrp.cn
+    gh-proxy.com
+    gh-proxy.llyke.com
+    gh.222322.xyz
+    gh.6yit.com
+    gh.bink.cc
+    gh.cache.cloudns.org
+    gh.catmak.name
+    gh.chaoyi996.com
+    gh.con.sh
+    gh.ddlc.top
+    gh.ezctrl.cn
+    gh.hlg.us.kg
+    gh.jiasu.in
+    gh.noki.eu.org
+    gh.noki.icu
+    gh.nxnow.top
+    gh.pylas.xyz
+    gh.qninq.cn
+    gh.sixyin.com
+    gh.xx9527.cn
+    ghp.arslantu.xyz
+    ghp.ci
+    ghp.miaostay.com
+    ghpr.cc
+    ghproxy.cc
+    ghproxy.cianogame.top
+    ghproxy.cn
+    ghproxy.friendsa.onflashdrive.app
+    ghproxy.homeboyc.cn
+    ghproxy.lainbo.com
+    ghproxy.mengluowusheng.workers.dev
+    ghproxy.net
+    ghproxy.org
+    ghproxy.top
+    ghps.cc
+    git.19970301.xyz
+    git.40609891.xyz
+    git.669966.xyz
+    github.iaor.asia
+    github.moeyy.xyz
+    github.muou666.com
+    github.ur1.fun
+    github.yeqingg.cn
+    githubapi.jjchizha.com
+    githubmirrors.iaor.asia
+    githubproxy.iaor.asia
+    gp.zkitefly.eu.org
+    hub.gitmirror.com
+    m.whereisdoge.work
+    mail.whereisdoge.work
+    mirror.ghproxy.com
+    mtp.whereisdoge.work
+    ql.133.info
+    sciproxy.com
+    slink.ltd
+    v.whereisdoge.work
+    webdav.camus.xyz
+    webdisk.whereisdoge.work
+    www.ghpr.cc
+    www.subook.link:88
+    www.ten-year.link
+    x.whereisdoge.work
+    xxqg.168828.xyz:8088
+    y.whereisdoge.work
+    zipchannel.top:4000
+  )
+  for proxy in ${list[@]}; do
+    (
+      local url=http://$proxy/https://raw.githubusercontent.com/LSPosed/LSPosed/refs/heads/master/app/.gitignore
+      local length=$(curl -s -L -m10 $url | wc -c)
+      if [[ $length == 7 ]]; then
+        echo $proxy
+      fi
+    ) &
+    while [[ $(jobs | wc -l) -ge 16 ]]; do
+      sleep 0.1
+    done
+  done
+  wait
 }
 
 "$@"

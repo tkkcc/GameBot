@@ -58,6 +58,7 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import gamebot.host.DynamicTheme
@@ -301,6 +302,17 @@ fun Enable(enable: Boolean, content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 fun SectionTitle(text: String?, modifier: Modifier = Modifier) {
+    text?.let {
+        Text(
+            text,
+            color = LocalContentColor.current.copy(alpha = 0.6f),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = modifier
+        )
+    }
+}
+@Composable
+fun SectionTitle(text: AnnotatedString, modifier: Modifier = Modifier) {
     text?.let {
         Text(
             text,

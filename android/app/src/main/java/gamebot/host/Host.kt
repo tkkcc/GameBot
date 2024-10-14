@@ -24,6 +24,7 @@ import android.util.Log
 import android.view.KeyEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -75,7 +76,7 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
 
     fun onStart() {
         Log.e("gamebot", "onStart")
-        scope = CoroutineScope(Dispatchers.Default)
+        scope = CoroutineScope(Dispatchers.Default )
     }
 
     fun onStop() {

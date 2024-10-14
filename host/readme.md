@@ -6,8 +6,11 @@ in gradle debug build, it will be compiled and embedded.
 
 in gradle release build, it will be downloaded from github release.
 
-to build and upload to github release
+## run
 
 ```sh
+# build and upload to github release
 ./0 release
+# test github proxy
+./0 test_ghproxy
 ```

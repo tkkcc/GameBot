@@ -36,10 +36,12 @@ import gamebot.host.Host
 import gamebot.host.ILocalService
 import gamebot.host.IRemoteService
 import gamebot.host.d
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -704,27 +706,31 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         localService = ILocalService.Stub.asInterface(binder)
     }
 
-    lateinit var scope: CoroutineScope
-
+    val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     val downloadJob = mutableMapOf<String, Job>()
 
-    override fun startDownload(url: String, path: String): Int {
-        val job = downloadFile(url, path, scope, object : ProgressListener {
+    override fun startDownload(url: String, path: String, sha256sum: String): String {
+        val job = downloadFile(url, path, sha256sum, scope, object : ProgressListener {
             override fun onUpdate(percent: Float, bytePerSecond: Float) {
                 localService.updateDownload(path, percent, bytePerSecond)
 //                d(percent, bytePerSecond / 1000 / 1000)
             }
         })
+
         downloadJob.put(path, job)
-        runBlocking {
+
+        return runBlocking {
             try {
                 job.await()
+                ""
+            } catch (e: CancellationException) {
+                "canceled"
             } catch (e: Throwable) {
-                return@runBlocking 1
+                d("startDownload fail", e)
+                e.localizedMessage
             }
         }
-        return 0
     }
 
     override fun stopDownload(path: String) {
@@ -739,7 +745,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun start() {
-        scope = CoroutineScope(Dispatchers.Default)
+//        scope = CoroutineScope(Dispatchers.Default)
 
         d("start in remote service, uid = ${getCallingUid()}")
         // for android >=13, after clear uid, it's just shell / root uid

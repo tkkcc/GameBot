@@ -33,7 +33,7 @@ fun <T> SectionSelect(
     var dropdownExpanded by remember {
         mutableStateOf(false)
     }
-    NoRippleSectionRow({ dropdownExpanded = true }) {
+   SectionRow({ dropdownExpanded = true }) {
         DropdownMenu(
             expanded = dropdownExpanded,
             onDismissRequest = {

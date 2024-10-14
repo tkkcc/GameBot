@@ -10,7 +10,7 @@ interface IRemoteService {
     void callback(in String msg)=2;
     void startGuest(in String name)=3;
     void stopGuest(in String name)=4;
-    int startDownload(in String url, in String path)=5;
+    String startDownload(in String url, in String path,in String sha256sum)=5;
     void stopDownload(in String path)=6;
 
 }

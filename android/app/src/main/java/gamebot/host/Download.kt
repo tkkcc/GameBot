@@ -1,4 +1,5 @@
 import android.os.SystemClock
+import gamebot.host.d
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.prepareGet
@@ -34,7 +35,7 @@ fun checkSHA256(filePath: String, expectedSha256: String): Boolean {
 
         val calculatedHash = digest.digest().toHexString()
         calculatedHash == expectedSha256
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         // Handle exceptions (e.g., log, rethrow, return false)
         // Log.e("SHA256Check", "Error calculating SHA-256", e) // Example logging
         false
@@ -111,6 +112,7 @@ fun downloadFile2(
 fun downloadFile(
     url: String,
     path: String,
+    sha256sum:String,
     scope: CoroutineScope,
     progressListener: ProgressListener? = null
 ): Deferred<Unit> = scope.async(Dispatchers.IO) {
@@ -146,5 +148,8 @@ fun downloadFile(
                 }
             }
         }
+    }
+    if (sha256sum.isNotEmpty() && !checkSHA256(path, sha256sum)){
+        throw Exception("sha256sum wrong")
     }
 }

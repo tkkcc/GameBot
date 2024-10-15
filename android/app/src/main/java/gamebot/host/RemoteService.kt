@@ -71,10 +71,16 @@ interface ProgressListener {
     fun onUpdate(percent: Float, bytePerSecond: Float)
 }
 
+@Serializable
+data class ClonedGuest(
+    val url: String,
+    val branch: String,
+    val name: String,
+)
 
 @Serializable
 data class RemoteServiceState(
-    val clonedGuest: List<String> = emptyList()
+    val clonedGuest: List<ClonedGuest> = emptyList()
 )
 
 class RemoteService(val context: Context) : IRemoteService.Stub() {
@@ -754,7 +760,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
 
     val stateFile = File(remoteCache + "/state.json")
-    var state =  RemoteServiceState()
+    var state = RemoteServiceState()
     fun loadState() {
         d("remote state ${state.clonedGuest}")
 
@@ -774,14 +780,16 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
-    suspend fun gitCloneOrPull(
+    @Synchronized
+    fun gitCloneOrPull(
         url: String,
         branch: String,
         path: String,
         progressListener: ProgressListener?
     ): String {
         val name = File(path).name
-        val msg = if (state.clonedGuest.contains(name)) {
+        val guest = ClonedGuest(url, branch, name)
+        val msg = if (state.clonedGuest.any { it == guest }) {
             d("use git pull $url")
             gitPull(url, branch, path, progressListener)
         } else {
@@ -792,7 +800,10 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             if (msg.isEmpty()) {
                 state = state.copy(
                     clonedGuest = state.clonedGuest.toMutableList().apply {
-                        add(name)
+                        removeIf {
+                            it.name == guest.name
+                        }
+                        add(guest)
                     }
                 )
                 saveState()
@@ -837,7 +848,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             })
         }
 
-        downloadJob.put(path, job)
+        downloadJob[path] = job
 
         return runBlocking {
             try {

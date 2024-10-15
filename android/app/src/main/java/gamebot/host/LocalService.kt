@@ -310,8 +310,6 @@ class LocalService(
         MainViewModel(
             remoteService,
             localService = this
-//            remoteService::startDownload,
-//            remoteService::stopDownload
         )
     }
 

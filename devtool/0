@@ -42,8 +42,7 @@ run() {
   local lib=../target/$target/$profile/libdevtool.so
   du -sh $lib
 
-  # TODO use a special location for local development
-  adb push $lib /data/local/tmp/gamebot/localdev/libguest.so
+  adb push $lib /data/local/tmp/gamebot/guest/autostart/libguest.so
 
   # restart app
   adb shell am force-stop gamebot.host

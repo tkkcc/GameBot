@@ -1,8 +1,9 @@
-use std::sync::OnceLock;
+use std::{
+    ffi::{c_char, CString},
+    sync::OnceLock,
+};
 
 use jni::{objects::JObject, JNIEnv};
-
-use crate::d;
 
 use super::{
     status::{is_running_status, set_running_status, set_stopped_status, STATUS_TOKEN},
@@ -26,7 +27,7 @@ macro_rules! entry {
 // static BACKSTRACE: RwLock<Option<Backtrace>> = RwLock::new(None);
 
 #[no_mangle]
-extern "C" fn start(mut env: JNIEnv, host: JObject) {
+extern "C" fn start(env: &mut JNIEnv, host: JObject) -> *mut c_char {
     log_panics::init();
 
     android_logger::init_once(
@@ -38,28 +39,36 @@ extern "C" fn start(mut env: JNIEnv, host: JObject) {
     // running before previous stopped? unexpected!
     if is_running_status() {
         stop(env, host);
-        return;
+        let s = CString::new("fail: start before stop").unwrap();
+        return s.into_raw();
     }
     set_running_status();
 
     env.call_method(&host, "onStart", "()V", &[]).unwrap();
 
-    Store::init(&mut env, &host).unwrap();
+    Store::init(env, &host).unwrap();
 
+    let mut ret = String::from("");
     if let Some(f) = USER_START.get() {
-        let _ = std::panic::catch_unwind(|| {
+        let r = std::panic::catch_unwind(|| {
             f();
         });
+        if let Err(err) = r {
+            ret = format!("{:?}", err);
+        }
     }
 
     stop(env, host);
+
+    let s = CString::new(ret).unwrap();
+    return s.into_raw();
 }
 
 #[no_mangle]
-extern "C" fn stop(mut env: JNIEnv, host: JObject) {
+extern "C" fn stop(env: &mut JNIEnv, host: JObject) {
     set_stopped_status();
     STATUS_TOKEN.wake(i32::MAX);
 
     // stop callback / channel
-    let _ = env.call_method(&host, "onStop", "()V", &[]);
+    env.call_method(&host, "onStop", "()V", &[]).unwrap();
 }

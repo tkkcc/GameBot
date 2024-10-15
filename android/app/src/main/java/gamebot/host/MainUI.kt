@@ -8,6 +8,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +17,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Stop
@@ -30,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -100,7 +103,15 @@ data class Guest(
     val desc: String = "",
     val tag: List<String> = emptyList(),
     val icon: String = "",
+    @Transient
+    val state: GuestState = GuestState.BeforeUpdate,
 )
+
+sealed class GuestState {
+    data object BeforeUpdate : GuestState()
+    data class Stopped(val message: String) : GuestState()
+    data object Started : GuestState()
+}
 
 @Serializable
 sealed class DownloadState {
@@ -117,7 +128,6 @@ data class Download(
     val isRepo: Boolean,
     val state: DownloadState,
     val postProcess: (Result<Unit>) -> Unit
-
 )
 
 
@@ -150,6 +160,11 @@ class MainViewModel(
         }
     }
 
+//    fun checkAutoStart() {
+//        if (File(remoteCache +"/guest/autostart").exists()) {
+//
+//        }
+//    }
 
     suspend fun bootstrap() {
         // bootstrap: download libhost.so
@@ -182,8 +197,6 @@ class MainViewModel(
         }
         saveState()
         pullMarket()
-
-
     }
 
 
@@ -200,10 +213,30 @@ class MainViewModel(
             // TODO notify user: show info on homeui
             return
         }
+
+        // check if local autostart exist
+        val guestList = market.guest.toMutableList()
+        val autoStartExist = remoteService.autoStartExist()
+        d("autoStartExist", autoStartExist)
+        if (autoStartExist) {
+            guestList.add(
+                0, Guest(
+                    name = "autostart",
+                    repo = "",
+                    desc = remoteCache + "/guest/autostart"
+                )
+            )
+        }
+
         _uiState.update {
-            it.copy(guestList = market.guest)
+            it.copy(guestList = guestList)
         }
         saveState()
+
+        // autostart
+        if (autoStartExist) {
+            startGuest(Guest(name = "autostart", repo = ""))
+        }
     }
 
 
@@ -321,13 +354,37 @@ class MainViewModel(
 
     fun startGuest(guest: Guest) {
         scope.launch {
-            startDownloadWaitSuccess(
-                guest.repo,
-                remoteCache + "/guest/${guest.name}",
-                "",
-                isRepo = true,
-            )
-            remoteService.startGuest(guest.name)
+            // update on first start
+            if (guest.state is GuestState.BeforeUpdate && guest.repo.isNotEmpty()) {
+                startDownloadWaitSuccess(
+                    guest.repo,
+                    remoteCache + "/guest/${guest.name}",
+                    "",
+                    isRepo = true,
+                )
+            }
+
+            // set state to started
+            _uiState.update {
+                val x = it.guestList.toMutableList()
+                val index = x.indexOfFirst { it.name == guest.name }
+                x[index] = x[index].copy(state = GuestState.Started)
+                it.copy(
+                    guestList = x
+                )
+            }
+
+            val ret = remoteService.startGuest(guest.name)
+
+            // set state to stopped
+            _uiState.update {
+                val x = it.guestList.toMutableList()
+                val index = x.indexOfFirst { it.name == guest.name }
+                x[index] = x[index].copy(state = GuestState.Stopped(ret))
+                it.copy(
+                    guestList = x
+                )
+            }
         }
     }
 
@@ -353,15 +410,7 @@ fun HomeUI(navController: NavController, viewModel: MainViewModel) {
                 if (state.value.afterBootstrap) {
                     Text("Home")
                 }
-            },
-
-//            actions = {
-//            IconButton(onClick = {
-//                navController.navigate(Screen.Download)
-//            }) {
-//                Icon(Icons.Default.Download, "download")
-//            }
-//        }
+            }
         )
     }
 
@@ -411,16 +460,7 @@ fun CenterDownloadUI(
         }
     }
 
-
-//    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-    Column(
-        modifier = Modifier
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-//            Text("bootstrap...")
-//            Spacer(Modifier.height(16.dp))
+    CenterColumn {
         download.state.let {
             if (it is DownloadState.Stopped) {
                 Text(it.message, color = MaterialTheme.colorScheme.error)
@@ -447,21 +487,16 @@ fun CenterDownloadUI(
             })
         }
 
-//            Spacer(Modifier.height(16.dp))
-
         if (showProxy) {
             TextButton(onClick = {
                 navController.navigate(Screen.Proxy)
             }) {
                 Text("speed up")
             }
-
         }
     }
-//    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadUI(
     navController: NavController,
@@ -507,14 +542,71 @@ fun DownloadUI(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GuestUI(navController: NavController, viewModel: MainViewModel, guest: Screen.Guest) {
-    SimpleScaffold(
-        navController, guest.name,
-        content = {
+fun GuestUI(navController: NavController, viewModel: MainViewModel, name: String) {
+    val state = viewModel.uiState.collectAsStateWithLifecycle()
+    val guestOrNull by remember {
+        derivedStateOf {
+            state.value.guestList.firstOrNull { it.name == name }
+        }
+    }
+    val guest = guestOrNull ?: return
 
-        },
+    Scaffold(topBar = {
+        TopAppBar(
+            title = {
+                Text(guest.name, maxLines = 1)
+            },
+            navigationIcon = {
+                IconButton(onClick = {
+                    navController.popBackStack()
+                }) {
+                    Icon(Icons.AutoMirrored.Default.ArrowBack, "back")
+                }
+            }
+        )
+    }) { padding ->
+        AnimatedContent(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize(),
+            targetState = guest.state
+        ) {
+            when (it) {
+                GuestState.BeforeUpdate -> {
+                    CenterDownloadUI(navController, viewModel, remoteCache + "/guest/${guest.name}")
+                }
+
+                GuestState.Started -> {
+                    CenterColumn {
+                        Text("started")
+                    }
+                }
+
+                is GuestState.Stopped -> {
+                    CenterColumn {
+                        Text(it.message, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+@Composable
+fun CenterColumn(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        content = content
     )
+
+
 }
 
 @Composable
@@ -629,7 +721,6 @@ fun ProxyUI(navController: NavController, viewModel: MainViewModel) {
     SimpleScaffold(
         navController, "Proxy for github", scrollable = false
     ) {
-
         Section(buildAnnotatedString {
             append("If download slow or fail, try set a proxy")
         }) {
@@ -650,8 +741,7 @@ fun ProxyUI(navController: NavController, viewModel: MainViewModel) {
                 append("hunshcn/gh-proxy")
             }
         }
-        Section(title,modifier=Modifier.weight(1f)) {
-
+        Section(title, modifier = Modifier.weight(1f)) {
             LazyColumn() {
                 itemsIndexed(proxyList, key = { index: Int, _: String -> index }) { index, proxy ->
                     SectionRow(onClick = {
@@ -665,19 +755,19 @@ fun ProxyUI(navController: NavController, viewModel: MainViewModel) {
         }
 
         AnimatedVisibility(proxyChanged) {
-
-
-            Row(modifier=Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.Center){
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
                 Button(onClick = {
                     viewModel.restartApp()
                 }) {
-//                    Icon(Icons.Default.RestartAlt, "restart")
-
                     Text("restart app to apply change")
                 }
             }
         }
-
     }
 }
 
@@ -688,6 +778,11 @@ fun MainUI(
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle()
     val navController = rememberNavController()
+//    LaunchedEffect(true) {
+//        if (File(remoteCache+"/guest/autostart").exists()) {
+//            navController.navigate(Screen.Guest("autostart"))
+//        }
+//    }
     SimpleNavHost(navController, Screen.Home) {
         composable<Screen.Home> {
 //            AnimatedContent(state.value.afterBootstrap) {
@@ -700,7 +795,7 @@ fun MainUI(
         }
         composable<Screen.Guest> {
             val guest = it.toRoute<Screen.Guest>()
-            GuestUI(navController, viewModel, guest)
+            GuestUI(navController, viewModel, guest.name)
         }
 //        composable<Screen.Download> {
 //            DownloadUI(navController, viewModel)

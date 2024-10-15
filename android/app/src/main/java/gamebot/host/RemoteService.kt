@@ -78,12 +78,16 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
+    override fun autoStartExist(): Boolean {
+        return File(remoteCache + "/guest/autostart").exists()
+    }
+
     external fun gitClone(
         url: String,
         branch: String,
         path: String,
         progressListener: ProgressListener? = null
-    ): Int
+    ): String
 
     external fun initHostLogger()
 
@@ -129,12 +133,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         })
     }
 
-    external fun startGuest(name: String, host: Host)
+    external fun startGuest(name: String, host: Host):String
 
-    override fun startGuest(name: String) {
+    override fun startGuest(name: String):String {
         Binder.clearCallingIdentity()
         initHost()
-        startGuest(name, hostOf(name))
+        return startGuest(name, hostOf(name))
     }
 
     external fun stopGuest(name: String, host: Host)
@@ -728,6 +732,10 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     val downloadJob = mutableMapOf<String, Job>()
 
+    fun gitCloneOrPull(url:String, branch: String, path:String) {
+
+    }
+
     override fun startDownload(
         url: String,
         path: String,
@@ -738,17 +746,20 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             val branch = Build.SUPPORTED_ABIS[0]
             scope.async {
                 initHost()
-                gitClone(
+                val msg = gitClone(
                     url,
                     branch,
                     path,
                     object : ProgressListener {
                         override fun onUpdate(percent: Float, bytePerSecond: Float) {
                             localService.updateDownload(path, percent, bytePerSecond)
-                            d(percent, bytePerSecond / 1000 / 1000)
+//                            d(percent, bytePerSecond / 1000 / 1000)
                         }
                     }
                 )
+                if (msg.isNotEmpty()) {
+                    throw Exception(msg)
+                }
             }
         } else {
             downloadFile(url, path, sha256sum, scope, object : ProgressListener {

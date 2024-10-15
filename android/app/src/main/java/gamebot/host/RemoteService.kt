@@ -53,7 +53,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
 import java.io.BufferedReader
 import java.io.ByteArrayOutputStream
@@ -70,12 +72,22 @@ interface ProgressListener {
 }
 
 
+@Serializable
+data class RemoteServiceState(
+    val clonedGuest: List<String> = emptyList()
+)
+
 class RemoteService(val context: Context) : IRemoteService.Stub() {
     companion object {
         val remoteCache = "/data/local/tmp/gamebot"
+
         init {
             File(remoteCache).mkdirs()
         }
+    }
+
+    init {
+//        loadState()
     }
 
     override fun autoStartExist(): Boolean {
@@ -88,6 +100,14 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         path: String,
         progressListener: ProgressListener? = null
     ): String
+
+    external fun gitPull(
+        url: String,
+        branch: String,
+        path: String,
+        progressListener: ProgressListener? = null
+    ): String
+
 
     external fun initHostLogger()
 
@@ -133,9 +153,9 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         })
     }
 
-    external fun startGuest(name: String, host: Host):String
+    external fun startGuest(name: String, host: Host): String
 
-    override fun startGuest(name: String):String {
+    override fun startGuest(name: String): String {
         Binder.clearCallingIdentity()
         initHost()
         return startGuest(name, hostOf(name))
@@ -732,8 +752,55 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     val downloadJob = mutableMapOf<String, Job>()
 
-    fun gitCloneOrPull(url:String, branch: String, path:String) {
 
+    val stateFile = File(remoteCache + "/state.json")
+    var state =  RemoteServiceState()
+    fun loadState() {
+        d("remote state ${state.clonedGuest}")
+
+        try {
+            state = Json.decodeFromStream(stateFile.inputStream())
+            d("remote state $state")
+        } catch (e: Throwable) {
+            d("failed to load remote state $stateFile", e)
+        }
+    }
+
+    fun saveState() {
+        try {
+            Json.encodeToStream(state, stateFile.outputStream())
+        } catch (e: Throwable) {
+            d("failed to save $stateFile", e)
+        }
+    }
+
+    suspend fun gitCloneOrPull(
+        url: String,
+        branch: String,
+        path: String,
+        progressListener: ProgressListener?
+    ): String {
+        val name = File(path).name
+        val msg = if (state.clonedGuest.contains(name)) {
+            d("use git pull $url")
+            gitPull(url, branch, path, progressListener)
+        } else {
+
+            val msg = gitClone(url, branch, path, progressListener)
+            d("use git clone $url, $msg")
+
+            if (msg.isEmpty()) {
+                state = state.copy(
+                    clonedGuest = state.clonedGuest.toMutableList().apply {
+                        add(name)
+                    }
+                )
+                saveState()
+            }
+            msg
+        }
+
+        return msg
     }
 
     override fun startDownload(
@@ -746,7 +813,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             val branch = Build.SUPPORTED_ABIS[0]
             scope.async {
                 initHost()
-                val msg = gitClone(
+                val msg = gitCloneOrPull(
                     url,
                     branch,
                     path,
@@ -799,7 +866,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     override fun start() {
         // for android >=13, after clear uid, it's just shell / root uid
         clearCallingIdentity()
-
+        loadState()
         initManager()
         initShot()
     }

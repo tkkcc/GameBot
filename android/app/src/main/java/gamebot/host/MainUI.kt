@@ -146,14 +146,14 @@ class MainViewModel(
 
     init {
         // load state from disk
-        if (stateFile.exists()) {
-            try {
-                val state: MainState = Json.decodeFromStream(stateFile.inputStream())
-                _uiState.update { state }
-            } catch (e: Throwable) {
-                d("fail to load ui state", e)
-            }
+//        if (stateFile.exists()) {
+        try {
+            val state: MainState = Json.decodeFromStream(stateFile.inputStream())
+            _uiState.update { state }
+        } catch (e: Throwable) {
+            d("fail to load ui state", e)
         }
+//        }
 
         scope.launch {
             bootstrap()

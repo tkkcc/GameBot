@@ -95,23 +95,30 @@ fn recreate_dir(path: impl AsRef<Path>) -> io::Result<()> {
     Ok(())
 }
 
-#[no_mangle]
-extern "C" fn Java_RemoteService_gitClone(
+enum GitFetchMode {
+    Clone,
+    Pull,
+}
+
+fn git_fetch(
     mut env: JNIEnv,
-    _: JClass,
     url: JString,
     branch: JString,
     path: JString,
     progress_listener: JObject,
+    mode: GitFetchMode,
 ) -> jstring {
     let url: String = JavaStr::from_env(&env, &url).unwrap().into();
     let path: String = JavaStr::from_env(&env, &path).unwrap().into();
     let path = PathBuf::from(path);
-    if let Err(e) = recreate_dir(&path) {
-        return env.new_string(e.to_string()).unwrap().into_raw();
-    }
     let branch: String = JavaStr::from_env(&env, &branch).unwrap().into();
     let env_ref = &mut env;
+
+    if matches!(mode, GitFetchMode::Clone) {
+        if let Err(e) = recreate_dir(&path) {
+            return env.new_string(e.to_string()).unwrap().into_raw();
+        }
+    }
 
     let f = || -> Result<(), git2::Error> {
         unsafe {
@@ -119,14 +126,21 @@ extern "C" fn Java_RemoteService_gitClone(
             git2::opts::set_server_connect_timeout_in_milliseconds(10 * 1000)?;
         }
 
-        // only fetch one branch, one depth
-        let mut builder = git2::build::RepoBuilder::new();
-        builder.remote_create(|repo, name, url| {
-            let refspec = format!("+refs/heads/{0}:refs/remotes/origin/{0}", &branch);
-            repo.remote_with_fetch(name, url, &refspec)
-        });
+        if matches!(mode, GitFetchMode::Clone) {
+            let repo = git2::Repository::init(&path)?;
+            repo.remote_set_url("origin", &url)?;
+        }
+        let repo = git2::Repository::open(&path)?;
+        let mut remote = repo.find_remote("origin")?;
+
         let mut fetch_option = git2::FetchOptions::new();
-        fetch_option.depth(1);
+
+        // TODO: we can't use depth=1 for pull,
+        // otherwise the second pull will fail for "object not found - no match for id",
+        // may be a libgit2 issue?
+        if matches!(mode, GitFetchMode::Clone) {
+            fetch_option.depth(1);
+        }
 
         // pass progress to kotlin
         if !progress_listener.is_null() {
@@ -163,11 +177,10 @@ extern "C" fn Java_RemoteService_gitClone(
             });
         }
 
-        builder.fetch_options(fetch_option);
-        builder.branch(&branch);
-
-        builder.clone(&url, &path)?;
-
+        remote.fetch(&[&branch], Some(&mut fetch_option), None)?;
+        let fetch_head = repo.find_reference("FETCH_HEAD")?;
+        let obj = fetch_head.peel(git2::ObjectType::Commit)?;
+        repo.reset(&obj, git2::ResetType::Hard, None)?;
         Ok(())
     };
 
@@ -179,82 +192,41 @@ extern "C" fn Java_RemoteService_gitClone(
 }
 
 #[no_mangle]
-extern "C" fn Java_RemoteService_gitPull(
-    mut env: JNIEnv,
+extern "C" fn Java_RemoteService_gitClone(
+    env: JNIEnv,
     _: JClass,
+    url: JString,
     branch: JString,
     path: JString,
     progress_listener: JObject,
 ) -> jstring {
-    let branch: String = JavaStr::from_env(&env, &branch).unwrap().into();
-    let path: String = JavaStr::from_env(&env, &path).unwrap().into();
-    let env_ref = &mut env;
+    git_fetch(
+        env,
+        url,
+        branch,
+        path,
+        progress_listener,
+        GitFetchMode::Clone,
+    )
+}
 
-    let f = || -> Result<(), git2::Error> {
-        unsafe {
-            git2::opts::set_server_timeout_in_milliseconds(10 * 1000)?;
-            git2::opts::set_server_connect_timeout_in_milliseconds(10 * 1000)?;
-        }
-        let repo = git2::Repository::open(path)?;
-        let mut remote = repo.find_remote(&branch)?;
-
-        let mut fetch_option = git2::FetchOptions::new();
-        fetch_option.depth(1);
-
-        // pass progress to kotlin
-        if !progress_listener.is_null() {
-            fetch_option.remote_callbacks({
-                let mut cb = git2::RemoteCallbacks::new();
-
-                let mut prev_time = Instant::now();
-                let mut prev_byte = 0;
-                let mut byte_per_second = 0.;
-                cb.transfer_progress(move |state| {
-                    let time = Instant::now();
-                    if (time - prev_time) > Duration::from_secs(1) {
-                        let byte = state.received_bytes();
-                        byte_per_second =
-                            (byte - prev_byte) as f32 / (time - prev_time).as_secs_f32();
-                        prev_byte = byte;
-                        prev_time = time;
-                    }
-                    let percent = state.received_objects() as f32 / state.total_objects() as f32;
-                    env_ref
-                        .call_method(
-                            &progress_listener,
-                            "onUpdate",
-                            "(FF)V",
-                            &[percent.into(), byte_per_second.into()],
-                        )
-                        .unwrap();
-                    true
-                });
-
-                // disable ssl cert check
-                cb.certificate_check(|_, _| Ok(git2::CertificateCheckStatus::CertificateOk));
-                cb
-            });
-        }
-        remote.fetch(&[&branch], Some(&mut fetch_option), None)?;
-        let fetch_head = repo.find_reference("FETCH_HEAD")?;
-        let commit = repo.reference_to_annotated_commit(&fetch_head)?;
-        let refname = format!("refs/heads/{}", &branch);
-
-        repo.reference(
-            &refname,
-            commit.id(),
-            true,
-            &format!("Setting {} to {}", &branch, commit.id()),
-        )?;
-        repo.set_head(&refname)?;
-        repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
-        Ok(())
-    };
-    let msg = match f() {
-        Ok(_) => "".to_string(),
-        Err(err) => err.to_string(),
-    };
-    env.new_string(msg).unwrap().into_raw()
+#[no_mangle]
+extern "C" fn Java_RemoteService_gitPull(
+    env: JNIEnv,
+    _: JClass,
+    url: JString,
+    branch: JString,
+    path: JString,
+    progress_listener: JObject,
+) -> jstring {
+    git_fetch(
+        env,
+        url,
+        branch,
+        path,
+        progress_listener,
+        GitFetchMode::Pull,
+    )
 }
 
 #[no_mangle]

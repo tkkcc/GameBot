@@ -378,6 +378,9 @@ fn test_group_find() {
 
 gamebot::entry!(start);
 fn start() {
+    d!(1);
+    d!(2);
+    d!(3);
     // test_ncnn_paddleocr_multiline();
     // test_ort_paddleocr_multiline();
     // test_ort_ddddocr();
@@ -403,6 +406,6 @@ fn start() {
     // test_axum();
     // test_activity();
     // test_current_activity();
-    test_package();
+    // test_package();
     // test_screenshot_after();
 }

@@ -65,14 +65,19 @@ release() {
     du -sh $lib
 
     git -C release checkout -B $abi -f
+    
+    # git -C release checkout -B tmp
+    # git -C release branch -D $abi
+    # git -C release checkout --orphan $abi -f
     cp $lib release/libguest.so
     cd release
     git add libguest.so
     if [[ -n $(git status -s) ]]; then
       git commit -m "$(date)"
-      git push origin $abi -u
+      git push origin $abi -u --force-with-lease
     fi
     cd ..
+    break
   done
 }
 

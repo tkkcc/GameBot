@@ -33,8 +33,8 @@ fun Section(title: String? = null, content: @Composable ColumnScope.() -> Unit) 
     }
 }
 @Composable
-fun Section(title: AnnotatedString, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.padding(16.dp)) {
+fun Section(title: AnnotatedString, modifier:Modifier=Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.padding(16.dp)) {
         SectionTitle(
             title, modifier = Modifier.padding(
                 start = 16.dp, bottom = 8.dp

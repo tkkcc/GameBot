@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -85,6 +86,7 @@ fun SectionTextField(
         singleLine = singleLine,
         value = value,
         placeholder = {
+//            Text(placeholder, color=LocalContentColor.current.copy(alpha = 0.5f))
             Text(placeholder)
         },
         visualTransformation = if (passwordVisible) {

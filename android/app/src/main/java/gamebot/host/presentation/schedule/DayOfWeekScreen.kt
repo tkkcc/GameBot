@@ -45,11 +45,14 @@ fun DayOfWeekScreen(
 //
 //    }
 //    return
-    SimpleScaffold(navController, S.DayOfWeekLimit) {
-        DayOfWeekContent(detail) { new ->
-            updateDetail { it.copy(dayOfWeekWhitelist = new) }
-        }
-    }
+    SimpleScaffold(
+        navController, S.DayOfWeekLimit,
+        content = {
+            DayOfWeekContent(detail) { new ->
+                updateDetail { it.copy(dayOfWeekWhitelist = new) }
+            }
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)

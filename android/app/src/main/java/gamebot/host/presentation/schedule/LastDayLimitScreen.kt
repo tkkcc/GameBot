@@ -24,18 +24,21 @@ fun LastDayLimitScreen(
             it.copy(dayLimit = dayLimit)
         }
     }
-    SimpleScaffold(navController, LocalStrings.current.LastDay) {
-        Section {
-            SectionSwitch(title = LocalStrings.current.LimitLastDay, checked = limit) {
-                update(detail.copy(limitLastDay = it))
+    SimpleScaffold(
+        navController, LocalStrings.current.LastDay,
+        content = {
+            Section {
+                SectionSwitch(title = LocalStrings.current.LimitLastDay, checked = limit) {
+                    update(detail.copy(limitLastDay = it))
+                }
             }
-        }
-        Enable(limit) {
-            FirstDayLimitContent(detail.lastDay) {
-                update(detail.copy(lastDay = it))
+            Enable(limit) {
+                FirstDayLimitContent(detail.lastDay) {
+                    update(detail.copy(lastDay = it))
+                }
             }
-        }
-    }
+        },
+    )
 }
 
 

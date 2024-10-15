@@ -21,11 +21,14 @@ fun DayLimitScreen(
 ) {
     val detail = viewModel.detail.value.dayLimit
     val updateDetail = viewModel::updateDetail
-    SimpleScaffold(navController, LocalStrings.current.DayLimit) {
-        DayLimitContent(navController, viewModel.id, detail) { new ->
-            updateDetail { it.copy(dayLimit = new) }
-        }
-    }
+    SimpleScaffold(
+        navController, LocalStrings.current.DayLimit,
+        content = {
+            DayLimitContent(navController, viewModel.id, detail) { new ->
+                updateDetail { it.copy(dayLimit = new) }
+            }
+        },
+    )
 }
 
 @Composable

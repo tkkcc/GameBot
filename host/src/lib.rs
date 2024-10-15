@@ -99,6 +99,11 @@ extern "C" fn Java_RemoteService_gitClone(
     path: JString,
     progress_listener: JObject,
 ) -> jint {
+    unsafe {
+        git2::opts::set_server_timeout_in_milliseconds(10 * 1000);
+        git2::opts::set_server_connect_timeout_in_milliseconds(10 * 1000);
+    }
+
     let url: String = JavaStr::from_env(&env, &url).unwrap().into();
 
     let path: String = JavaStr::from_env(&env, &path).unwrap().into();
@@ -153,6 +158,7 @@ extern "C" fn Java_RemoteService_gitClone(
                 true
             });
 
+            // disable ssl cert check
             cb.certificate_check(|_, _| Ok(git2::CertificateCheckStatus::CertificateOk));
             cb
         });
@@ -171,7 +177,7 @@ extern "C" fn Java_RemoteService_gitClone(
 }
 
 #[no_mangle]
-extern "C" fn Java_RemoteService_initLogger(
+extern "C" fn Java_RemoteService_initHostLogger(
     mut env: JNIEnv,
     _: JClass,
     name: JString,

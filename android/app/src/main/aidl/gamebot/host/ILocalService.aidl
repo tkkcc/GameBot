@@ -9,7 +9,7 @@ interface ILocalService {
      * and return values in AIDL.
      */
     void toast(String text);
-    void test();
+    void start();
     void updateConfigUI(int token, in ParcelFileDescriptor pfd);
     ParcelFileDescriptor waitConfigUIEvent(int token) ;
     void clearConfigUI(int token);

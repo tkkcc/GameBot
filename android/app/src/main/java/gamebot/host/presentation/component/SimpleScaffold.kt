@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.NavController
-import kotlinx.serialization.json.JsonNull.content
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,11 +31,15 @@ fun SimpleScaffold(
     title: String,
     hideBackButton: Boolean = false,
     scrollable: Boolean = false,
-    actions: @Composable() (RowScope.() -> Unit) ={},
+    actions: @Composable() (RowScope.() -> Unit) = {},
+    snackbarHost: @Composable () -> Unit = {},
+    bottomBar: @Composable () -> Unit = {},
     content: @Composable() (ColumnScope.() -> Unit)
 ) {
 
-    Scaffold(topBar = {
+    Scaffold(
+        bottomBar = bottomBar,
+        topBar = {
         TopAppBar(
 //            scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(),
             title = {
@@ -61,7 +64,10 @@ fun SimpleScaffold(
             },
             actions = actions
         )
-    }) { padding ->
+    }, snackbarHost = snackbarHost,
+
+
+    ) { padding ->
         val modifier = Modifier
             .fillMaxSize()
             .padding(padding)
@@ -86,12 +92,15 @@ fun CenterScaffold(
     title: String = "",
     content: @Composable ColumnScope.() -> Unit
 ) {
-    SimpleScaffold(navController, title, scrollable = false) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize(),
-            content = content
-        )
-    }
+    SimpleScaffold(
+        navController, title, scrollable = false,
+        content = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxSize(),
+                content = content
+            )
+        },
+    )
 }

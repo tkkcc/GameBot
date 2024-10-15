@@ -107,8 +107,10 @@ class LocalService(
         }
     }
 
-    lateinit var remoteService: IRemoteService
-
+    private lateinit var remoteService: IRemoteService
+    fun setRemoteService(remoteService: IRemoteService) {
+        this.remoteService = remoteService
+    }
 //    override fun startPackage(packageName: String) {
 ////        Binder.clearCallingIdentity()
 //        Log.e("gamebot", "106 " + packageName + " ${Binder.getCallingUid()}" )
@@ -306,13 +308,18 @@ class LocalService(
 
     val mainViewModel by lazy {
         MainViewModel(
-            remoteService
+            remoteService,
+            localService = this
 //            remoteService::startDownload,
 //            remoteService::stopDownload
         )
     }
 
-    override fun test() {
+    fun restartApp() {
+        (context as MainActivity).restart()
+    }
+
+    override fun start() {
         context.setContent {
             MainUI(
                 mainViewModel

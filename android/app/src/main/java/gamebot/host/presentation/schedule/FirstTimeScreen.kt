@@ -31,11 +31,14 @@ fun FirstTimeScreen(
             it.copy(crontab = new)
         }
     }
-    SimpleScaffold(navController, LocalStrings.current.FirstTime) {
-        FirstTimeContent(detail.first) { new ->
-            update(detail.copy(first = new))
-        }
-    }
+    SimpleScaffold(
+        navController, LocalStrings.current.FirstTime,
+        content = {
+            FirstTimeContent(detail.first) { new ->
+                update(detail.copy(first = new))
+            }
+        },
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

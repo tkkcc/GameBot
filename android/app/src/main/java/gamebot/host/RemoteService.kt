@@ -73,19 +73,10 @@ interface ProgressListener {
 class RemoteService(val context: Context) : IRemoteService.Stub() {
     companion object {
         val remoteCache = "/data/local/tmp/gamebot"
-
         init {
             File(remoteCache).mkdirs()
         }
     }
-//    companion object {
-//        init {
-//            System.getProperties().forEach {
-//                d("${it.key} : ${it.value}")
-//            }
-//            System.loadLibrary("rust")
-//        }
-//    }
 
     external fun gitClone(
         url: String,
@@ -94,8 +85,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         progressListener: ProgressListener? = null
     ): Int
 
-    external fun initLogger()
-
+    external fun initHostLogger()
 
     lateinit var localService: ILocalService
     lateinit var activityManager: ActivityManager
@@ -140,8 +130,10 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
     external fun startGuest(name: String, host: Host)
+
     override fun startGuest(name: String) {
         Binder.clearCallingIdentity()
+        initHost()
         startGuest(name, hostOf(name))
     }
 
@@ -149,7 +141,24 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     override fun stopGuest(name: String) {
         Binder.clearCallingIdentity()
+        initHost()
         stopGuest(name, hostOf(name))
+    }
+
+    var hostInited = false
+
+    @Synchronized
+    fun initHost() {
+        if (hostInited) {
+            return
+        }
+        if (BuildConfig.DEBUG) {
+            System.loadLibrary("host")
+        } else {
+            System.load(remoteCache + "/libhost.so")
+        }
+        initHostLogger()
+        hostInited = true
     }
 
 
@@ -308,7 +317,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         uiAutomation = Refine.unsafeCast(uiAutomationHidden)
     }
 
-    lateinit var cacheDir: String
+//    lateinit var cacheDir: String
 
 //    fun fetchScreenNode(): List<AccessibilityNodeInfo> {
 //        val root = uiAutomation.rootInActiveWindow
@@ -528,7 +537,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             "screenshot time ${SystemClock.uptimeMillis() - startTime}ms ${SystemClock.uptimeMillis() - startTime2}ms"
         )
 
-        val dst = File(cacheDir, "tmp.png")
+        val dst = File(remoteCache, "tmp.png")
         dst.parentFile?.mkdirs()
         FileOutputStream(dst).use { stream ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 25, stream)
@@ -568,7 +577,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
             Bitmap.Config.ARGB_8888
         )
         bitmap.copyPixelsFromBuffer(plane.buffer)
-        val dst = File(cacheDir, "tmp.png")
+        val dst = File(remoteCache, "tmp.png")
         dst.parentFile?.mkdirs()
         FileOutputStream(dst).use { stream ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 25, stream)
@@ -604,7 +613,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     lateinit var display: IBinder
     lateinit var virtualDisplay: VirtualDisplay
 
-    fun initDisplayProjection() {
+    fun initShot() {
         uiAutomation.setOnAccessibilityEventListener {
 //                 d( "741, new accessibility event")
             runBlocking(Dispatchers.Default) {
@@ -672,7 +681,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         }
     }
 
-    fun initAll() {
+    fun initManager() {
 
 //        initLogger()
 
@@ -711,7 +720,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
     }
 
 
-    override fun setLocalRunBinder(binder: IBinder?) {
+    override fun setLocalServiceBinder(binder: IBinder?) {
         localService = ILocalService.Stub.asInterface(binder)
     }
 
@@ -728,6 +737,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
         val job = if (isRepo) {
             val branch = Build.SUPPORTED_ABIS[0]
             scope.async {
+                initHost()
                 gitClone(
                     url,
                     branch,
@@ -776,80 +786,12 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun start() {
-//        scope = CoroutineScope(Dispatchers.Default)
-
-        d("start in remote service, uid = ${getCallingUid()}")
         // for android >=13, after clear uid, it's just shell / root uid
-        val token = clearCallingIdentity()
-//        cacheDir = "/data/local/tmp/gamebot"
-//        File(cacheDir).mkdirs()
+        clearCallingIdentity()
 
-        if (BuildConfig.DEBUG) {
-            System.loadLibrary("host")
-            initLogger()
-        } else {
-//            System.load("/data/local/tmp/libhost.so")
-
-////            val url = "https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
-//            val url = "https://gh2.bilabila.cloudns.biz/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
-////            val url = "https://ghp.ci/https://github.com/tkkcc/android_webview_apk/releases/download/v0.0.1/com.google.android.webview_119.0.6045.194-604519407_minAPI24_maxAPI28.x86.x86_64.nodpi._apkmirror.com.apk"
-//            val path = File(cacheDir, "libhost.so").absolutePath
-//            d(path)
-//            val sha256 = "12ea51130a9206cee98bf34a6649d20b5bdddd68f348044ea1dd62fc53d6bc94"
-////            runBlocking {
-//            val job = downloadFile(url, path, scope, object :ProgressListener{
-//                override fun onUpdate(percent: Float, bytePerSecond: Float) {
-//                    d(percent, bytePerSecond/1000/1000)
-//                }
-//            })
-//            runBlocking {
-//                job.join()
-////                delay(10000)
-////                job.cancelAndJoin()
-//            }
-//            d("download finish")
-//            d(checkSHA256(path, sha256))
-        }
-
-
-        // setup logger in libhost
-//        initLogger()
-
-        initAll()
-        initDisplayProjection()
-        localService.test()
-
-//        testOcr()
-//        this.javaClass.declaredMethods.forEach {
-//                  d("790 ${it}")
-//        }
-//
-//        Nodeshot::class.declaredMembers.forEach {
-//                   d( "791 ${it}")
-//        }
-//        thread {
-//            d("git clone start")
-//            gitClone(
-////                "https://www.modelscope.cn/bilabila/test1.git",
-////                "master",
-////                "https://www.modelscope.cn/bilabila/android_webview.git",
-//                "https://gitlink.org.cn/algorithms10/android_webview.git",
-//                "master",
-//                "/data/local/tmp/repo",
-//                object : ProgressListener {
-//                    override fun onUpdate(percent: Float, bytePerSecond: Float) {
-//                        d(percent, bytePerSecond)
-//                    }
-//                }
-//            )
-////            gitClone("http://www.modelscope.cn/bilabila/test1.git", "/data/local/tmp/repo")
-//            d("git clone end")
-//        }
-
-        d("rust call finish")
+        initManager()
+        initShot()
     }
-
-
 }
 
 

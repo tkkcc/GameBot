@@ -5,23 +5,37 @@ package gamebot.host
 import RemoteService.Companion.remoteCache
 import android.os.Build
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.LinkAnnotation
@@ -29,6 +43,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -50,6 +65,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -95,7 +111,9 @@ sealed class DownloadState {
 
 //@Serializable
 data class Download(
-    val url: String, val path: String, val sha256sum: String,
+    val url: String,
+    val path: String,
+    val sha256sum: String,
     val isRepo: Boolean,
     val state: DownloadState,
     val postProcess: (Result<Unit>) -> Unit
@@ -105,7 +123,8 @@ data class Download(
 
 @OptIn(ExperimentalSerializationApi::class)
 class MainViewModel(
-    val remoteService: IRemoteService
+    val remoteService: IRemoteService,
+    val localService: LocalService
 //    val startDownloadJob: (String, String, String, Boolean) -> String,
 //    val stopDownloadJob: (String) -> Unit
 ) : ViewModel() {
@@ -140,8 +159,7 @@ class MainViewModel(
         }
 
         val abi = Build.SUPPORTED_ABIS[0]
-        val url =
-            "https://github.com/tkkcc/GameBot/releases/download/v0.0.1/libhost_$abi.so"
+        val url = "https://github.com/tkkcc/GameBot/releases/download/v0.0.1/libhost_$abi.so"
         val path = remoteCache + "/libhost.so"
         val sha256sum = """
                 cafeb190c6692e475a09e5cf3710daadf28322018d93cb5f4f92d37d1638b0a3  libhost_arm64-v8a.so
@@ -157,29 +175,24 @@ class MainViewModel(
             }
             throw Exception("unsupported abi $abi")
         }
+        startDownloadWaitSuccess(url, path, sha256sum, isRepo = false)
 
-        startDownload(url, path, sha256sum, isRepo = false, { res ->
-            res.onSuccess {
-                _uiState.update {
-                    it.copy(afterBootstrap = true)
-                }
-                scope.launch {
-                    saveState()
-                    pullMarket()
-                }
-            }
-        })
+        _uiState.update {
+            it.copy(afterBootstrap = true)
+        }
+        saveState()
+        pullMarket()
+
 
     }
 
 
     suspend fun pullMarket() {
         // download market.toml
-        val url =
-            "https://raw.githubusercontent.com/tkkcc/GameBot/refs/heads/master/market.json"
+        val url = "https://raw.githubusercontent.com/tkkcc/GameBot/refs/heads/master/market.json"
         val cache = localCache + "/http_cache"
         val market = try {
-            val byteArray = fetchWithCache(mirroredUrl(url), cache)
+            val byteArray = fetchWithCache(mirroredGithubUrl(url), cache)
             val market: Market =
                 Json { ignoreUnknownKeys = true }.decodeFromStream(byteArray.inputStream())
             market
@@ -205,19 +218,27 @@ class MainViewModel(
     }
 
 
-    fun mirroredUrl(url: String): String {
-        d("mirroredUrl before: $url")
+    fun mirroredGithubUrl(url: String): String {
+//        d("mirroredUrl before: $url")
         var mirroredUrl = url
         val mirror = _uiState.value.githubMirror
-        if (mirror.isNotEmpty() && (url.startsWith("https://github.com") || url.startsWith("https://raw.githubusercontent.com") || url.startsWith(
-                "https://gist.github.com"
-            ) || url.startsWith("https://gist.githubusercontent.com"))
-        ) {
+        if (mirror.isNotEmpty() && (isGithubUrl(url))) {
             mirroredUrl = "http://$mirror/$url"
         }
         return mirroredUrl
     }
 
+    suspend fun startDownloadWaitSuccess(
+        url: String, path: String, sha256sum: String, isRepo: Boolean
+    ) {
+        suspendCancellableCoroutine { cont ->
+            startDownload(url, path, sha256sum, isRepo, {
+                it.onSuccess {
+                    cont.resumeWith(Result.success(Unit))
+                }
+            })
+        }
+    }
 
     fun startDownload(
         url: String,
@@ -225,57 +246,51 @@ class MainViewModel(
         sha256sum: String,
         isRepo: Boolean,
         postProcess: (Result<Unit>) -> Unit
-    ) =
-        scope.launch {
-            _uiState.update {
-                val x = it.downloadList.toMutableList()
-                val download = Download(
-                    url,
-                    path,
-                    sha256sum,
-                    isRepo,
-                    state = DownloadState.Started(0f, 0f),
-                    postProcess
-                )
-                val index = x.indexOfFirst { it.path == path }
+    ) = scope.launch {
+        _uiState.update {
+            val x = it.downloadList.toMutableList()
+            val download = Download(
+                url, path, sha256sum, isRepo, state = DownloadState.Started(0f, 0f), postProcess
+            )
+            val index = x.indexOfFirst { it.path == path }
 
-                if (index == -1) {
-                    x.add(download)
-                } else {
-                    x[index] = download
-                }
-                it.copy(
-                    downloadList = x
-                )
-            }
-
-            val ret = remoteService.startDownload(mirroredUrl(url), path, sha256sum, isRepo)
-
-            _uiState.update {
-                val x = it.downloadList.toMutableList()
-                val index = x.indexOfFirst { it.path == path }
-                var state = x[index].state
-                if (state is DownloadState.Started) {
-                    if (ret.isEmpty()) {
-                        state = DownloadState.Completed
-                    } else {
-                        state = DownloadState.Stopped(ret)
-                    }
-                }
-                x[index] = x[index].copy(state = state)
-                it.copy(
-                    downloadList = x
-                )
-            }
-            if (ret.isNotEmpty()) {
-                postProcess(Result.failure(Exception(ret)))
-//                return@async Result.failure(Exception(ret))
+            if (index == -1) {
+                x.add(download)
             } else {
-                postProcess(Result.success(Unit))
-//                Result.failure(Exception(ret))
+                x[index] = download
             }
-//            Result.success(Unit)
+            it.copy(
+                downloadList = x
+            )
         }
+
+        val ret = remoteService.startDownload(mirroredGithubUrl(url), path, sha256sum, isRepo)
+
+        _uiState.update {
+            val x = it.downloadList.toMutableList()
+            val index = x.indexOfFirst { it.path == path }
+            var state = x[index].state
+            if (state is DownloadState.Started) {
+                if (ret.isEmpty()) {
+                    state = DownloadState.Completed
+                } else {
+                    state = DownloadState.Stopped(ret)
+                }
+            }
+            x[index] = x[index].copy(state = state)
+            it.copy(
+                downloadList = x
+            )
+        }
+        if (ret.isNotEmpty()) {
+            postProcess(Result.failure(Exception(ret)))
+//                return@async Result.failure(Exception(ret))
+        } else {
+            postProcess(Result.success(Unit))
+//                Result.failure(Exception(ret))
+        }
+//            Result.success(Unit)
+    }
 
     fun updateDownload(path: String, progress: Float, bytePerSecond: Float) {
         _uiState.update {
@@ -305,17 +320,26 @@ class MainViewModel(
     }
 
     fun startGuest(guest: Guest) {
-        startDownload(
-            guest.repo,
-            remoteCache + "/guest/${guest.name}",
-            "",
-            isRepo = true,
-            postProcess = {
-                it.onSuccess {
-                    remoteService.startGuest(guest.name)
-                }
-            }
-        )
+        scope.launch {
+            startDownloadWaitSuccess(
+                guest.repo,
+                remoteCache + "/guest/${guest.name}",
+                "",
+                isRepo = true,
+            )
+            remoteService.startGuest(guest.name)
+        }
+    }
+
+    fun isGithubUrl(url: String): Boolean {
+        return url.startsWith("https://github.com") || url.startsWith("https://raw.githubusercontent.com") || url.startsWith(
+            "https://gist.github.com"
+        ) || url.startsWith("https://gist.githubusercontent.com")
+    }
+
+    fun restartApp() {
+        localService.restartApp()
+//        TODO("Not yet implemented")
     }
 }
 
@@ -324,29 +348,117 @@ class MainViewModel(
 fun HomeUI(navController: NavController, viewModel: MainViewModel) {
     val state = viewModel.uiState.collectAsStateWithLifecycle()
     Scaffold(topBar = {
-        TopAppBar(title = { Text("Home") }, actions = {
-            IconButton(onClick = {
-                navController.navigate(Screen.Download)
-            }) {
-                Icon(Icons.Default.Download, "download")
-            }
-        })
+        TopAppBar(
+            title = {
+                if (state.value.afterBootstrap) {
+                    Text("Home")
+                }
+            },
+
+//            actions = {
+//            IconButton(onClick = {
+//                navController.navigate(Screen.Download)
+//            }) {
+//                Icon(Icons.Default.Download, "download")
+//            }
+//        }
+        )
     }
 
     ) { padding ->
 
-        LazyColumn(modifier = Modifier.padding(padding)) {
-            items(state.value.guestList, key = { it.name }) {
-                SectionRow({
-                    viewModel.startGuest(it)
-//                    navController.navigate(Screen.Guest(name = it.name))
-                }) {
-                    SectionContent(it.name, it.desc, it.icon)
+        AnimatedContent(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize(),
+            targetState = state.value.afterBootstrap
+        ) {
+            if (it) {
+                LazyColumn {
+                    items(state.value.guestList, key = { it.name }) {
+                        SectionRow({
+                            viewModel.startGuest(it)
+                            navController.navigate(Screen.Guest(name = it.name))
+                        }) {
+                            SectionContent(it.name, it.desc, it.icon)
+                        }
+                    }
                 }
+            } else {
+                CenterDownloadUI(navController, viewModel, remoteCache + "/libhost.so")
             }
         }
     }
 
+}
+
+@Composable
+fun CenterDownloadUI(
+    navController: NavController,
+    viewModel: MainViewModel,
+    path: String,
+) {
+    val state = viewModel.uiState.collectAsStateWithLifecycle()
+    val downloadOrNull by remember {
+        derivedStateOf {
+            state.value.downloadList.firstOrNull { it.path == path }
+        }
+    }
+    val download = downloadOrNull ?: return
+    val showProxy by remember {
+        derivedStateOf {
+            viewModel.isGithubUrl(download.url)
+        }
+    }
+
+
+//    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+//            Text("bootstrap...")
+//            Spacer(Modifier.height(16.dp))
+        download.state.let {
+            if (it is DownloadState.Stopped) {
+                Text(it.message, color = MaterialTheme.colorScheme.error)
+                IconButton(onClick = {
+                    viewModel.startDownload(
+                        download.url,
+                        download.path,
+                        download.sha256sum,
+                        download.isRepo,
+                        download.postProcess
+                    )
+                }) {
+                    Icon(Icons.Default.RestartAlt, "restart")
+                }
+                return@let
+            }
+
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.5f), progress = {
+                when (it) {
+                    DownloadState.Completed -> 1f
+                    is DownloadState.Started -> it.progress
+                    is DownloadState.Stopped -> 0f
+                }
+            })
+        }
+
+//            Spacer(Modifier.height(16.dp))
+
+        if (showProxy) {
+            TextButton(onClick = {
+                navController.navigate(Screen.Proxy)
+            }) {
+                Text("speed up")
+            }
+
+        }
+    }
+//    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -356,7 +468,8 @@ fun DownloadUI(
     viewModel: MainViewModel,
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle()
-    SimpleScaffold(navController,
+    SimpleScaffold(
+        navController,
         title = "Download",
         hideBackButton = !state.value.afterBootstrap,
         scrollable = false,
@@ -366,7 +479,8 @@ fun DownloadUI(
             }) {
                 Icon(Icons.Default.NetworkCheck, "proxy")
             }
-        }) {
+        })
+    {
         LazyColumn() {
             items(state.value.downloadList, key = { it.path }) {
                 SectionRow {
@@ -375,11 +489,7 @@ fun DownloadUI(
                     IconButton(onClick = {
                         if (it.state is DownloadState.Stopped) {
                             viewModel.startDownload(
-                                it.url,
-                                it.path,
-                                it.sha256sum,
-                                it.isRepo,
-                                it.postProcess
+                                it.url, it.path, it.sha256sum, it.isRepo, it.postProcess
                             )
                         } else if (it.state is DownloadState.Started) {
                             viewModel.stopDownload(it.path)
@@ -399,9 +509,12 @@ fun DownloadUI(
 
 @Composable
 fun GuestUI(navController: NavController, viewModel: MainViewModel, guest: Screen.Guest) {
-    SimpleScaffold(navController, guest.name) {
+    SimpleScaffold(
+        navController, guest.name,
+        content = {
 
-    }
+        },
+    )
 }
 
 @Composable
@@ -510,43 +623,57 @@ fun ProxyUI(navController: NavController, viewModel: MainViewModel) {
         y.whereisdoge.work
         zipchannel.top:4000
     """.trimIndent().split("\n")
+    var proxyChanged by remember {
+        mutableStateOf(false)
+    }
+    SimpleScaffold(
+        navController, "Proxy for github", scrollable = false
+    ) {
 
-    SimpleScaffold(navController, "Proxy for github", scrollable = false) {
-//        Text(
-//            modifier = Modifier.padding(horizontal = 32.dp)
-//        )
         Section(buildAnnotatedString {
-            append("If download fail, try set a proxy. Input your own, or choose a public host")
+            append("If download slow or fail, try set a proxy")
         }) {
             SectionTextField(state.value.githubMirror, placeholder = "no proxy", onValueChange = {
+                proxyChanged = true
                 viewModel.updateGithubMirror(it)
             })
         }
+
         val title = buildAnnotatedString {
             append("public on ")
             withLink(
                 LinkAnnotation.Url(
                     "https://github.com/hunshcn/gh-proxy/issues",
-                    TextLinkStyles(SpanStyle(color = Color.Blue))
+                    TextLinkStyles(SpanStyle(color = MaterialTheme.colorScheme.primary))
                 )
             ) {
                 append("hunshcn/gh-proxy")
             }
         }
-        Section(
-            title,
-        ) {
+        Section(title,modifier=Modifier.weight(1f)) {
 
-            LazyColumn {
-
+            LazyColumn() {
                 itemsIndexed(proxyList, key = { index: Int, _: String -> index }) { index, proxy ->
                     SectionRow(onClick = {
+                        proxyChanged = true
                         viewModel.updateGithubMirror(proxy)
                     }) {
-                        Text(proxy, modifier = Modifier.clickable {
-                            viewModel.updateGithubMirror(proxy)
-                        })
+                        Text(proxy)
                     }
+                }
+            }
+        }
+
+        AnimatedVisibility(proxyChanged) {
+
+
+            Row(modifier=Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.Center){
+                Button(onClick = {
+                    viewModel.restartApp()
+                }) {
+//                    Icon(Icons.Default.RestartAlt, "restart")
+
+                    Text("restart app to apply change")
                 }
             }
         }
@@ -563,21 +690,21 @@ fun MainUI(
     val navController = rememberNavController()
     SimpleNavHost(navController, Screen.Home) {
         composable<Screen.Home> {
-            AnimatedContent(state.value.afterBootstrap) {
-                if (it) {
-                    HomeUI(navController, viewModel)
-                } else {
-                    DownloadUI(navController, viewModel)
-                }
-            }
+//            AnimatedContent(state.value.afterBootstrap) {
+//                if (it) {
+            HomeUI(navController, viewModel)
+//                } else {
+//                    DownloadUI(navController, viewModel)
+//                }
+//            }
         }
         composable<Screen.Guest> {
             val guest = it.toRoute<Screen.Guest>()
             GuestUI(navController, viewModel, guest)
         }
-        composable<Screen.Download> {
-            DownloadUI(navController, viewModel)
-        }
+//        composable<Screen.Download> {
+//            DownloadUI(navController, viewModel)
+//        }
         composable<Screen.Proxy> {
             ProxyUI(navController, viewModel)
         }

@@ -23,11 +23,14 @@ fun CrontabScreen(
 ) {
     val detail = viewModel.detail.value.crontab
     val updateDetail = viewModel::updateDetail
-    SimpleScaffold(navController, "定时") {
-        CrontabContent(navController, viewModel.id, detail) { new ->
-            updateDetail { it.copy(crontab = new) }
-        }
-    }
+    SimpleScaffold(
+        navController, "定时",
+        content = {
+            CrontabContent(navController, viewModel.id, detail) { new ->
+                updateDetail { it.copy(crontab = new) }
+            }
+        },
+    )
 
 }
 

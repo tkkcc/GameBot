@@ -30,18 +30,21 @@ fun FirstDayLimitScreen(
             it.copy(dayLimit = dayLimit)
         }
     }
-    SimpleScaffold(navController, LocalStrings.current.FirstDay) {
-        Section {
-            SectionSwitch(title = LocalStrings.current.LimitFirstDay, checked = limit) {
-                update(detail.copy(limitFirstDay = it))
+    SimpleScaffold(
+        navController, LocalStrings.current.FirstDay,
+        content = {
+            Section {
+                SectionSwitch(title = LocalStrings.current.LimitFirstDay, checked = limit) {
+                    update(detail.copy(limitFirstDay = it))
+                }
             }
-        }
-        Enable(limit) {
-            FirstDayLimitContent(detail.firstDay) {
-                update(detail.copy(firstDay = it))
+            Enable(limit) {
+                FirstDayLimitContent(detail.firstDay) {
+                    update(detail.copy(firstDay = it))
+                }
             }
-        }
-    }
+        },
+    )
 }
 
 

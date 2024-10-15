@@ -349,9 +349,10 @@ class MainActivity : ComponentActivity() {
                     }
                     Thread.sleep(1000)
                 }
-                remoteService.setLocalRunBinder(localService.asBinder())
-                (localService as LocalService).remoteService = remoteService
+                remoteService.setLocalServiceBinder(localService.asBinder())
+                (localService as LocalService).setRemoteService(remoteService)
                 remoteService.start()
+                localService.start()
 
 //                previousRemoteService = remoteService
 //

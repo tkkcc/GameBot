@@ -113,35 +113,38 @@ fun ScheduleScreen(
     val id = viewModel.id
 
     val S = LocalStrings.current
-    SimpleScaffold(navController, S.Schedule) {
-        Section(title = S.ScheduleExecution) {
-            SectionNavigation(title = S.Timing, body = detail.crontab.toUIString()) {
-                navController.navigate("${Screen.Crontab}/${id}")
-            }
-            SectionNavigation(
-                title = S.DayOfWeekLimit,
-                body = detail.dayOfWeekWhitelist.toUIString()
-            ) {
-                navController.navigate("${Screen.DayOfWeek}/${id}")
-            }
-            SectionNavigation(title = S.DayLimit, body = detail.dayLimit.toUIString()) {
-                navController.navigate("${Screen.DayLimit}/${id}")
-            }
-        }
-        Section {
-            SectionSlider(
-                title = S.Priority,
-                info = "任务在执行过程中，可被更高优先级任务抢占",
-                value = detail.priority.toFloat(),
-                range = 0f..100f
-            ) { new ->
-                viewModel.updateDetail {
-//                    Log.d("TAG","new priority $new")
-                    it.copy(priority = new.roundToInt())
+    SimpleScaffold(
+        navController, S.Schedule,
+        content = {
+            Section(title = S.ScheduleExecution) {
+                SectionNavigation(title = S.Timing, body = detail.crontab.toUIString()) {
+                    navController.navigate("${Screen.Crontab}/${id}")
+                }
+                SectionNavigation(
+                    title = S.DayOfWeekLimit,
+                    body = detail.dayOfWeekWhitelist.toUIString()
+                ) {
+                    navController.navigate("${Screen.DayOfWeek}/${id}")
+                }
+                SectionNavigation(title = S.DayLimit, body = detail.dayLimit.toUIString()) {
+                    navController.navigate("${Screen.DayLimit}/${id}")
                 }
             }
-        }
+            Section {
+                SectionSlider(
+                    title = S.Priority,
+                    info = "任务在执行过程中，可被更高优先级任务抢占",
+                    value = detail.priority.toFloat(),
+                    range = 0f..100f
+                ) { new ->
+                    viewModel.updateDetail {
+        //                    Log.d("TAG","new priority $new")
+                        it.copy(priority = new.roundToInt())
+                    }
+                }
+            }
 
-    }
+        },
+    )
 }
 

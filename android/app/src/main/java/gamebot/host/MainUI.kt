@@ -4,18 +4,23 @@ package gamebot.host
 //import gamebot.host.presentation.main.MainViewModel
 import RemoteService.Companion.remoteCache
 import android.os.Build
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
@@ -28,9 +33,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.SearchBarDefaults.InputField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldColors
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -83,7 +96,8 @@ data class MainState(
     val afterBootstrap: Boolean = false,
     val githubMirror: String = "",
     val guestList: List<Guest> = emptyList(),
-    @Transient val downloadList: List<Download> = emptyList()
+    @Transient val downloadList: List<Download> = emptyList(),
+    @Transient val filter: String = ""
 )
 
 @Serializable
@@ -103,9 +117,18 @@ data class Guest(
     val desc: String = "",
     val tag: List<String> = emptyList(),
     val icon: String = "",
-    @Transient
-    val state: GuestState = GuestState.BeforeUpdate,
-)
+    @Transient val state: GuestState = GuestState.BeforeUpdate,
+) {
+    fun match(filter: String): Boolean {
+        if (filter.isEmpty()) {
+            return true
+        }
+        if (name.contains(filter) || desc.contains(filter) || tag.any { it.contains(filter) }) {
+            return true
+        }
+        return false
+    }
+}
 
 sealed class GuestState {
     data object BeforeUpdate : GuestState()
@@ -133,8 +156,7 @@ data class Download(
 
 @OptIn(ExperimentalSerializationApi::class)
 class MainViewModel(
-    val remoteService: IRemoteService,
-    val localService: LocalService
+    val remoteService: IRemoteService, val localService: LocalService
 //    val startDownloadJob: (String, String, String, Boolean) -> String,
 //    val stopDownloadJob: (String) -> Unit
 ) : ViewModel() {
@@ -221,9 +243,7 @@ class MainViewModel(
         if (autoStartExist) {
             guestList.add(
                 0, Guest(
-                    name = "autostart",
-                    repo = "",
-                    desc = remoteCache + "/guest/autostart"
+                    name = "autostart", repo = "", desc = remoteCache + "/guest/autostart"
                 )
             )
         }
@@ -398,38 +418,71 @@ class MainViewModel(
         localService.restartApp()
 //        TODO("Not yet implemented")
     }
+
+    fun updateFilter(filter: String) {
+        _uiState.update {
+            it.copy(filter = filter)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeUI(navController: NavController, viewModel: MainViewModel) {
     val state = viewModel.uiState.collectAsStateWithLifecycle()
-    Scaffold(topBar = {
-        TopAppBar(
-            title = {
-                if (state.value.afterBootstrap) {
-                    Text("Home")
-                }
-            }
-        )
-    }
 
+    val guestList by remember {
+        derivedStateOf {
+            val filter = state.value.filter
+            state.value.guestList.filter {
+                it.match(filter)
+            }
+        }
+    }
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+
+            TopAppBar(title={
+                if (state.value.afterBootstrap) {
+                    SectionTextField(
+                        value = state.value.filter,
+                        placeholder = "search",
+                        shape = RoundedCornerShape(50),
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(end = 16.dp)
+                    ) {
+                        viewModel.updateFilter(it)
+                    }
+                }
+            })
+        }
     ) { padding ->
 
-        AnimatedContent(
+        Column(
             modifier = Modifier
-                .padding(padding)
-                .fillMaxSize(),
-            targetState = state.value.afterBootstrap
+                .fillMaxSize().padding(padding),
         ) {
-            if (it) {
-                LazyColumn {
-                    items(state.value.guestList, key = { it.name }) {
-                        SectionRow({
-                            viewModel.startGuest(it)
-                            navController.navigate(Screen.Guest(name = it.name))
-                        }) {
-                            SectionContent(it.name, it.desc, it.icon)
+            if (state.value.afterBootstrap) {
+                Column(modifier = Modifier.fillMaxSize()) {
+
+
+
+                    Section {
+
+                        LazyColumn {
+
+
+                            items(guestList, key = { it.name }) {
+
+
+                                SectionRow({
+                                    viewModel.startGuest(it)
+                                    navController.navigate(Screen.Guest(name = it.name))
+                                }) {
+                                    SectionContent(it.name, it.desc)
+                                }
+                            }
                         }
                     }
                 }
@@ -503,8 +556,7 @@ fun DownloadUI(
     viewModel: MainViewModel,
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle()
-    SimpleScaffold(
-        navController,
+    SimpleScaffold(navController,
         title = "Download",
         hideBackButton = !state.value.afterBootstrap,
         scrollable = false,
@@ -514,8 +566,7 @@ fun DownloadUI(
             }) {
                 Icon(Icons.Default.NetworkCheck, "proxy")
             }
-        })
-    {
+        }) {
         LazyColumn() {
             items(state.value.downloadList, key = { it.path }) {
                 SectionRow {
@@ -542,6 +593,8 @@ fun DownloadUI(
     }
 }
 
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GuestUI(navController: NavController, viewModel: MainViewModel, name: String) {
@@ -554,26 +607,22 @@ fun GuestUI(navController: NavController, viewModel: MainViewModel, name: String
     val guest = guestOrNull ?: return
 
     Scaffold(topBar = {
-        TopAppBar(
-            title = {
-                Text(guest.name, maxLines = 1)
-            },
-            navigationIcon = {
-                IconButton(onClick = {
-                    navController.popBackStack()
-                }) {
-                    Icon(Icons.AutoMirrored.Default.ArrowBack, "back")
-                }
+        TopAppBar(title = {
+            Text(guest.name, maxLines = 1)
+        }, navigationIcon = {
+            IconButton(onClick = {
+                navController.popBackStack()
+            }) {
+                Icon(Icons.AutoMirrored.Default.ArrowBack, "back")
             }
-        )
+        })
     }) { padding ->
-        AnimatedContent(
+        Column(
             modifier = Modifier
                 .padding(padding)
-                .fillMaxSize(),
-            targetState = guest.state
+                .fillMaxSize()
         ) {
-            when (it) {
+            when (guest.state) {
                 GuestState.BeforeUpdate -> {
                     CenterDownloadUI(navController, viewModel, remoteCache + "/guest/${guest.name}")
                 }
@@ -586,7 +635,7 @@ fun GuestUI(navController: NavController, viewModel: MainViewModel, name: String
 
                 is GuestState.Stopped -> {
                     CenterColumn {
-                        Text(it.message, color = MaterialTheme.colorScheme.error)
+                        Text(guest.state.message, color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -771,6 +820,60 @@ fun ProxyUI(navController: NavController, viewModel: MainViewModel) {
     }
 }
 
+@Composable
+fun Test(navController: NavController,viewModel: MainViewModel) {
+    val state = viewModel.uiState.collectAsStateWithLifecycle()
+    val guestList by remember {
+        derivedStateOf {
+            val filter = state.value.filter
+            state.value.guestList.filter {
+                it.match(filter)
+            }
+        }
+    }
+    SimpleScaffold(navController, "Test") {
+        Column(
+            modifier = Modifier
+//                .fillMaxSize().padding(padding),
+        ) {
+            if (state.value.afterBootstrap) {
+                Column(modifier = Modifier.fillMaxSize()) {
+
+                    SectionTextField(
+                        value = state.value.filter,
+                        placeholder = "search",
+                        shape = RoundedCornerShape(50),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    ) {
+                        viewModel.updateFilter(it)
+                    }
+
+                    Section {
+
+                        LazyColumn {
+
+
+                            items(guestList, key = { it.name }) {
+
+
+                                SectionRow({
+                                    viewModel.startGuest(it)
+                                    navController.navigate(Screen.Guest(name = it.name))
+                                }) {
+                                    SectionContent(it.name, it.desc)
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                CenterDownloadUI(navController, viewModel, remoteCache + "/libhost.so")
+            }
+        }
+
+    }
+}
+
 
 @Composable
 fun MainUI(
@@ -778,16 +881,12 @@ fun MainUI(
 ) {
     val state = viewModel.uiState.collectAsStateWithLifecycle()
     val navController = rememberNavController()
-//    LaunchedEffect(true) {
-//        if (File(remoteCache+"/guest/autostart").exists()) {
-//            navController.navigate(Screen.Guest("autostart"))
-//        }
-//    }
     SimpleNavHost(navController, Screen.Home) {
         composable<Screen.Home> {
 //            AnimatedContent(state.value.afterBootstrap) {
 //                if (it) {
             HomeUI(navController, viewModel)
+//            Test(navController,viewModel)
 //                } else {
 //                    DownloadUI(navController, viewModel)
 //                }
@@ -797,6 +896,7 @@ fun MainUI(
             val guest = it.toRoute<Screen.Guest>()
             GuestUI(navController, viewModel, guest.name)
         }
+
 //        composable<Screen.Download> {
 //            DownloadUI(navController, viewModel)
 //        }

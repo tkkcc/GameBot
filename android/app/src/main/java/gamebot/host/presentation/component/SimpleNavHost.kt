@@ -8,7 +8,9 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -27,7 +29,8 @@ fun SimpleNavHost(
     val pushDurationMillis = 250
     val popDurationMillis = 250
 
-    NavHost(navController = navController, startDestination = startDestination, enterTransition = {
+    NavHost(modifier=Modifier.fillMaxSize(),
+        navController = navController, startDestination = startDestination, enterTransition = {
         EnterTransition.None
 
         fadeIn(

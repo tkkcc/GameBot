@@ -5,8 +5,8 @@ import androidx.compose.runtime.Composable
 @Composable
 fun SectionNavigation(
     title: String,
-    info: String? = null,
-    body: String? = null,
+    info: String = "",
+    body: String = "",
     onClick: () -> Unit,
 ) {
     NoRippleSectionRow(onClick) {

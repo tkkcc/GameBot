@@ -6,24 +6,19 @@ import RemoteService.Companion.remoteCache
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Stop
@@ -33,19 +28,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.SearchBarDefaults.InputField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldColors
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
@@ -82,6 +68,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -96,6 +83,7 @@ data class MainState(
     val afterBootstrap: Boolean = false,
     val githubMirror: String = "",
     val guestList: List<Guest> = emptyList(),
+//    val localGuestList: List<Guest> = emptyList(),
     @Transient val downloadList: List<Download> = emptyList(),
     @Transient val filter: String = ""
 )
@@ -117,6 +105,7 @@ data class Guest(
     val desc: String = "",
     val tag: List<String> = emptyList(),
     val icon: String = "",
+//    val local: Boolean = false,
     @Transient val state: GuestState = GuestState.BeforeUpdate,
 ) {
     fun match(filter: String): Boolean {
@@ -128,6 +117,14 @@ data class Guest(
         }
         return false
     }
+
+    fun title(): String =
+        if (name.startsWith("_")) {
+            name.drop(1)
+        } else {
+            name
+        }
+
 }
 
 sealed class GuestState {
@@ -162,8 +159,8 @@ class MainViewModel(
 ) : ViewModel() {
     val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
-    private val _uiState = MutableStateFlow(MainState())
-    val uiState = _uiState.asStateFlow()
+    private val _state = MutableStateFlow(MainState())
+    val state = _state.asStateFlow()
     private val stateFile = File(localCache + "/state.json")
 
     init {
@@ -171,7 +168,7 @@ class MainViewModel(
 //        if (stateFile.exists()) {
         try {
             val state: MainState = Json.decodeFromStream(stateFile.inputStream())
-            _uiState.update { state }
+            _state.update { state }
         } catch (e: Throwable) {
             d("fail to load ui state", e)
         }
@@ -190,7 +187,7 @@ class MainViewModel(
 
     suspend fun bootstrap() {
         // bootstrap: download libhost.so
-        if (_uiState.value.afterBootstrap) {
+        if (_state.value.afterBootstrap) {
             pullMarket()
             return
         }
@@ -213,8 +210,7 @@ class MainViewModel(
             throw Exception("unsupported abi $abi")
         }
         startDownloadWaitSuccess(url, path, sha256sum, isRepo = false)
-
-        _uiState.update {
+        _state.update {
             it.copy(afterBootstrap = true)
         }
         saveState()
@@ -236,34 +232,54 @@ class MainViewModel(
             return
         }
 
-        // check if local autostart exist
-        val guestList = market.guest.toMutableList()
-        val autoStartExist = remoteService.autoStartExist()
-        d("autoStartExist", autoStartExist)
-        if (autoStartExist) {
-            guestList.add(
-                0, Guest(
-                    name = "autostart", repo = "", desc = remoteCache + "/guest/autostart"
-                )
-            )
-        }
+//        // check if local autostart exist
+//        val guestList = market.guest.toMutableList()
+//        val autoStartExist = remoteService.autoStartExist()
+//        d("autoStartExist", autoStartExist)
+//        if (autoStartExist) {
+//            guestList.add(
+//                0, Guest(
+//                    name = "autostart", repo = "", desc = remoteCache + "/guest/autostart"
+//                )
+//            )
+//        }
 
-        _uiState.update {
-            it.copy(guestList = guestList)
+        // update local guest list with remote, preserving local order
+        val remoteList = market.guest.associateBy { it.name }
+        val prevList = _state.value.guestList.associateBy { it.name }
+        val curList = buildList {
+            // update local item, it not in remote, delete
+            for ((name, guest) in prevList) {
+                if (name.startsWith("_")) {
+                    add(guest)
+                } else {
+                    remoteList[name]?.let {
+                        add(it)
+                    }
+                }
+            }
+            // new item in remoteList
+            for ((name, guest) in remoteList) {
+                if (name !in prevList) {
+                    add(guest)
+                }
+            }
+        }
+        _state.update {
+            it.copy(guestList = curList)
         }
         saveState()
 
-        // autostart
-        if (autoStartExist) {
-            startGuest(Guest(name = "autostart", repo = ""))
-        }
+//         autostart
+//        if (autoStartExist) {
+//            startGuest(Guest(name = "autostart", repo = "", local=true))
+//        }
     }
 
-
     suspend fun saveState() {
-        scope.launch {
+        withContext(Dispatchers.IO) {
             try {
-                Json.encodeToStream(_uiState.value, stateFile.outputStream())
+                Json.encodeToStream(_state.value, stateFile.outputStream())
             } catch (e: Exception) {
                 d("fail to save ui state", e)
             }
@@ -274,7 +290,7 @@ class MainViewModel(
     fun mirroredGithubUrl(url: String): String {
 //        d("mirroredUrl before: $url")
         var mirroredUrl = url
-        val mirror = _uiState.value.githubMirror
+        val mirror = _state.value.githubMirror
         if (mirror.isNotEmpty() && (isGithubUrl(url))) {
             mirroredUrl = "http://$mirror/$url"
         }
@@ -300,7 +316,7 @@ class MainViewModel(
         isRepo: Boolean,
         postProcess: (Result<Unit>) -> Unit
     ) = scope.launch {
-        _uiState.update {
+        _state.update {
             val x = it.downloadList.toMutableList()
             val download = Download(
                 url, path, sha256sum, isRepo, state = DownloadState.Started(0f, 0f), postProcess
@@ -319,7 +335,7 @@ class MainViewModel(
 
         val ret = remoteService.startDownload(mirroredGithubUrl(url), path, sha256sum, isRepo)
 
-        _uiState.update {
+        _state.update {
             val x = it.downloadList.toMutableList()
             val index = x.indexOfFirst { it.path == path }
             var state = x[index].state
@@ -346,7 +362,7 @@ class MainViewModel(
     }
 
     fun updateDownload(path: String, progress: Float, bytePerSecond: Float) {
-        _uiState.update {
+        _state.update {
             val x = it.downloadList.toMutableList()
             val index = x.indexOfFirst { it.path == path }
             x[index] = x[index].copy(
@@ -364,7 +380,7 @@ class MainViewModel(
     }
 
     fun updateGithubMirror(mirror: String) {
-        _uiState.update {
+        _state.update {
             it.copy(githubMirror = mirror)
         }
         scope.launch {
@@ -385,7 +401,7 @@ class MainViewModel(
             }
 
             // set state to started
-            _uiState.update {
+            _state.update {
                 val x = it.guestList.toMutableList()
                 val index = x.indexOfFirst { it.name == guest.name }
                 x[index] = x[index].copy(state = GuestState.Started)
@@ -397,7 +413,7 @@ class MainViewModel(
             val ret = remoteService.startGuest(guest.name)
 
             // set state to stopped
-            _uiState.update {
+            _state.update {
                 val x = it.guestList.toMutableList()
                 val index = x.indexOfFirst { it.name == guest.name }
                 x[index] = x[index].copy(state = GuestState.Stopped(ret))
@@ -420,8 +436,33 @@ class MainViewModel(
     }
 
     fun updateFilter(filter: String) {
-        _uiState.update {
+        _state.update {
             it.copy(filter = filter)
+        }
+    }
+
+    fun addLocalGuest(guest: Guest) {
+        if (guest.name.isEmpty()) {
+            return
+        }
+        val guest = guest.copy(name = "_" + guest.name)
+
+        _state.update {
+            val index = it.guestList.indexOfFirst {
+                it.name == guest.name
+            }
+
+            it.copy(guestList = it.guestList.toMutableList().apply {
+                if (index != -1) {
+                    removeAt(index)
+                }
+                add(0, guest)
+            })
+
+
+        }
+        scope.launch {
+            saveState()
         }
     }
 }
@@ -429,8 +470,11 @@ class MainViewModel(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeUI(navController: NavController, viewModel: MainViewModel) {
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
-
+    val state = viewModel.state.collectAsStateWithLifecycle()
+    if (!state.value.afterBootstrap) {
+        CenterDownloadUI(navController, viewModel, remoteCache + "/libhost.so")
+        return
+    }
     val guestList by remember {
         derivedStateOf {
             val filter = state.value.filter
@@ -439,55 +483,59 @@ fun HomeUI(navController: NavController, viewModel: MainViewModel) {
             }
         }
     }
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
+    Scaffold(modifier = Modifier.fillMaxSize(), topBar = {
 
-            TopAppBar(title={
-                if (state.value.afterBootstrap) {
-                    SectionTextField(
-                        value = state.value.filter,
-                        placeholder = "search",
-                        shape = RoundedCornerShape(50),
-                        textStyle = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(end = 16.dp)
-                    ) {
-                        viewModel.updateFilter(it)
-                    }
+        TopAppBar(
+            title = {
+                SectionTextField(
+                    value = state.value.filter,
+                    placeholder = "search",
+                    shape = RoundedCornerShape(50),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(end = 16.dp)
+                ) {
+                    viewModel.updateFilter(it)
                 }
-            })
-        }
-    ) { padding ->
+
+            },
+//            actions = {
+//            IconButton(onClick = {
+//                navController.navigate(Screen.AddGuest(state.value.filter))
+//            }) {
+//                Icon(Icons.Default.Add, "add")
+//            }
+//        }
+        )
+    }) { padding ->
 
         Column(
             modifier = Modifier
-                .fillMaxSize().padding(padding),
+                .fillMaxSize()
+                .padding(padding),
         ) {
-            if (state.value.afterBootstrap) {
-                Column(modifier = Modifier.fillMaxSize()) {
-
-
-
-                    Section {
-
-                        LazyColumn {
-
-
-                            items(guestList, key = { it.name }) {
-
-
-                                SectionRow({
-                                    viewModel.startGuest(it)
-                                    navController.navigate(Screen.Guest(name = it.name))
-                                }) {
-                                    SectionContent(it.name, it.desc)
-                                }
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (guestList.isEmpty() && state.value.filter.isNotEmpty()) {
+                    CenterRow(modifier = Modifier.padding(top = 16.dp)) {
+                        Button(onClick = {
+                            navController.navigate(Screen.AddGuest(state.value.filter))
+                        }) {
+                            Text("add")
+                        }
+                    }
+                }
+                Section {
+                    LazyColumn {
+                        items(guestList, key = { it.name }) {
+                            SectionRow({
+                                viewModel.startGuest(it)
+                                navController.navigate(Screen.Guest(name = it.name))
+                            }) {
+                                SectionContent(it.title(), it.desc)
                             }
                         }
                     }
                 }
-            } else {
-                CenterDownloadUI(navController, viewModel, remoteCache + "/libhost.so")
+
             }
         }
     }
@@ -500,7 +548,7 @@ fun CenterDownloadUI(
     viewModel: MainViewModel,
     path: String,
 ) {
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
+    val state = viewModel.state.collectAsStateWithLifecycle()
     val downloadOrNull by remember {
         derivedStateOf {
             state.value.downloadList.firstOrNull { it.path == path }
@@ -555,7 +603,7 @@ fun DownloadUI(
     navController: NavController,
     viewModel: MainViewModel,
 ) {
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
+    val state = viewModel.state.collectAsStateWithLifecycle()
     SimpleScaffold(navController,
         title = "Download",
         hideBackButton = !state.value.afterBootstrap,
@@ -594,11 +642,10 @@ fun DownloadUI(
 }
 
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GuestUI(navController: NavController, viewModel: MainViewModel, name: String) {
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
+    val state = viewModel.state.collectAsStateWithLifecycle()
     val guestOrNull by remember {
         derivedStateOf {
             state.value.guestList.firstOrNull { it.name == name }
@@ -608,7 +655,7 @@ fun GuestUI(navController: NavController, viewModel: MainViewModel, name: String
 
     Scaffold(topBar = {
         TopAppBar(title = {
-            Text(guest.name, maxLines = 1)
+            Text(guest.title(), maxLines = 1)
         }, navigationIcon = {
             IconButton(onClick = {
                 navController.popBackStack()
@@ -654,13 +701,22 @@ fun CenterColumn(modifier: Modifier = Modifier, content: @Composable ColumnScope
         verticalArrangement = Arrangement.Center,
         content = content
     )
+}
 
-
+@Composable
+fun CenterRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.Center,
+        content = content
+    )
 }
 
 @Composable
 fun ProxyUI(navController: NavController, viewModel: MainViewModel) {
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
+    val state = viewModel.state.collectAsStateWithLifecycle()
 
     // from https://github.com/hunshcn/gh-proxy/issues/116#issuecomment-2410678798
     val proxyList = """
@@ -779,6 +835,17 @@ fun ProxyUI(navController: NavController, viewModel: MainViewModel) {
             })
         }
 
+        AnimatedVisibility(proxyChanged) {
+            CenterRow {
+                Button(onClick = {
+                    viewModel.restartApp()
+                }) {
+                    Text("restart app to apply change")
+                }
+            }
+        }
+
+
         val title = buildAnnotatedString {
             append("public on ")
             withLink(
@@ -803,74 +870,49 @@ fun ProxyUI(navController: NavController, viewModel: MainViewModel) {
             }
         }
 
-        AnimatedVisibility(proxyChanged) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Button(onClick = {
-                    viewModel.restartApp()
-                }) {
-                    Text("restart app to apply change")
-                }
-            }
-        }
+
     }
 }
 
 @Composable
-fun Test(navController: NavController,viewModel: MainViewModel) {
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
-    val guestList by remember {
-        derivedStateOf {
-            val filter = state.value.filter
-            state.value.guestList.filter {
-                it.match(filter)
-            }
-        }
+fun AddGuestUI(navController: NavController, viewModel: MainViewModel, name: String) {
+    val state = viewModel.state.collectAsStateWithLifecycle()
+
+    var name by remember {
+        mutableStateOf(name)
     }
-    SimpleScaffold(navController, "Test") {
-        Column(
-            modifier = Modifier
-//                .fillMaxSize().padding(padding),
-        ) {
-            if (state.value.afterBootstrap) {
-                Column(modifier = Modifier.fillMaxSize()) {
+    var repo by remember {
+        mutableStateOf("")
+    }
+    SimpleScaffold(
+        navController, "Add", scrollable = false
+    ) {
+        Section("name") {
+            SectionTextField(name, placeholder = "name", onValueChange = {
+                name = it
+            })
+        }
+        Section("repository") {
+            SectionTextField(
+                repo,
+                placeholder = "https://github.com/user/repo.git",
+                onValueChange = {
+                    repo = it
+                })
+        }
+        CenterRow {
 
-                    SectionTextField(
-                        value = state.value.filter,
-                        placeholder = "search",
-                        shape = RoundedCornerShape(50),
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    ) {
-                        viewModel.updateFilter(it)
-                    }
-
-                    Section {
-
-                        LazyColumn {
-
-
-                            items(guestList, key = { it.name }) {
-
-
-                                SectionRow({
-                                    viewModel.startGuest(it)
-                                    navController.navigate(Screen.Guest(name = it.name))
-                                }) {
-                                    SectionContent(it.name, it.desc)
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                CenterDownloadUI(navController, viewModel, remoteCache + "/libhost.so")
+            Button(onClick = {
+                viewModel.addLocalGuest(
+                    Guest(
+                        name = name, repo = repo,
+                    )
+                )
+                navController.navigateUp()
+            }, enabled = name.isNotEmpty()) {
+                Text("confirm")
             }
         }
-
     }
 }
 
@@ -879,29 +921,22 @@ fun Test(navController: NavController,viewModel: MainViewModel) {
 fun MainUI(
     viewModel: MainViewModel
 ) {
-    val state = viewModel.uiState.collectAsStateWithLifecycle()
+    val state = viewModel.state.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     SimpleNavHost(navController, Screen.Home) {
         composable<Screen.Home> {
-//            AnimatedContent(state.value.afterBootstrap) {
-//                if (it) {
             HomeUI(navController, viewModel)
-//            Test(navController,viewModel)
-//                } else {
-//                    DownloadUI(navController, viewModel)
-//                }
-//            }
         }
         composable<Screen.Guest> {
             val guest = it.toRoute<Screen.Guest>()
             GuestUI(navController, viewModel, guest.name)
         }
-
-//        composable<Screen.Download> {
-//            DownloadUI(navController, viewModel)
-//        }
         composable<Screen.Proxy> {
             ProxyUI(navController, viewModel)
+        }
+        composable<Screen.AddGuest> {
+            val guest = it.toRoute<Screen.AddGuest>()
+            AddGuestUI(navController, viewModel, guest.name)
         }
     }
 }
@@ -921,6 +956,9 @@ sealed class Screen {
 
     @Serializable
     data object Proxy : Screen()
+
+    @Serializable
+    data class AddGuest(val name: String) : Screen()
 }
 
 

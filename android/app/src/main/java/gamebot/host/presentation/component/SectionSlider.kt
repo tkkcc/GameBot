@@ -14,8 +14,8 @@ import kotlin.math.roundToInt
 
 @Composable
 fun SectionSlider(
-    title: String? = null,
-    info: String? = null,
+    title: String = "",
+    info: String = "",
     value: Float = 0f,
     range: ClosedFloatingPointRange<Float>,
     onChange: (Float) -> Unit

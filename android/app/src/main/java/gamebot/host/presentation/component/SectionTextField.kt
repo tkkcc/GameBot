@@ -76,21 +76,21 @@ fun SectionTextField(
         shape = shape,
         textStyle = textStyle,
         modifier = modifier
-            .fillMaxWidth()
-            .onPreviewKeyEvent {
-//                if (it.key == Key.Enter){
-//                    return@onPreviewKeyEvent false
+            .fillMaxWidth(),
+//            .onPreviewKeyEvent {
+////                if (it.key == Key.Enter){
+////                    return@onPreviewKeyEvent false
+////                }
+//                // use tab and enter to navigate
+//                if (it.key == Key.Tab && it.type == KeyEventType.KeyDown) {
+//                    val direction =
+//                        if (it.isShiftPressed) FocusDirection.Up else FocusDirection.Down
+//                    focus.moveFocus(direction)
+//                    true
+//                } else {
+//                    false
 //                }
-                // use tab and enter to navigate
-                if (it.key == Key.Tab && it.type == KeyEventType.KeyDown) {
-                    val direction =
-                        if (it.isShiftPressed) FocusDirection.Up else FocusDirection.Down
-                    focus.moveFocus(direction)
-                    true
-                } else {
-                    false
-                }
-            },
+//            },
         singleLine = singleLine,
         value = value,
         placeholder = {

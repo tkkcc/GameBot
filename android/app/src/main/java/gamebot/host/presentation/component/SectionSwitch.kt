@@ -7,9 +7,9 @@ import androidx.compose.ui.draw.scale
 
 @Composable
 fun SectionSwitch(
-    title: String? = null,
-    info: String? = null,
-    body: String? = null,
+    title: String = "",
+    info: String = "",
+    body: String = "",
     checked: Boolean = false,
     onChange: (Boolean) -> Unit,
 ) {

@@ -311,6 +311,7 @@ fun SectionTitle(text: String?, modifier: Modifier = Modifier) {
         )
     }
 }
+
 @Composable
 fun SectionTitle(text: AnnotatedString, modifier: Modifier = Modifier) {
     text?.let {
@@ -325,9 +326,9 @@ fun SectionTitle(text: AnnotatedString, modifier: Modifier = Modifier) {
 
 @Composable
 fun RowScope.SectionContent(
-    title: String? = null,
-    info: String? = null,
-    body: String? = null,
+    title: String = "",
+    info: String = "",
+    body: String = "",
 ) {
     Column(modifier = Modifier.weight(1f)) {
         ContentTitle(title)
@@ -337,34 +338,39 @@ fun RowScope.SectionContent(
 }
 
 @Composable
-fun ContentTitle(text: String?, modifier: Modifier = Modifier) {
-    text?.let {
-        Text(text, style = MaterialTheme.typography.titleMedium, modifier = modifier)
+fun ContentTitle(text: String, modifier: Modifier = Modifier) {
+    if (text.isEmpty()) {
+        return
     }
+    Text(text, style = MaterialTheme.typography.titleMedium, modifier = modifier)
 }
 
 @Composable
-fun ContentInfo(text: String?, modifier: Modifier = Modifier) {
-    text?.let {
-        Text(
-            text, style = MaterialTheme.typography.bodyMedium,
-            color = LocalContentColor.current.copy(alpha = 0.6f),
-            modifier = modifier
-        )
+fun ContentInfo(text: String, modifier: Modifier = Modifier) {
+//    text.let {
+    if (text.isEmpty()) {
+        return
     }
+    Text(
+        text, style = MaterialTheme.typography.bodyMedium,
+        color = LocalContentColor.current.copy(alpha = 0.6f),
+        modifier = modifier
+    )
+//    }
 }
 
 
 @Composable
-fun ContentBody(text: String?, modifier: Modifier = Modifier) {
-    text?.let {
+fun ContentBody(text: String, modifier: Modifier = Modifier) {
+    if  (text.isEmpty()) {
+        return
+    }
         Text(
             text,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = modifier
         )
-    }
 }
 
 @Composable

@@ -24,8 +24,8 @@ import gamebot.host.presentation.ToUIString.toUIString
 
 @Composable
 fun <T> SectionSelect(
-    title: String? = null,
-    info: String? = null,
+    title: String = "",
+    info: String = "",
     body: T,
     selection: List<T>,
     onChange: (T) -> Unit,

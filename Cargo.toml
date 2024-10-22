@@ -6,7 +6,7 @@ members = [
   "ncnn",
   "ncnn-sys",
   "ort",
-  "ort-sys",
+  "ort-sys", "gallery",
 ]
 resolver = "2"
 

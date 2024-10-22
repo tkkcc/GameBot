@@ -24,12 +24,11 @@ import android.util.Log
 import android.view.KeyEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class Host(val remoteService: RemoteService, val localService: ILocalService, val token: Int) {
+class Host(val remoteService: RemoteService, val localService: ILocalService, val name: String) {
 
     lateinit var scope: CoroutineScope
 
@@ -39,12 +38,12 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
 
     fun updateConfigUI(layout: ByteArray) {
         sendLargeData(layout).use { pfd ->
-            localService.updateConfigUI(token, pfd)
+            localService.updateConfigUI(name, pfd)
         }
     }
 
     fun waitConfigUIEvent(): ByteArray {
-        return localService.waitConfigUIEvent(token).use { pfd ->
+        return localService.waitConfigUIEvent(name).use { pfd ->
             ParcelFileDescriptor.AutoCloseInputStream(pfd).readBytes()
         }
     }
@@ -55,11 +54,11 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
     }
 
     fun stopConfigUI() {
-        localService.clearConfigUI(token)
+        localService.clearConfigUI(name)
     }
 
     fun sendEmptyConfigUIEvent() {
-        localService.sendEmptyConfigUIEvent(token)
+        localService.sendEmptyConfigUIEvent(name)
     }
 
     fun takeNodeshot(): Nodeshot = remoteService.takeNodeshot()
@@ -82,7 +81,7 @@ class Host(val remoteService: RemoteService, val localService: ILocalService, va
     fun onStop() {
         Log.e("gamebot", "onStop")
         scope.cancel()
-        localService.clearConfigUI(token)
+        localService.clearConfigUI(name)
     }
 
     fun click(x: Float, y: Float) {

@@ -2,6 +2,7 @@ package gamebot.host
 
 //import gamebot.host.presentation.main.MainState
 //import gamebot.host.presentation.main.MainViewModel
+import LocalUIEvent
 import RemoteService.Companion.remoteCache
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
@@ -33,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -147,7 +149,8 @@ data class Download(
     val sha256sum: String,
     val isRepo: Boolean,
     val state: DownloadState,
-    val postProcess: (Result<Unit>) -> Unit
+    val postProcess: (Result<Unit>) -> Unit,
+    val callerGuest: String = ""
 )
 
 
@@ -179,11 +182,6 @@ class MainViewModel(
         }
     }
 
-//    fun checkAutoStart() {
-//        if (File(remoteCache +"/guest/autostart").exists()) {
-//
-//        }
-//    }
 
     suspend fun bootstrap() {
         // bootstrap: download libhost.so
@@ -465,6 +463,23 @@ class MainViewModel(
             saveState()
         }
     }
+
+    fun stopGuest(name: String) {
+        scope.launch{
+             remoteService.stopGuest(name)
+        }
+    }
+
+    @Composable
+    fun GuestUI(name: String) {
+        localService.configUIList.get(name)?.let {
+            CompositionLocalProvider(LocalUIEvent provides { id, value ->
+                it.event.value.trySend(UIEvent.Callback(id, value))
+            }) {
+                it.layout.value.Render()
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -531,6 +546,13 @@ fun HomeUI(navController: NavController, viewModel: MainViewModel) {
                                 navController.navigate(Screen.Guest(name = it.name))
                             }) {
                                 SectionContent(it.title(), it.desc)
+                                if(it.state is GuestState.Started) {
+                                    IconButton(onClick = {
+                                        viewModel.stopGuest(it.name)
+                                    }) {
+                                        Icon(Icons.Default.Stop,"stop")
+                                    }
+                                }
                             }
                         }
                     }
@@ -675,9 +697,12 @@ fun GuestUI(navController: NavController, viewModel: MainViewModel, name: String
                 }
 
                 GuestState.Started -> {
-                    CenterColumn {
-                        Text("started")
-                    }
+                    // TODO: check downloadList of this guest
+//                    CenterColumn {
+//                        Text("started")
+//                    }
+
+                    viewModel.GuestUI(guest.name)
                 }
 
                 is GuestState.Stopped -> {

@@ -201,6 +201,7 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("com.github.only52607:compose-floating-window:1.0")
     implementation("io.github.torrydo:floating-bubble-view:0.6.5")
+
 //    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 //    implementation("com.microsoft.onnxruntime:onnxruntime-android:latest.release")
 //    implementation("org.eclipse.jgit:org.eclipse.jgit.lfs:4.3.0.201604071810-r")
@@ -219,5 +220,7 @@ dependencies {
 //    implementation("com.github.khushpanchal:Ketch:2.0.2") // Use latest available version
 //    implementation("com.github.amitshekhariitbhu:PRDownloader:1.0.1")
 //    implementation("com.akuleshov7:ktoml-core:0.5.1")
+
+    implementation("io.github.jonanorman.android.webviewup:core:0.1.0")
 
 }

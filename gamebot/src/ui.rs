@@ -1,5 +1,7 @@
 use std::{
     any::Any,
+    collections::HashMap,
+    default,
     sync::mpsc::{Receiver, Sender},
     thread::JoinHandle,
 };
@@ -321,4 +323,70 @@ impl<State: Serialize> UI<State> {
             }
         }
     }
+}
+
+#[derive(Serialize, Default, Clone)]
+#[serde(tag = "type")]
+enum NavHostEvent<Key: Default> {
+    Push {
+        id: i32,
+        destination: Key,
+    },
+    Pop {
+        id: i32,
+    },
+    #[default]
+    None,
+}
+
+#[derive(Serialize)]
+pub struct NavHost<Key: Serialize + Default, State> {
+    children: HashMap<Key, Element<State>>,
+
+    #[serde(flatten)]
+    controller: NavController<Key>,
+}
+
+#[typetag::serialize]
+impl<Key: Serialize + Default, State: Serialize> View<State> for NavHost<Key, State> {
+    fn children_mut(&mut self) -> Vec<&mut Element<State>> {
+        self.children.values_mut().collect()
+    }
+}
+
+#[derive(Serialize, Default, Clone)]
+pub struct NavController<Key: Serialize + Default> {
+    pub start: Key,
+    #[serde(rename = "oneTimeEvent")]
+    pub one_time_event: NavHostEvent<Key>,
+    #[serde(skip)]
+    pub id: i32,
+}
+impl<Key: Serialize + Default> NavController<Key> {
+    pub fn push(&mut self, destination: Key) {
+        self.id += 1;
+        self.one_time_event = NavHostEvent::Push {
+            id: self.id,
+            destination,
+        }
+    }
+    pub fn pop(&mut self) {
+        self.id += 1;
+        self.one_time_event = NavHostEvent::Pop { id: self.id }
+    }
+}
+
+pub fn nav_host<Key: Default, State>(
+    children: HashMap<Key, Element<State>>,
+    controller: NavController<Key>,
+) -> Element<State>
+where
+    Key: 'static + Serialize,
+    State: 'static + Serialize,
+{
+    NavHost {
+        children,
+        controller,
+    }
+    .into_element()
 }

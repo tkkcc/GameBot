@@ -155,7 +155,7 @@ class RemoteService(val context: Context) : IRemoteService.Stub() {
 //                    break
 //                }
 //            }
-            Host(this, localService, hostMap.size)
+            Host(this, localService, name)
         })
     }
 

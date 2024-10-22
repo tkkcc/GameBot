@@ -10,10 +10,10 @@ interface ILocalService {
      */
     void toast(String text);
     void start();
-    void updateConfigUI(int token, in ParcelFileDescriptor pfd);
-    ParcelFileDescriptor waitConfigUIEvent(int token) ;
-    void clearConfigUI(int token);
-    void sendEmptyConfigUIEvent(int token);
+    void updateConfigUI(in String name, in ParcelFileDescriptor pfd);
+    ParcelFileDescriptor waitConfigUIEvent(in String name) ;
+    void clearConfigUI(in String name);
+    void sendEmptyConfigUIEvent(in String name);
     String cacheDir();
     void updateDownload(in String path, in float progress, in float bytePerSecond);
 

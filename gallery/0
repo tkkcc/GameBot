@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+
+set -e
+
+name=gallery
+
+# ndk abi to rust target
+abi2target() {
+  local abi=$1
+  case $abi in
+  x86)
+    target=i686-linux-android
+    ;;
+  x86_64)
+    target=x86_64-linux-android
+    ;;
+  arm64-v8a)
+    target=aarch64-linux-android
+    ;;
+  armeabi-v7a)
+    target=armv7-linux-androideabi
+    ;;
+  esac
+  echo $target
+}
+
+# ndk abi to rust target
+current_target() {
+  abi=$(adb shell getprop ro.product.cpu.abi)
+  abi2target $abi
+}
+
+run() {
+  local target=$(current_target)
+  local profile=${1:-dev}
+
+  export RUSTFLAGS="-Clink-args=-Wl,-rpath,\$ORIGIN:/data/local/tmp/gamebot/lib"
+  cargo ndk -t $target --bindgen build --profile $profile
+
+  if [[ $profile == dev ]]; then
+    profile=debug
+  fi
+
+  local lib=../target/$target/$profile/lib$name.so
+  du -sh $lib
+
+  adb push $lib /data/local/tmp/gamebot/guest/_autostart/libguest.so
+
+  # restart app
+  adb shell am force-stop gamebot.host
+  adb shell am start -n gamebot.host/.MainActivity
+}
+
+release_init() {
+  git clone git@github.com:tkkcc/gamebot_"$name"_release.git release
+}
+
+release() {
+  local profile=release
+  for abi in x86 x86_64 armeabi-v7a arm64-v8a; do
+    # for abi in armeabi-v7a arm64-v8a ; do
+    export RUSTFLAGS="-Clink-args=-Wl,-rpath,\$ORIGIN:/data/local/tmp/gamebot/lib"
+    cargo ndk -t $abi --bindgen build --profile $profile
+
+    local target=$(abi2target $abi)
+    local lib=../target/$target/$profile/lib$name.so
+    du -sh $lib
+
+    git -C release checkout -B $abi -f
+
+    # git -C release checkout -B tmp
+    # git -C release branch -D $abi
+    # git -C release checkout --orphan $abi -f
+    cp $lib release/libguest.so
+    cd release
+    git add libguest.so
+    if [[ -n $(git status -s) ]]; then
+      git commit -m "$(date)"
+      git push origin $abi -u --force-with-lease
+    fi
+    cd ..
+    break
+  done
+}
+
+dev() {
+  cargo watch -w . -w ../gamebot -s "$0 run $@"
+}
+
+"$@"

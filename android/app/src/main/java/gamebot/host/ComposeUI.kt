@@ -8,6 +8,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -16,11 +17,31 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.kevinnzou.web.rememberWebViewState
+import gamebot.host.d
+import gamebot.host.presentation.component.SimpleNavHost
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+
+@Serializable
+sealed class NavHostEvent() {
+    @Serializable
+    @SerialName("Push")
+    data class Push(val id: Int, val destination: String) : NavHostEvent()
+
+    @Serializable
+    @SerialName("Pop")
+    data class Pop(val id: Int) : NavHostEvent()
+
+    @Serializable
+    @SerialName("None")
+    data object None : NavHostEvent()
+}
 
 @Serializable
 sealed interface Component {
@@ -115,6 +136,54 @@ sealed interface Component {
         }
     }
 
+    @Serializable
+    @SerialName("WebView")
+    data class WebView(val url: String) : Component {
+        @Composable
+        override fun Render() {
+
+            com.kevinnzou.web.WebView(rememberWebViewState(url))
+        }
+    }
+
+    @Serializable
+    @SerialName("NavHost")
+    data class NavHost(
+        val children: HashMap<String, Component>,
+        val start: String,
+        val oneTimeEvent: NavHostEvent
+    ) : Component {
+        @Composable
+        override fun Render() {
+            val navController = rememberNavController()
+
+            LaunchedEffect(oneTimeEvent) {
+                when (oneTimeEvent) {
+                    is NavHostEvent.Push -> {
+                        navController.navigate(oneTimeEvent.destination)
+                    }
+                    is NavHostEvent.Pop -> {
+                        navController.popBackStack()
+                    }
+                    is NavHostEvent.None -> {
+
+                    }
+                }
+            }
+//            d(children)
+//            d(start)
+            SimpleNavHost(navController, startDestination = "Main") {
+//                composable("Main") {
+//                    Text("main")
+//                }
+                children.forEach { k, v ->
+                    composable(k) {
+                        v.Render()
+                    }
+                }
+            }
+        }
+    }
 }
 
 
@@ -147,19 +216,19 @@ fun initConfigUI(
 }
 
 @Serializable
-sealed class UIEvent{
+sealed class UIEvent {
 
     @Serializable
     @SerialName("Empty")
-    data object Empty: UIEvent()
+    data object Empty : UIEvent()
 
     @Serializable
     @SerialName("Exit")
-    data object Exit: UIEvent()
+    data object Exit : UIEvent()
 
     @Serializable
     @SerialName("Callback")
-    data class Callback(val id: Int, val value: CallbackValue): UIEvent()
+    data class Callback(val id: Int, val value: CallbackValue) : UIEvent()
 }
 
 //@Serializable

@@ -99,7 +99,7 @@ class LocalService(
 //    val configUI: MutableState<Component> = mutableStateOf(Component.Column())
 //    var configUIEvent = mutableStateOf(Channel<UIEvent>())
 
-    val configUIList = mutableMapOf<Int, ConfigUI>()
+    val configUIList = mutableMapOf<String, ConfigUI>()
 
     override fun toast(text: String) {
         context.runOnUiThread {
@@ -374,11 +374,32 @@ class LocalService(
 
 
     @OptIn(ExperimentalSerializationApi::class)
-    override fun updateConfigUI(token: Int, pfd: ParcelFileDescriptor) {
+    override fun updateConfigUI(name: String, pfd: ParcelFileDescriptor) {
         val stream = ParcelFileDescriptor.AutoCloseInputStream(pfd)
-        val component: Component = Json.decodeFromStream(stream)
 
-        configUIList.getOrPut(token, {
+//        d(stream.readBytes().decodeToString())
+//        val x = Json.encodeToString(Component.NavHost(
+//            children = hashMapOf(
+//                "a" to Component.Text("a")
+//            ),
+//            start = "a",
+//            oneTimeEvent = NavHostEvent.None
+//        ))
+//        d(x)
+//
+//        throw NotImplementedError()
+
+        val component:Component = try {
+             Json.decodeFromStream(stream)
+        } catch (e: Throwable) {
+            // TODO: how to deal with ui fail: just throw
+            d("updateConfigUI fail", e)
+
+            throw e
+//            return
+        }
+
+        configUIList.getOrPut(name, {
             ConfigUI()
         }).apply {
             layout.value = component
@@ -386,17 +407,17 @@ class LocalService(
         }
     }
 
-    override fun sendEmptyConfigUIEvent(token: Int) {
-        configUIList[token]?.apply {
+    override fun sendEmptyConfigUIEvent(name: String) {
+        configUIList[name]?.apply {
             event.value.trySend(UIEvent.Empty)
         }
     }
 
 
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalSerializationApi::class)
-    override fun waitConfigUIEvent(token: Int): ParcelFileDescriptor {
+    override fun waitConfigUIEvent(name: String): ParcelFileDescriptor {
 
-        val event = configUIList[token]?.let {
+        val event = configUIList[name]?.let {
             val channel = it.event.value
             buildList<UIEvent> {
                 try {
@@ -420,12 +441,12 @@ class LocalService(
         return sendLargeData(stream.toByteArray())
     }
 
-    override fun clearConfigUI(token: Int) {
-        configUIList[token]?.apply {
+    override fun clearConfigUI(name: String) {
+        configUIList[name]?.apply {
             event.value.close()
             layout.value = Component.Empty()
         }
-        configUIList.remove(token)
+        configUIList.remove(name)
     }
 
     val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager

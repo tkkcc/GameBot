@@ -1,5 +1,8 @@
+import android.content.Context
 import android.os.SystemClock
-import gamebot.host.d
+import com.norman.webviewup.lib.WebViewUpgrade
+import com.norman.webviewup.lib.source.UpgradeFileSource
+import com.norman.webviewup.lib.util.VersionUtils
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.cache.HttpCache
@@ -16,10 +19,10 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
+import kotlinx.io.IOException
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.ResponseBody
-import okio.IOException
 import java.io.File
 import java.io.FileInputStream
 import java.security.DigestInputStream
@@ -177,4 +180,32 @@ suspend fun fetchWithCache(url: String, cacheDir: String): ByteArray {
         throw Exception("HTTP ${response.status.value}")
     }
     return response.bodyAsBytes()
+}
+
+
+
+var upgradeWebViewSuccess = false
+
+@Synchronized
+fun upgradeWebView(context: Context, path: String) {
+    if (upgradeWebViewSuccess) {
+        return
+    }
+    val version = WebViewUpgrade.getSystemWebViewPackageVersion()
+    if (VersionUtils.compareVersion(version, "119") >= 0) {
+        upgradeWebViewSuccess = true
+        return
+    }
+
+    WebViewUpgrade.upgrade(
+        UpgradeFileSource(
+            context, File(path)
+        )
+    )
+
+    if (WebViewUpgrade.isFailed()) {
+        val err = WebViewUpgrade.getUpgradeError()
+        throw err
+    }
+    upgradeWebViewSuccess = true
 }

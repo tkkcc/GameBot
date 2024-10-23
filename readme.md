@@ -1,10 +1,10 @@
 # gamebot
 
-gamebot is in early stage
+**gamebot is in early stage**
 
-gamebot is a framework for automating android app and game with rust
+Gamebot is a framework for automating android app and game with rust. Usually it's done in scripting language like lua/javascript/python using closed source framework. And it's not easy to use custom image processing algorithms or custom neural network. Gamebot tries to provide another option for android automation with more possibilities.
 
-quick glance
+## quick glance
 
 ```rust
 use gamebot::{api::img, find::Find};

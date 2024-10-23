@@ -105,6 +105,16 @@ impl Region {
             && x.bottom() <= self.bottom()
     }
 }
+impl From<(u32, u32, u32, u32)> for Region {
+    fn from(value: (u32, u32, u32, u32)) -> Self {
+        Region {
+            left: value.0,
+            top: value.1,
+            width: value.2,
+            height: value.3,
+        }
+    }
+}
 
 // #[derive(Deserialize, Default, Debug, Clone)]
 // pub struct Rect {
@@ -131,6 +141,15 @@ pub struct ImageIn {
     pub img: RgbaImage,
     pub region: Region,
     pub tolerance: Tolerance,
+}
+impl ImageIn {
+    pub fn within(&self, region: impl Into<Region>) -> ImageIn {
+        ImageIn {
+            img: self.img.clone(),
+            region: region.into(),
+            tolerance: self.tolerance.clone(),
+        }
+    }
 }
 
 impl From<DiskImageIn> for ImageIn {

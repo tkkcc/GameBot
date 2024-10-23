@@ -1,3 +1,5 @@
+mod find_image;
+
 use std::collections::HashMap;
 
 use gamebot::{

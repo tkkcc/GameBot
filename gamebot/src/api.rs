@@ -6,6 +6,7 @@ mod store;
 
 use std::{
     ops::Range,
+    path::PathBuf,
     time::{Duration, Instant},
 };
 
@@ -14,6 +15,7 @@ use store::Store;
 
 use crate::{
     activity::{ActivityInfo, AppProcessInfo, PackageInfo},
+    color::{ColorPointGroup, DiskImageIn, ImageIn, Region},
     d,
     node::{ANode, Nodeshot},
     screenshot::Screenshot,
@@ -398,4 +400,32 @@ pub fn stop_package(package: &str) {
     let _ = std::process::Command::new("am")
         .args(["force-stop", package])
         .spawn();
+}
+
+pub fn screen_width() -> usize {
+    0
+}
+pub fn screen_height() -> usize {
+    0
+}
+
+pub fn fullscreen_region() -> Region {
+    Region {
+        left: 0,
+        top: 0,
+        width: screen_width() as _,
+        height: screen_height() as _,
+    }
+}
+pub fn img(path: impl ToString) -> ImageIn {
+    return DiskImageIn {
+        img: PathBuf::from(path.to_string()),
+        region: fullscreen_region(),
+        tolerance: crate::color::Tolerance::MAE(0.0),
+    }
+    .into();
+}
+
+pub fn cpg(color: &str) -> ColorPointGroup {
+    ColorPointGroup::try_from(color).unwrap()
 }

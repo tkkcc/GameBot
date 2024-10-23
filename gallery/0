@@ -2,7 +2,8 @@
 
 set -e
 
-name=gallery
+name=$(dirname "$0")
+name=$(basename "$name")
 
 # ndk abi to rust target
 abi2target() {

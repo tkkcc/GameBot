@@ -388,6 +388,9 @@ class MainViewModel(
 
     fun startGuest(guest: Guest) {
         scope.launch {
+            if (guest.state is GuestState.Started) {
+                return@launch
+            }
             // update on first start
             if (guest.state is GuestState.BeforeUpdate && guest.repo.isNotEmpty()) {
                 startDownloadWaitSuccess(

@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use gamebot::{d, ui::{button, col, nav_host, text, Element, NavController, Text, UIContext, UI}};
+use gamebot::{
+    d,
+    ui::{button, col, nav_host, text, web_view, Element, NavController, Text, UIContext, UI},
+};
 use serde::Serialize;
 
 #[derive(Serialize, Default, PartialEq, Eq, Hash, Clone)]
@@ -28,7 +31,7 @@ fn view(state: &mut State, ctx: UIContext<State>) -> Element<State> {
             }),
         ]),
     );
-    graph.insert(Screen::Second, text("second view"));
+    graph.insert(Screen::Second, web_view("https://baidu.com"));
     nav_host(graph, state.nav_controller.clone())
 }
 

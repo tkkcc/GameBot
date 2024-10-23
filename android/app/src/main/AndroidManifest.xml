@@ -31,6 +31,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GameBot"
         android:usesCleartextTraffic="true"
+        android:hardwareAccelerated="true"
         tools:targetApi="34">
 
         <service android:name=".overlay.OverlayService" />

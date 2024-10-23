@@ -2,6 +2,7 @@ use std::{
     any::Any,
     collections::HashMap,
     default,
+    marker::PhantomData,
     sync::mpsc::{Receiver, Sender},
     thread::JoinHandle,
 };
@@ -327,7 +328,7 @@ impl<State: Serialize> UI<State> {
 
 #[derive(Serialize, Default, Clone)]
 #[serde(tag = "type")]
-enum NavHostEvent<Key: Default> {
+pub enum NavHostEvent<Key: Default> {
     Push {
         id: i32,
         destination: Key,
@@ -387,6 +388,24 @@ where
     NavHost {
         children,
         controller,
+    }
+    .into_element()
+}
+
+#[derive(Serialize)]
+struct WebView<State> {
+    url: String,
+    #[serde(skip)]
+    ty: PhantomData<State>,
+}
+
+#[typetag::serialize]
+impl<State: Serialize> View<State> for WebView<State> {}
+
+pub fn web_view<State: 'static + Serialize>(url: impl ToString) -> Element<State> {
+    WebView {
+        url: url.to_string(),
+        ty: PhantomData,
     }
     .into_element()
 }

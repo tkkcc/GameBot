@@ -1,9 +1,17 @@
 //package gamebot.host
 
+import android.view.ViewGroup
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.AbsoluteLayout
+import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -17,16 +25,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.kevinnzou.web.rememberWebViewState
 import gamebot.host.d
 import gamebot.host.presentation.component.SimpleNavHost
+import io.ktor.websocket.Frame
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+private class MyWebViewClient : WebViewClient() {
+
+    override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+        return false
+    }
+}
 
 @Serializable
 sealed class NavHostEvent() {
@@ -141,17 +158,59 @@ sealed interface Component {
     data class WebView(val url: String) : Component {
         @Composable
         override fun Render() {
+//            var backEnabled by remember { mutableStateOf(false) }
 
-            com.kevinnzou.web.WebView(rememberWebViewState(url))
+//            BackHandler(true) {
+//                webView?.goBack()
+//            }
+
+//            val url2 = "https://wap.gamersky.com"
+
+//            AndroidView(factory = { context ->
+//                android.webkit.WebView(context).apply {
+//                    layoutParams = ViewGroup.LayoutParams(
+//                        ViewGroup.LayoutParams.MATCH_PARENT,
+//                        ViewGroup.LayoutParams.MATCH_PARENT
+//                    )
+//                    layoutParams = FrameLayout.LayoutParams(
+//                        ViewGroup.LayoutParams.MATCH_PARENT,
+//                        ViewGroup.LayoutParams.MATCH_PARENT
+//                    )
+//
+//                    loadUrl(url2)
+//                    settings.javaScriptEnabled = true // Enable JavaScript if needed
+////                    settings.loadWithOverviewMode = true
+////                    settings.useWideViewPort = true
+////                    settings.layoutAlgorithm = android.webkit.WebSettings.LayoutAlgorithm.TEXT_AUTOSIZING
+//                    settings.setSupportZoom(false)
+////                    settings.minimumFontSize=1
+//                    isVerticalScrollBarEnabled = false
+//                    isHorizontalScrollBarEnabled = false
+////                    setInitialScale(30)
+////                    isScrollbarFadingEnabled=true
+////                    webViewClient = MyWebViewClient()
+//                }
+//            }, modifier = Modifier.fillMaxSize())
+
+            com.kevinnzou.web.WebView(
+                rememberWebViewState(url), onCreated = {
+                    it.apply {
+                        settings.javaScriptEnabled=true
+                        settings.setSupportZoom(false)
+                        isVerticalScrollBarEnabled = false
+                        isHorizontalScrollBarEnabled = false
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 
     @Serializable
     @SerialName("NavHost")
     data class NavHost(
-        val children: HashMap<String, Component>,
-        val start: String,
-        val oneTimeEvent: NavHostEvent
+
+        val children: HashMap<String, Component>, val start: String, val oneTimeEvent: NavHostEvent
     ) : Component {
         @Composable
         override fun Render() {
@@ -162,9 +221,11 @@ sealed interface Component {
                     is NavHostEvent.Push -> {
                         navController.navigate(oneTimeEvent.destination)
                     }
+
                     is NavHostEvent.Pop -> {
                         navController.popBackStack()
                     }
+
                     is NavHostEvent.None -> {
 
                     }
